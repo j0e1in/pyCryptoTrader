@@ -27,7 +27,7 @@ async def fetch_ohlcv_handler(exchange, symbol, start_str, end_str, timeframe='1
     while start_timestamp < end_timestamp:
 
         try:
-            logger.info(f'Fetching {timeframe} candles starting from {exchange.iso8601(start_timestamp)}')
+            logger.info(f'Fetching {symbol}_{timeframe} candles starting from {exchange.iso8601(start_timestamp)}')
             ohlcvs = await exchange.fetch_ohlcv(symbol, timeframe=timeframe, since=start_timestamp, params=params)
             start_timestamp = ohlcvs[-1][0]
             del ohlcvs[-1]
@@ -62,8 +62,3 @@ async def find_missing_candles(coll, start_str, end_str, timeframe):
 
     return missing_candles
 
-
-async def remove_dup_candles(coll, timeframe):
-    remove_count = 0
-    ## TODO ##
-    return remove_count
