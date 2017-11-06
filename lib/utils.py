@@ -71,7 +71,7 @@ def timeframe_timedelta(timeframe):
         period = int(timeframe.split('h')[0])
         return timedelta(hours=period)
     elif 'm' == timeframe[-1]:
-        period = int(timeframe.split('D')[0])
+        period = int(timeframe.split('m')[0])
         return timedelta(minutes=period)
     else:
         raise ValueError(f'Invalid timeframe \'{timeframe}\'')
