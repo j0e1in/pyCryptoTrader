@@ -6,13 +6,13 @@ import time
 
 def setup():
     import sys
-    sys.path.append('../src')
+    sys.path.append('../lib')
 
     chromalog.basicConfig(level=logging.DEBUG,
                           format='%(asctime)s | `%(funcName)s` | %(filename)s | %(levelname)s : %(message)s')
 
 
-def run_test(func, *args, **kwargs):
+def run(func, *args, **kwargs):
 
     loop = asyncio.get_event_loop()
 
