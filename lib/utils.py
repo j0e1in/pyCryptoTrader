@@ -1,15 +1,16 @@
 from pprint import pprint
 from datetime import datetime, timezone, timedelta
+import ccxt.async as ccxt
 import json
 
-
-def pp(*args):
-    pprint(' '.join([str(arg) for arg in args]))
 
 
 def get_constants():
     with open('../settings/config.json') as f:
         return json.load(f)['constants']
+
+
+consts = get_constants()
 
 
 def get_keys():
@@ -30,8 +31,7 @@ def ms_dt(ms):
 
 
 def dt_ms(year, month, day, hour=0, min=0, sec=0):
-    """ Covert datetime to milliscond.
-    """
+    """ Covert datetime to milliscond. """
     return int(datetime(year, month, day, hour, min, sec).timestamp()*1000)
 
 
@@ -75,3 +75,13 @@ def timeframe_timedelta(timeframe):
         return timedelta(minutes=period)
     else:
         raise ValueError(f'Invalid timeframe \'{timeframe}\'')
+
+
+def init_exchange(exchange_id):
+    options = combine({
+        'rateLimit': consts['rate_limit'],
+        'enableRateLimit': True
+    }, get_keys()[exchange_id])
+
+    exchange = getattr(ccxt, exchange_id)(options)
+    return exchange
