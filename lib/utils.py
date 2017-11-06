@@ -58,3 +58,20 @@ def to_local_timestamp(timestamp):
     """ Convert local timestamp to utc. """
     tdelta = datetime.now().timestamp() - datetime.utcnow().timestamp()
     return timestamp + sec_ms(tdelta.timestamp())
+
+
+def timeframe_timedelta(timeframe):
+    if 'M' == timeframe[-1]:
+        period = int(timeframe.split('M')[0])
+        return timedelta(months=period)
+    elif 'D' == timeframe[-1]:
+        period = int(timeframe.split('D')[0])
+        return timedelta(days=period)
+    elif 'h' == timeframe[-1]:
+        period = int(timeframe.split('h')[0])
+        return timedelta(hours=period)
+    elif 'm' == timeframe[-1]:
+        period = int(timeframe.split('m')[0])
+        return timedelta(minutes=period)
+    else:
+        raise ValueError(f'Invalid timeframe \'{timeframe}\'')
