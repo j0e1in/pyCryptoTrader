@@ -1,17 +1,11 @@
 from setup import run, setup
 setup()
 
-from pprint import pprint as pp
-import ccxt.async as ccxt
-import asyncio
 import motor.motor_asyncio as motor
-from asyncio import ensure_future
 from datetime import datetime
 
-from utils import combine, get_keys, get_constants, datetime_str, ms_sec
+from utils import get_constants, datetime_str, ms_sec
 from hist_data import find_missing_candles
-
-consts = get_constants()
 
 
 async def main():
