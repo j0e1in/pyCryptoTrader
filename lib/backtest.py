@@ -105,10 +105,10 @@ class Backtest():
         cost = price * amount * (1 + self.settings['fee'])
 
         if price == 0:
-            logger.info(f"Open order failed: cannot get price from {timestamp}")
+            logger.info(f"Open  order failed: cannot get price from {timestamp}")
             return False, -1  # return an invalid order_id
         elif cost > self.account['qoute_balance']:
-            logger.info(f"Open order failed: no enough balance,"
+            logger.info(f"Open  order failed: no enough balance,"
                         f"[cost] {cost}, [balance] {self.account['qoute_balance']}")
             return False, -1  # return an invalid order_id
 
@@ -129,11 +129,10 @@ class Backtest():
         self.account['open_orders'][order_id] = order
         self.report['trades'].append(order)
 
-        logger.info(f"Open {order['order_type']} order succeed: "
+        logger.info(f"Open  {order['order_type']:5} order succeed: "
                     f"[time] {datetime.utcfromtimestamp(ms_sec(timestamp))}, "
-                    f"[price] {price}, [amount] {amount}")
+                    f"[price] {price:.3f}, [amount] {amount:.3f}")
 
-        log(f"qoute_balance: {self.account['qoute_balance']}")
         return True, order_id
 
     def close_order(self, order_id, timestamp):
@@ -168,11 +167,10 @@ class Backtest():
         self.update_max_profit(order)
         self.update_max_loss(order)
 
-        logger.info(f"Close {order['order_type']} order succeed: "
+        logger.info(f"Close {order['order_type']:5} order succeed: "
                     f"[time] {datetime.utcfromtimestamp(ms_sec(timestamp))}, "
-                    f"[price] {price}, [amount] {order['amount']}, [PL] {profit_loss}")
+                    f"[price] {price:.3f}, [amount] {order['amount']:.3f}, [PL] {profit_loss:.3f}")
 
-        log(f"qoute_balance: {self.account['qoute_balance']}")
         return True
 
     def close_all_orders(self, timestamp):
