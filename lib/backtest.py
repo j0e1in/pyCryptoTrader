@@ -1,8 +1,12 @@
 from ccxt.base.exchange import Exchange
+from datetime import timedelta, datetime
+import logging
 
-from utils import combine
+from utils import combine, sec_ms, ms_sec
 
 INF = 999999999
+logger = logging.getLogger()
+log = logger.debug
 
 
 class Backtest():
@@ -21,7 +25,7 @@ class Backtest():
 
             Options
                 Required:
-                    strategy: function, to give buy/sell orders
+                    strategy: function, to give long/short orders
                     exchange: str, exchange name
                     symbol: str, symbol to trade
                     fund: int, amount of initial fund
@@ -54,11 +58,15 @@ class Backtest():
 
         self.report = {
             "fund": self.options['fund'],
-            "profit": 0,
+            "profit_loss": 0,
             "profit_percent": 0,  # *100
             "trades": [],
-            "max_profit_trade": {"profit_loss": 0},
-            "max_loss_trade": {"profit_loss": 0}
+            "max_profit_trade": {
+                "profit_loss": 0
+            },
+            "max_loss_trade": {
+                "profit_loss": 0
+            }
         }
 
         # Load all required data at once
@@ -73,37 +81,50 @@ class Backtest():
             self.price_feed = _feed['ohlcv']['1m']
 
         self.options['strategy'](self)
+        self.close_all_orders(self.options['end_timestamp'])
 
-        self.report['profit'] = self.account["qoute_balance"] - self.options['fund']
-        self.report['profit_percent'] = self.report['profit'] / self.options['fund']
+        self.report['profit_loss'] = self.account["qoute_balance"] - self.options['fund']
+        self.report['profit_percent'] = self.report['profit_loss'] / self.options['fund']
         return self.report
 
     def open_order(self, order_type, timestamp, amount):
         price = self.get_price(timestamp)
-        cost = price * amount * (1+self.settings['fee'])
+        cost = price * amount * (1 + self.settings['fee'])
 
-        if price == 0 or cost > account['qoute_balance']:
+        if price == 0:
+            logger.info(f"Open order failed: cannot get price from {timestamp}")
+            return False, -1  # return an invalid order_id
+        elif cost > self.account['qoute_balance']:
+            logger.info(f"Open order failed: no enough balance,"
+                        f"[cost] {cost}, [balance] {self.account['qoute_balance']}")
             return False, -1  # return an invalid order_id
 
         order_id = self.get_order_id()
         order = {
-            order_id: {
-                "order_type": order_type,
-                "open_timestamp": timestamp,
-                "close_timestamp": None,
-                "open_price": price,
-                "close_price": 0,
-                "amount": amount,
-                "fee": price*amount*self.settings['fee'],
-            }
+            "order_id": order_id,
+            "order_type": order_type,
+            "open_timestamp": timestamp,
+            "close_timestamp": None,
+            "open_price": price,
+            "close_price": 0,
+            "amount": amount,
+            "fee": price * amount * self.settings['fee'],
+            "profit_loss": 0
         }
-        account['qoute_balance'] -= cost
-        account['open_orders'].append(order)
-        self.report['trades'] = combine(self.report['trades'], order)
+        self.account['qoute_balance'] -= cost
+        self.account['open_orders'][order_id] = order
+        self.report['trades'].append(order)
+
+        logger.info(f"Open {order['order_type']} order succeed: "
+                    f"[time] {datetime.utcfromtimestamp(ms_sec(timestamp))}, "
+                    f"[price] {price}, [amount] {amount}")
+
+        log(f"qoute_balance: {self.account['qoute_balance']}")
         return True, order_id
 
     def close_order(self, order_id, timestamp):
         if order_id not in self.account['open_orders']:
+            logger.info(f"Close order failed: no open order_id {order_id}")
             return False
 
         order = self.account['open_orders'][order_id]
@@ -111,16 +132,28 @@ class Backtest():
         price = self.get_price(timestamp)
         order['close_price'] = price
         order['close_timestamp'] = timestamp
-        profit_loss = (order['close_price']-order['open_price']) * order['amount']
+        profit_loss = (order['close_price'] - order['open_price']) * order['amount']
 
-        if order['order_type'] == "sell":
+        if order['order_type'] == "short":
             profit_loss *= -1
 
         order['profit_loss'] = profit_loss
-        self.account['qoute_balance'] += profit_loss
+        return_balance = order['amount'] * order['open_price'] + profit_loss
+        self.account['qoute_balance'] += return_balance
         self.update_max_profit(order)
         self.update_max_loss(order)
+
+        logger.info(f"Close {order['order_type']} order succeed: "
+                    f"[time] {datetime.utcfromtimestamp(ms_sec(timestamp))}, "
+                    f"[price] {price}, [amount] {order['amount']}, [PL] {profit_loss}")
+
+        log(f"qoute_balance: {self.account['qoute_balance']}")
         return True
+
+    def close_all_orders(self, timestamp):
+        _open_orders = self.account['open_orders'].copy()
+        for order_id, order in _open_orders.items():
+            self.close_order(order_id, timestamp)
 
     def get_order_id(self):
         self.order_id += 1
@@ -129,12 +162,15 @@ class Backtest():
 
     def get_price(self, timestamp):
         ms_delta = sec_ms(timedelta(minutes=1).seconds)
+        ts = timestamp
+
         while ts >= self.test_info['start_timestamp'] \
                 and ts <= self.test_info['end_timestamp']:
             if ts in self.price_feed:
                 return self.price_feed[ts]['close']  # use close price
             else:
                 ts -= ms_delta
+        log(f"Cannot get price at {datetime.utcfromtimestamp(ms_sec(timestamp))}")
         return 0  # Error: cannot find correspondent price
 
     def update_max_profit(self, order):
@@ -158,14 +194,17 @@ class Backtest():
         exchange = self.options['exchange']
         symbol = self.options['symbol']
         _symbol = ''.join(symbol.split('/'))  # remove '/'
+        start = self.options['start_timestamp']
+        end = self.options['end_timestamp']
 
         if 'ohlcv' in data_feed_options:
             data['ohlcv'] = {}
             for tf in data_feed_options['ohlcv']:
+                pair = f"{symbol}_{tf}"
                 collection = f"{exchange}_ohlcv_{_symbol}_{tf}"
                 coll = getattr(self.mongo.client.exchange, collection)
-                pair = f"{symbol}_{tf}"
-                cursor = coll.find({}, {'_id': 0}).sort('timestamp', 1)
+                cursor = coll.find({'timestamp': {'$gte': start, '$lte': end}}, {'_id': 0})\
+                             .sort('timestamp', 1)
                 data['ohlcv'][tf] = await cursor.to_list(length=INF)
 
         return data

@@ -9,15 +9,25 @@ from utils import datetime_str
 
 
 def test_strategy(backtest):
-    """ Retrieve data feed which is based on smallest timeframe and
-        yield a response: None, ("buy", amount) or ("sell", amount).
-    """
     account = backtest.account
     data_feed = backtest.data_feed
     test_info = backtest.test_info
+    open_orders = []
 
+    i = 0
+    long_short = "long"
     for data in data_feed['ohlcv']['5m']:
-        pass
+        i += 1
+        if i % 100 == 0:
+            if len(open_orders) > 0:
+                backtest.close_all_orders(data['timestamp'])
+
+            price = backtest.get_price(data['timestamp'])
+            amount = account['qoute_balance'] * 0.9 / price
+            succ, order_id = backtest.open_order(long_short, data['timestamp'], amount)
+            if succ:
+                open_orders.append(order_id)
+                long_short = "short" if long_short == "long" else "long"
 
 
 async def main():
@@ -27,7 +37,7 @@ async def main():
         'strategy': test_strategy,
         'exchange': 'bitfinex',
         'symbol': 'ETH/USD',
-        'fund': 10000,
+        'fund': 1000,
         'start': datetime_str(2017, 10, 1),
         'end': datetime_str(2017, 10, 31),
         'data_feed': {
@@ -37,6 +47,7 @@ async def main():
     btest = Backtest(mongo)
     btest.setup(options)
     report = await btest.test()
+    del report['trades']
     pp(report)
 
 
