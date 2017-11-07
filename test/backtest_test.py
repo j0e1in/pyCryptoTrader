@@ -38,18 +38,21 @@ async def main():
         'exchange': 'bitfinex',
         'symbol': 'ETH/USD',
         'fund': 1000,
-        'margin': False,
+        'margin': True,
         'start': datetime_str(2017, 10, 1),
         'end': datetime_str(2017, 10, 31),
         'data_feed': {
-            'ohlcv': ['1m', '5m', '15m', '1h']
+            'ohlcv': ['5m', '15m', '1h']
         }
     }
     btest = Backtest(mongo)
     btest.setup(options)
     report = await btest.test()
     del report['trades']
+
+    print('\n================= [Report] =================')
     pp(report)
+    print('============================================\n')
 
 
 run(main)

@@ -17,7 +17,7 @@ class Backtest():
         self.settings = {
             "fee": 0.002,
             "margin_rate": 3,
-            "margin_gap": 0.005  # +-0.0025*price
+            "margin_gap": 0.008  # +-margin_gap*price
         }
 
     def setup(self, options):
@@ -85,8 +85,9 @@ class Backtest():
         if '1m' in self.options['data_feed']['ohlcv']:
             self.price_feed = build_dict_index(self.data_feed['ohlcv']['1m'], idx_col='timestamp')
         else:
-            _feed = await build_dict_index(self.load_data({'ohlcv': ['1m']}), idx_col='timestamp')
-            self.price_feed = _feed['ohlcv']['1m']
+            _feed = await self.load_data({'ohlcv': ['1m']})
+            _feed = build_dict_index(_feed['ohlcv']['1m'], idx_col='timestamp')
+            self.price_feed = _feed
 
         self.options['strategy'](self)
         self.close_all_orders(self.options['end_timestamp'])
