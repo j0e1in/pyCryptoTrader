@@ -9,7 +9,7 @@ def setup():
     sys.path.append('../lib')
 
     chromalog.basicConfig(level=logging.DEBUG,
-                          format='%(asctime)s | `%(funcName)s` | %(filename)s | %(levelname)s : %(message)s')
+                          format='%(asctime)s | %(filename)s | %(funcName)15s | %(levelname)13s | %(message)s')
 
 
 def run(func, *args, **kwargs):

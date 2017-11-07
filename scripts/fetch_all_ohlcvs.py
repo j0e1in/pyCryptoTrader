@@ -8,20 +8,11 @@ from asyncio import ensure_future
 from datetime import datetime
 import logging
 
-from utils import combine, get_keys, get_constants, datetime_str, ms_sec
+from utils import init_exchange, datetime_str
 from hist_data import fetch_ohlcv_handler
 
-consts = get_constants()
 logger = logging.getLogger()
 
-def init_exchange(exchange_id):
-    options = combine({
-        'rateLimit': consts['rate_limit'],
-        'enableRateLimit': True
-    }, get_keys()[exchange_id])
-
-    exchange = getattr(ccxt, exchange_id)(options)
-    return exchange
 
 
 async def fetch_all_ohlcv(exchange, symbol, timeframe):
@@ -66,14 +57,14 @@ async def main():
     coll_tamplate = 'bitfinex_ohlcv_{}_{}'
 
     mongo = motor.AsyncIOMotorClient('localhost', 27017)
-    ohlcv_pairs = [('ETH/USD', '1m'), ('ETH/USD', '5m'), ('ETH/USD', '15m'), ('ETH/USD', '30m'), ('ETH/USD', '1h')]
+    ohlcv_pairs = [('BTC/USD', '30m')]
     ohlcv_pairs = ohlcv_pairs[::-1] # reverse the order
 
     for symbol, timeframe in ohlcv_pairs:
-        coll = getattr(mongo.exchange, coll_tamplate.format(symbol, timeframe))
+        _symbol = ''.join(symbol.split('/')) # remove '/'
+        coll = getattr(mongo.exchange, coll_tamplate.format(_symbol, timeframe))
         await fetch_ohlcv_to_mongo(coll, exchange, symbol, timeframe)
-        logger.info(f"Finished fetching {symbol} {timeframe}, wait for 5 min before continue...")
-        asyncio.sleep(300) # sleep for 5 min when finished one round
+        logger.info(f"Finished fetching {symbol} {timeframe}.")
 
 
 run(main)

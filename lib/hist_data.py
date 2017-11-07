@@ -53,7 +53,7 @@ async def find_missing_candles(coll, start_str, end_str, timeframe):
     ts = None
 
     missing_candles = []
-    async for candle in coll.find():
+    async for candle in coll.find().sort('timestamp', 1):
         ts = candle['timestamp']
         while prev_ts+td <= ts:
             if prev_ts+td != ts:
