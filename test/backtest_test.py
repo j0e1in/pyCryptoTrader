@@ -18,11 +18,11 @@ def test_strategy(backtest):
     long_short = "long"
     for data in data_feed['ohlcv']['5m']:
         i += 1
-        if i % 100 == 0:
+        if i % 1000 == 0:
             if len(open_orders) > 0:
                 backtest.close_all_orders(data['timestamp'])
 
-            price = backtest.get_price(data['timestamp'])
+            price = backtest.get_price(data['timestamp'], long_short)
             amount = account['qoute_balance'] * 0.9 / price
             succ, order_id = backtest.open_order(long_short, data['timestamp'], amount)
             if succ:
@@ -38,6 +38,7 @@ async def main():
         'exchange': 'bitfinex',
         'symbol': 'ETH/USD',
         'fund': 1000,
+        'margin': False,
         'start': datetime_str(2017, 10, 1),
         'end': datetime_str(2017, 10, 31),
         'data_feed': {

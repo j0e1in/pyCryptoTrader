@@ -9,6 +9,7 @@ def setup():
     sys.path.append('../lib')
 
     chromalog.basicConfig(level=logging.DEBUG,
+                          stream=sys.stdout,
                           format='%(asctime)s | %(filename)s | %(funcName)15s | %(levelname)13s | %(message)s')
 
 
