@@ -86,9 +86,7 @@ class Backtest():
         if '1m' in self.options['data_feed']['ohlcv']:
             self.price_feed = build_dict_index(self.data_feed['ohlcv']['1m'], idx_col='timestamp')
         else:
-            _feed = await self.load_data({'ohlcv': ['1m']})
-            _feed = build_dict_index(_feed['ohlcv']['1m'], idx_col='timestamp')
-            self.price_feed = _feed
+            await self._load_price_feed()
 
         self.options['strategy'](self)
         self.close_all_orders(self.options['end_timestamp'])
@@ -299,6 +297,11 @@ class Backtest():
         or ('margin' in options and not isinstance(options['margin'], bool)):
             return False
         return True
+
+    async def _load_price_feed(self):
+        _feed = await self.load_data({'ohlcv': ['1m']})
+        _feed = build_dict_index(_feed['ohlcv']['1m'], idx_col='timestamp')
+        self.price_feed = _feed
 
 
 def build_dict_index(data, idx_col):
