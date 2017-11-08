@@ -16,7 +16,9 @@ class Backtest():
         self.options = None
         self.settings = {
             "fee": 0.002,
-            "margin_gap": 0.005  # +-0.0025*price
+            "margin_rate": 3,
+            "margin_gap": 0.005,  # +-margin_gap*price
+            "margin_gap_large": 0.012
         }
 
     def setup(self, options):
@@ -41,6 +43,13 @@ class Backtest():
 
         options['start_timestamp'] = Exchange.parse8601(options['start'])
         options['end_timestamp'] = Exchange.parse8601(options['end'])
+
+        if 'margin' not in options:
+            options['margin'] = False
+
+        if 'data_feed' not in options:
+            options['data_feed'] = {}
+
         self.options = options
 
     async def test(self):
@@ -77,8 +86,9 @@ class Backtest():
         if '1m' in self.options['data_feed']['ohlcv']:
             self.price_feed = build_dict_index(self.data_feed['ohlcv']['1m'], idx_col='timestamp')
         else:
-            _feed = await build_dict_index(self.load_data({'ohlcv': ['1m']}), idx_col='timestamp')
-            self.price_feed = _feed['ohlcv']['1m']
+            _feed = await self.load_data({'ohlcv': ['1m']})
+            _feed = build_dict_index(_feed['ohlcv']['1m'], idx_col='timestamp')
+            self.price_feed = _feed
 
         self.options['strategy'](self)
         self.close_all_orders(self.options['end_timestamp'])
@@ -88,14 +98,18 @@ class Backtest():
         return self.report
 
     def open_order(self, order_type, timestamp, amount):
-        price = self.get_price(timestamp)
+        if self.options['margin']:
+            price = self.get_foreward_price(timestamp, order_type, margin=True)
+        else:
+            price = self.get_foreward_price(timestamp)
+
         cost = price * amount * (1 + self.settings['fee'])
 
         if price == 0:
-            logger.info(f"Open order failed: cannot get price from {timestamp}")
+            logger.info(f"Open  order failed: cannot get price from {timestamp}")
             return False, -1  # return an invalid order_id
         elif cost > self.account['qoute_balance']:
-            logger.info(f"Open order failed: no enough balance,"
+            logger.info(f"Open  order failed: no enough balance,"
                         f"[cost] {cost}, [balance] {self.account['qoute_balance']}")
             return False, -1  # return an invalid order_id
 
@@ -111,15 +125,15 @@ class Backtest():
             "fee": price * amount * self.settings['fee'],
             "profit_loss": 0
         }
+
         self.account['qoute_balance'] -= cost
         self.account['open_orders'][order_id] = order
         self.report['trades'].append(order)
 
-        logger.info(f"Open {order['order_type']} order succeed: "
+        logger.info(f"Open  {order['order_type']:5} order succeed: "
                     f"[time] {datetime.utcfromtimestamp(ms_sec(timestamp))}, "
-                    f"[price] {price}, [amount] {amount}")
+                    f"[price] {price:.3f}, [amount] {amount:.3f}")
 
-        log(f"qoute_balance: {self.account['qoute_balance']}")
         return True, order_id
 
     def close_order(self, order_id, timestamp):
@@ -129,10 +143,21 @@ class Backtest():
 
         order = self.account['open_orders'][order_id]
         del self.account['open_orders'][order_id]
-        price = self.get_price(timestamp)
+
+        if self.options['margin']:
+            if order['order_type'] == "long":
+                price = self.get_foreward_price(timestamp, "short", margin=True)
+            else:
+                price = self.get_foreward_price(timestamp, "long", margin=True)
+        else:
+            price = self.get_foreward_price(timestamp)
+
         order['close_price'] = price
         order['close_timestamp'] = timestamp
+
         profit_loss = (order['close_price'] - order['open_price']) * order['amount']
+        if self.options['margin']:
+            profit_loss *= self.settings['margin_rate']
 
         if order['order_type'] == "short":
             profit_loss *= -1
@@ -143,11 +168,10 @@ class Backtest():
         self.update_max_profit(order)
         self.update_max_loss(order)
 
-        logger.info(f"Close {order['order_type']} order succeed: "
+        logger.info(f"Close {order['order_type']:5} order succeed: "
                     f"[time] {datetime.utcfromtimestamp(ms_sec(timestamp))}, "
-                    f"[price] {price}, [amount] {order['amount']}, [PL] {profit_loss}")
+                    f"[price] {price:.3f}, [amount] {order['amount']:.3f}, [PL] {profit_loss:.3f}")
 
-        log(f"qoute_balance: {self.account['qoute_balance']}")
         return True
 
     def close_all_orders(self, timestamp):
@@ -160,25 +184,52 @@ class Backtest():
         _id = self.order_id
         return _id
 
-    def get_price(self, timestamp):
+    def get_foreward_price(self, timestamp, order_type=None, *, margin=False):
+        price = self._get_price('foreward', timestamp, order_type, margin=margin)
+        if not price:
+            price = self.get_last_ohlcv()['open']
+        return price
+
+    def get_backward_price(self, timestamp, order_type=None, *, margin=False):
+        price = self._get_price('backward', timestamp, order_type, margin=margin)
+        if not price:
+            price = self.get_first_ohlcv()['close']
+        return price
+
+    def _get_price(self, foreward, timestamp, order_type=None, *, margin=False):
         ms_delta = sec_ms(timedelta(minutes=1).seconds)
         ts = timestamp
 
         while ts >= self.test_info['start_timestamp'] \
-                and ts <= self.test_info['end_timestamp']:
+          and ts <= self.test_info['end_timestamp']:
+
             if ts in self.price_feed:
-                return self.price_feed[ts]['close']  # use close price
+                tmp = 'open' if foreward else 'close'
+                price = self.price_feed[ts][tmp]
+
+                if margin:
+                    if not order_type:
+                        raise ValueError("Miss `order_type` parameter while "
+                                         "margin trading is enabled.")
+
+                    if order_type == "long":
+                        price = price * (1 + self.get_margin_gap(timestamp)/2)
+                    else:
+                        price = price * (1 - self.get_margin_gap(timestamp)/2)
+
+                return price
             else:
-                ts -= ms_delta
+                ts += ms_delta if foreward else -ms_delta
+
         log(f"Cannot get price at {datetime.utcfromtimestamp(ms_sec(timestamp))}")
         return 0  # Error: cannot find correspondent price
 
     def update_max_profit(self, order):
-        if order['profit_loss'] > self.report['profit_loss']:
+        if order['profit_loss'] > self.report['max_profit_trade']['profit_loss']:
             self.report['max_profit_trade'] = order
 
     def update_max_loss(self, order):
-        if order['profit_loss'] < self.report['profit_loss']:
+        if order['profit_loss'] < self.report['max_loss_trade']['profit_loss']:
             self.report['max_loss_trade'] = order
 
     async def load_data(self, data_feed_options):
@@ -209,20 +260,43 @@ class Backtest():
 
         return data
 
+    def get_margin_gap(self, timestamp):
+        # If price change in last N minute > 1%, then apply the larger gap
+        if self.price_change(timestamp, minute=15) >= 0.01:
+            return self.settings['margin_gap_large']
+        else:
+            return self.settings['margin_gap']
+
+    def price_change(self, timestamp, minute=1):
+        """ Calculate percentage of price change in last N minutes. """
+        tdelta = sec_ms(timedelta(minutes=minute).seconds)
+        cur_price = self.get_backward_price(timestamp)
+        prev_price = self.get_backward_price(timestamp-tdelta)
+        change = abs(cur_price/prev_price - 1)
+        return change
+
+    def get_first_ohlcv(self):
+        ts = self.options['start_timestamp']
+        self.get_foreward_price(ts)
+
+    def get_last_ohlcv(self):
+        ts = self.options['end_timestamp']
+        self.get_backward_price(ts)
+
     # ==================================== #
     #           PRIVATE FUNCTIONS          #
     # ==================================== #
 
     def _check_options(self, options):
         if ('strategy' not in options or not callable(options['strategy']))       \
-                or ('exchange' not in options or not isinstance(options['exchange'], str))\
-                or ('symbol' not in options or not isinstance(options['symbol'], str))    \
-                or ('fund' not in options or not isinstance(options['fund'], int))        \
-                or ('start' not in options or not isinstance(options['start'], str))      \
-                or ('end' not in options or not isinstance(options['end'], str)):
+        or ('exchange' not in options or not isinstance(options['exchange'], str))\
+        or ('symbol' not in options or not isinstance(options['symbol'], str))    \
+        or ('fund' not in options or not isinstance(options['fund'], int))        \
+        or ('start' not in options or not isinstance(options['start'], str))      \
+        or ('end' not in options or not isinstance(options['end'], str)):
             return False
         if ('data_feed' in options and not isinstance(options['data_feed'], dict))\
-                or ('margin' in options and not isinstance(options['margin'], bool)):
+        or ('margin' in options and not isinstance(options['margin'], bool)):
             return False
         return True
 
@@ -230,7 +304,7 @@ class Backtest():
 def build_dict_index(data, idx_col):
     """ Extract a column of a list of dict and
         use the column's value as key to build a dict of dicts.
-        [{...}, {...}, {...}] > { _:{..}, _:{..}, _:{..} }
+        [{...}, {...}, {...}] => { _:{..}, _:{..}, _:{..} }
     """
     dict_index = {}
     for d in data:
