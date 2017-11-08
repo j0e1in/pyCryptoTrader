@@ -1,0 +1,6 @@
+{
+  "constants": {
+    "wait": 45,
+    "rate_limit": 2500
+  }
+}
