@@ -14,6 +14,8 @@ class Backtest():
     def __init__(self, mongo):
         self.mongo = mongo
         self.options = None
+        self.data_feed = None
+        self.price_feed = None
         self.settings = {
             "fee": 0.002,
             "margin_rate": 3,
@@ -21,7 +23,7 @@ class Backtest():
             "margin_gap_large": 0.012
         }
 
-    def setup(self, options):
+    async def setup(self, options, *, reload=False):
         """ Set options for the next backtest.
             (All options are required.)
 
@@ -50,9 +52,20 @@ class Backtest():
         if 'data_feed' not in options:
             options['data_feed'] = {}
 
-        self.options = options
+        if not self.options:
+            self.options = options
+            await self._load_data_feed()
+            await self._load_price_feed()
+        else:
+            if reload or self.options['data_feed'] != options['data_feed']:
+                await self._load_data_feed()
 
-    async def test(self):
+            if reload:
+                await self._load_price_feed()
+
+
+
+    def test(self):
         if not self.options:
             raise ValueError("Use Backtest.setup() to set testing options first. ")
 
@@ -78,19 +91,8 @@ class Backtest():
             }
         }
 
-        # Load all required data at once
-        if self.options['data_feed']:
-            self.data_feed = await self.load_data(self.options['data_feed'])
-
-        # If user ask for 1m ohlcv already, use it, otherwise load it mannually.
-        if '1m' in self.options['data_feed']['ohlcv']:
-            self.price_feed = build_dict_index(self.data_feed['ohlcv']['1m'], idx_col='timestamp')
-        else:
-            await self._load_price_feed()
-
-        self.options['strategy'](self)
+        self.options['strategy'](self) # run stategy
         self.close_all_orders(self.options['end_timestamp'])
-
         self.report['profit_loss'] = self.account["qoute_balance"] - self.options['fund']
         self.report['profit_percent'] = self.report['profit_loss'] / self.options['fund']
         return self.report
@@ -302,6 +304,11 @@ class Backtest():
         _feed = await self.load_data({'ohlcv': ['1m']})
         _feed = build_dict_index(_feed['ohlcv']['1m'], idx_col='timestamp')
         self.price_feed = _feed
+
+    async def _load_data_feed(self):
+        # Load all data asked by user at once
+        if self.options['data_feed']:
+            self.data_feed = await self.load_data(self.options['data_feed'])
 
 
 def build_dict_index(data, idx_col):

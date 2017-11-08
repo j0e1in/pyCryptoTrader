@@ -13,7 +13,7 @@ async def main():
     mongo = Mongo(host='localhost', port=27017)
 
     options = {
-        'strategy': strategy.pattern_strategy,
+        'strategy': None,
         'exchange': 'bitfinex',
         'symbol': 'ETH/USD',
         'fund': 1000,
@@ -25,8 +25,8 @@ async def main():
         }
     }
     btest = Backtest(mongo)
-    btest.setup(options)
-    report = await btest.test()
+    await btest.setup(options)
+    report = btest.test()
     del report['trades']
 
     print('\n================= [Report] =================')

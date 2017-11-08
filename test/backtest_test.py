@@ -46,8 +46,8 @@ async def main():
         }
     }
     btest = Backtest(mongo)
-    btest.setup(options)
-    report = await btest.test()
+    await btest.setup(options)
+    report = btest.test()
     del report['trades']
 
     print('\n================= [Report] =================')
