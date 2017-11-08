@@ -17,7 +17,8 @@ class Backtest():
         self.settings = {
             "fee": 0.002,
             "margin_rate": 3,
-            "margin_gap": 0.008  # +-margin_gap*price
+            "margin_gap": 0.005,  # +-margin_gap*price
+            "margin_gap_large": 0.012
         }
 
     def setup(self, options):
@@ -98,9 +99,9 @@ class Backtest():
 
     def open_order(self, order_type, timestamp, amount):
         if self.options['margin']:
-            price = self.get_price(timestamp, order_type)
+            price = self.get_foreward_price(timestamp, order_type, margin=True)
         else:
-            price = self.get_price(timestamp)
+            price = self.get_foreward_price(timestamp)
 
         cost = price * amount * (1 + self.settings['fee'])
 
@@ -145,11 +146,11 @@ class Backtest():
 
         if self.options['margin']:
             if order['order_type'] == "long":
-                price = self.get_price(timestamp, "short")
+                price = self.get_foreward_price(timestamp, "short", margin=True)
             else:
-                price = self.get_price(timestamp, "long")
+                price = self.get_foreward_price(timestamp, "long", margin=True)
         else:
-            price = self.get_price(timestamp)
+            price = self.get_foreward_price(timestamp)
 
         order['close_price'] = price
         order['close_timestamp'] = timestamp
@@ -183,36 +184,47 @@ class Backtest():
         _id = self.order_id
         return _id
 
-    def get_price(self, timestamp, order_type=None):
+    def get_foreward_price(self, timestamp, order_type=None, *, margin=False):
+        price = self._get_price('foreward', timestamp, order_type, margin=margin)
+        if not price:
+            price = self.get_last_ohlcv()['open']
+        return price
+
+    def get_backward_price(self, timestamp, order_type=None, *, margin=False):
+        price = self._get_price('backward', timestamp, order_type, margin=margin)
+        if not price:
+            price = self.get_first_ohlcv()['close']
+        return price
+
+    def _get_price(self, foreward, timestamp, order_type=None, *, margin=False):
         ms_delta = sec_ms(timedelta(minutes=1).seconds)
         ts = timestamp
 
         while ts >= self.test_info['start_timestamp'] \
-                and ts <= self.test_info['end_timestamp']:
+          and ts <= self.test_info['end_timestamp']:
 
             if ts in self.price_feed:
-                price = self.price_feed[ts]['close']  # use close price
+                tmp = 'open' if foreward else 'close'
+                price = self.price_feed[ts][tmp]
 
-                if self.options['margin']:
+                if margin:
                     if not order_type:
                         raise ValueError("Miss `order_type` parameter while "
                                          "margin trading is enabled.")
 
                     if order_type == "long":
-                        price = price * (1 + self.settings['margin_gap']/2)
+                        price = price * (1 + self.get_margin_gap(timestamp)/2)
                     else:
-                        price = price * (1 - self.settings['margin_gap']/2)
+                        price = price * (1 - self.get_margin_gap(timestamp)/2)
 
                 return price
             else:
-                ts -= ms_delta
+                ts += ms_delta if foreward else -ms_delta
 
         log(f"Cannot get price at {datetime.utcfromtimestamp(ms_sec(timestamp))}")
         return 0  # Error: cannot find correspondent price
 
     def update_max_profit(self, order):
-        # if int(order['profit_loss']) == 155 or int(order['profit_loss']) == 146:
-        #     import pdb; pdb.set_trace()
         if order['profit_loss'] > self.report['max_profit_trade']['profit_loss']:
             self.report['max_profit_trade'] = order
 
@@ -247,6 +259,29 @@ class Backtest():
                 data['ohlcv'][tf] = await cursor.to_list(length=INF)
 
         return data
+
+    def get_margin_gap(self, timestamp):
+        # If price change in last N minute > 1%, then apply the larger gap
+        if self.price_change(timestamp, minute=15) >= 0.01:
+            return self.settings['margin_gap_large']
+        else:
+            return self.settings['margin_gap']
+
+    def price_change(self, timestamp, minute=1):
+        """ Calculate percentage of price change in last N minutes. """
+        tdelta = sec_ms(timedelta(minutes=minute).seconds)
+        cur_price = self.get_backward_price(timestamp)
+        prev_price = self.get_backward_price(timestamp-tdelta)
+        change = abs(cur_price/prev_price - 1)
+        return change
+
+    def get_first_ohlcv(self):
+        ts = self.options['start_timestamp']
+        self.get_foreward_price(ts)
+
+    def get_last_ohlcv(self):
+        ts = self.options['end_timestamp']
+        self.get_backward_price(ts)
 
     # ==================================== #
     #           PRIVATE FUNCTIONS          #

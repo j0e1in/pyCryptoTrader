@@ -22,7 +22,7 @@ def test_strategy(backtest):
             if len(open_orders) > 0:
                 backtest.close_all_orders(data['timestamp'])
 
-            price = backtest.get_price(data['timestamp'], long_short)
+            price = backtest.get_foreward_price(data['timestamp'], long_short, margin=test_info['margin'])
             amount = account['qoute_balance'] * 0.9 / price
             succ, order_id = backtest.open_order(long_short, data['timestamp'], amount)
             if succ:
