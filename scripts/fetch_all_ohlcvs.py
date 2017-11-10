@@ -57,7 +57,7 @@ async def main():
     coll_tamplate = 'bitfinex_ohlcv_{}_{}'
 
     mongo = motor.AsyncIOMotorClient('localhost', 27017)
-    ohlcv_pairs = [('BTC/USD', '30m')]
+    ohlcv_pairs = [('ETH/USD', '3h'), ('ETH/USD', '6h'), ('ETH/USD', '12h'), ('ETH/USD', '1d')]
     ohlcv_pairs = ohlcv_pairs[::-1] # reverse the order
 
     for symbol, timeframe in ohlcv_pairs:

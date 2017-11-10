@@ -232,34 +232,6 @@ class Backtest():
         if order['profit_loss'] < self.report['max_loss_trade']['profit_loss']:
             self.report['max_loss_trade'] = order
 
-    async def load_data(self, data_feed_options):
-        """
-            data = {
-                'ohlcv': {
-                    '1m': [[...], [...]],
-                    '15m': [[...], [...]]
-                }
-            }
-        """
-        data = {}
-        exchange = self.options['exchange']
-        symbol = self.options['symbol']
-        _symbol = ''.join(symbol.split('/'))  # remove '/'
-        start = self.options['start_timestamp']
-        end = self.options['end_timestamp']
-
-        if 'ohlcv' in data_feed_options:
-            data['ohlcv'] = {}
-            for tf in data_feed_options['ohlcv']:
-                pair = f"{symbol}_{tf}"
-                collection = f"{exchange}_ohlcv_{_symbol}_{tf}"
-                coll = getattr(self.mongo.client.exchange, collection)
-                cursor = coll.find({'timestamp': {'$gte': start, '$lte': end}}, {'_id': 0})\
-                             .sort('timestamp', 1)
-                data['ohlcv'][tf] = await cursor.to_list(length=INF)
-
-        return data
-
     def get_margin_gap(self, timestamp):
         # If price change in last N minute > 1%, then apply the larger gap
         if self.price_change(timestamp, minute=15) >= 0.01:
@@ -301,14 +273,42 @@ class Backtest():
         return True
 
     async def _load_price_feed(self):
-        _feed = await self.load_data({'ohlcv': ['1m']})
+        _feed = await self._load_data({'ohlcv': ['1m', '5m', '']})
         _feed = build_dict_index(_feed['ohlcv']['1m'], idx_col='timestamp')
         self.price_feed = _feed
 
     async def _load_data_feed(self):
         # Load all data asked by user at once
         if self.options['data_feed']:
-            self.data_feed = await self.load_data(self.options['data_feed'])
+            self.data_feed = await self._load_data(self.options['data_feed'])
+
+    async def _load_data(self, data_feed_options):
+        """
+            data = {
+                'ohlcv': {
+                    '1m': [[...], [...]],
+                    '15m': [[...], [...]]
+                }
+            }
+        """
+        data = {}
+        exchange = self.options['exchange']
+        symbol = self.options['symbol']
+        _symbol = ''.join(symbol.split('/'))  # remove '/'
+        start = self.options['start_timestamp']
+        end = self.options['end_timestamp']
+
+        if 'ohlcv' in data_feed_options:
+            data['ohlcv'] = {}
+            for tf in data_feed_options['ohlcv']:
+                pair = f"{symbol}_{tf}"
+                collection = f"{exchange}_ohlcv_{_symbol}_{tf}"
+                coll = getattr(self.mongo.client.exchange, collection)
+                cursor = coll.find({'timestamp': {'$gte': start, '$lte': end}}, {'_id': 0})\
+                             .sort('timestamp', 1)
+                data['ohlcv'][tf] = await cursor.to_list(length=INF)
+
+        return data
 
 
 def build_dict_index(data, idx_col):

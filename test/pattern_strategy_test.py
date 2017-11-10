@@ -27,13 +27,13 @@ async def main():
 
     strate = PatternStrategy(mongo)
     await trate.setup(options)
-    strate.test()
+    report = strate.test()
 
-    # del report['trades']
+    del report['trades']
 
-    # print('\n================= [Report] =================')
-    # pp(report)
-    # print('============================================\n')
+    print('\n================= [Report] =================')
+    pp(report)
+    print('============================================\n')
 
 
 run(main)
