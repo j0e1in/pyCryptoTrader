@@ -1,8 +1,11 @@
 from pprint import pprint
 from datetime import datetime, timezone, timedelta
 import ccxt.async as ccxt
+import inspect
+import logging
 import json
 
+logger = logging.getLogger()
 
 
 def get_constants():
@@ -85,3 +88,8 @@ def init_exchange(exchange_id):
 
     exchange = getattr(ccxt, exchange_id)(options)
     return exchange
+
+def not_implemented():
+    filename = inspect.stack()[1][1]
+    funcname = inspect.stack()[1][3]
+    logger.warn(f'| {filename} | {funcname}() | is not implemented.')
