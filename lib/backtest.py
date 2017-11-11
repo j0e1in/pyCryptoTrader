@@ -2,9 +2,8 @@ from ccxt.base.exchange import Exchange
 from datetime import timedelta, datetime
 import logging
 
-from utils import combine, sec_ms, ms_sec
+from utils import combine, sec_ms, ms_sec, INF
 
-INF = 999999999
 logger = logging.getLogger()
 log = logger.debug
 

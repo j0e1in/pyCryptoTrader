@@ -7,6 +7,8 @@ import json
 
 logger = logging.getLogger()
 
+INF = 9999999
+
 
 def get_constants():
     with open('../settings/config.json') as f:
@@ -89,7 +91,28 @@ def init_exchange(exchange_id):
     exchange = getattr(ccxt, exchange_id)(options)
     return exchange
 
+
 def not_implemented():
     filename = inspect.stack()[1][1]
     funcname = inspect.stack()[1][3]
     logger.warn(f'| {filename} | {funcname}() | is not implemented.')
+
+
+def ld_to_dl(ld):
+    """ Convert a list of dicts to a dict of lists
+        e.g.
+            [{'A':1, 'B':2, 'C':3},
+             {'A':4, 'B':5, 'C':6}]
+        to
+            {'A': [1, 4],
+             'B': [2, 5],
+             'C': [3, 6] }
+    """
+    out = {}
+    keys = ld[0].keys()
+    for k in keys:
+        l = []
+        for i in range(len(ld)):
+            l += [ld[i][k]]
+        out[k] = l
+    return out
