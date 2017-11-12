@@ -17,15 +17,15 @@ class Mongo():
             logger.info(f"Connecting mongo client to {host}:{port}")
             self.client = motor.AsyncIOMotorClient(host, port)
 
-    async def dump_to_csv(self, db. collection, path):
-        await self._dump_file(collection, path)
+    async def export_to_csv(self, db, collection, path):
+        await self._dump_to_file(db, collection, path, 'csv')
 
-    async def _dump_file(self, db, collection, path, format):
+    async def _dump_to_file(self, db, collection, path, format):
         coll = self.client.get_database(db).get_collection(collection)
         docs = await coll.find({}, {'_id': 0}).to_list(length=INF)
         dl = ld_to_dl(docs)
         df = pandas.DataFrame(data=dl)
-        if format == "csv":
+        if format == 'csv':
             df.to_csv(path)
 
     @staticmethod

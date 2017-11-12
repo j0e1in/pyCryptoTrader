@@ -1,1 +1,4 @@
+backtrader
+ccxt
 motor
+pandas
