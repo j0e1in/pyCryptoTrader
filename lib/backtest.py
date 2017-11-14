@@ -2,9 +2,8 @@ from ccxt.base.exchange import Exchange
 from datetime import timedelta, datetime
 import logging
 
-from utils import combine, sec_ms, ms_sec
+from utils import combine, sec_ms, ms_sec, INF
 
-INF = 999999999
 logger = logging.getLogger()
 log = logger.debug
 
@@ -304,7 +303,7 @@ class Backtest():
                 pair = f"{symbol}_{tf}"
                 collection = f"{exchange}_ohlcv_{_symbol}_{tf}"
                 coll = getattr(self.mongo.client.exchange, collection)
-                cursor = coll.find({'timestamp': {'$gte': start, '$lte': end}}, {'_id': 0})\
+                cursor = coll.find({'timestamp': {'$gte': start, '$lt': end}}, {'_id': 0})\
                              .sort('timestamp', 1)
                 data['ohlcv'][tf] = await cursor.to_list(length=INF)
 
