@@ -2,9 +2,8 @@ from ccxt.base.exchange import Exchange
 from datetime import timedelta, datetime
 import logging
 
-from utils import combine, sec_ms, ms_sec
+from utils import combine, sec_ms, ms_sec, INF
 
-INF = 999999999
 logger = logging.getLogger()
 log = logger.debug
 
@@ -14,6 +13,8 @@ class Backtest():
     def __init__(self, mongo):
         self.mongo = mongo
         self.options = None
+        self.data_feed = None
+        self.price_feed = None
         self.settings = {
             "fee": 0.002,
             "margin_rate": 3,
@@ -21,7 +22,7 @@ class Backtest():
             "margin_gap_large": 0.012
         }
 
-    def setup(self, options):
+    async def setup(self, options, *, reload=False):
         """ Set options for the next backtest.
             (All options are required.)
 
@@ -41,22 +42,30 @@ class Backtest():
         if not self._check_options(options):
             raise ValueError('Backtest options are invalid.')
 
-        options['start_timestamp'] = Exchange.parse8601(options['start'])
-        options['end_timestamp'] = Exchange.parse8601(options['end'])
-
         if 'margin' not in options:
             options['margin'] = False
 
         if 'data_feed' not in options:
             options['data_feed'] = {}
 
-        self.options = options
+        if not self.options:
+            self.options = options
+            await self._load_data_feed()
+            await self._load_price_feed()
+        else:
+            if reload or self.options['data_feed'] != options['data_feed']:
+                await self._load_data_feed()
 
-    async def test(self):
+            if reload:
+                await self._load_price_feed()
+
+    def test(self):
         if not self.options:
             raise ValueError("Use Backtest.setup() to set testing options first. ")
 
+        # Initialize parameters
         self.order_id = 0
+
         self.test_info = combine(self.options, self.settings)
 
         self.account = {
@@ -78,21 +87,8 @@ class Backtest():
             }
         }
 
-        # Load all required data at once
-        if self.options['data_feed']:
-            self.data_feed = await self.load_data(self.options['data_feed'])
-
-        # If user ask for 1m ohlcv already, use it, otherwise load it mannually.
-        if '1m' in self.options['data_feed']['ohlcv']:
-            self.price_feed = build_dict_index(self.data_feed['ohlcv']['1m'], idx_col='timestamp')
-        else:
-            _feed = await self.load_data({'ohlcv': ['1m']})
-            _feed = build_dict_index(_feed['ohlcv']['1m'], idx_col='timestamp')
-            self.price_feed = _feed
-
-        self.options['strategy'](self)
-        self.close_all_orders(self.options['end_timestamp'])
-
+        self.options['strategy'](self) # run stategy
+        self.close_all_orders(self.options['end'])
         self.report['profit_loss'] = self.account["qoute_balance"] - self.options['fund']
         self.report['profit_percent'] = self.report['profit_loss'] / self.options['fund']
         return self.report
@@ -200,8 +196,8 @@ class Backtest():
         ms_delta = sec_ms(timedelta(minutes=1).seconds)
         ts = timestamp
 
-        while ts >= self.test_info['start_timestamp'] \
-          and ts <= self.test_info['end_timestamp']:
+        while ts >= self.test_info['start'] \
+          and ts <= self.test_info['end']:
 
             if ts in self.price_feed:
                 tmp = 'open' if foreward else 'close'
@@ -232,34 +228,6 @@ class Backtest():
         if order['profit_loss'] < self.report['max_loss_trade']['profit_loss']:
             self.report['max_loss_trade'] = order
 
-    async def load_data(self, data_feed_options):
-        """
-            data = {
-                'ohlcv': {
-                    '1m': [[...], [...]],
-                    '15m': [[...], [...]]
-                }
-            }
-        """
-        data = {}
-        exchange = self.options['exchange']
-        symbol = self.options['symbol']
-        _symbol = ''.join(symbol.split('/'))  # remove '/'
-        start = self.options['start_timestamp']
-        end = self.options['end_timestamp']
-
-        if 'ohlcv' in data_feed_options:
-            data['ohlcv'] = {}
-            for tf in data_feed_options['ohlcv']:
-                pair = f"{symbol}_{tf}"
-                collection = f"{exchange}_ohlcv_{_symbol}_{tf}"
-                coll = getattr(self.mongo.client.exchange, collection)
-                cursor = coll.find({'timestamp': {'$gte': start, '$lte': end}}, {'_id': 0})\
-                             .sort('timestamp', 1)
-                data['ohlcv'][tf] = await cursor.to_list(length=INF)
-
-        return data
-
     def get_margin_gap(self, timestamp):
         # If price change in last N minute > 1%, then apply the larger gap
         if self.price_change(timestamp, minute=15) >= 0.01:
@@ -276,11 +244,11 @@ class Backtest():
         return change
 
     def get_first_ohlcv(self):
-        ts = self.options['start_timestamp']
+        ts = self.options['start']
         self.get_foreward_price(ts)
 
     def get_last_ohlcv(self):
-        ts = self.options['end_timestamp']
+        ts = self.options['end']
         self.get_backward_price(ts)
 
     # ==================================== #
@@ -299,6 +267,44 @@ class Backtest():
         or ('margin' in options and not isinstance(options['margin'], bool)):
             return False
         return True
+
+    async def _load_price_feed(self):
+        _feed = await self._load_data({'ohlcv': ['1m']})
+        _feed = build_dict_index(_feed['ohlcv']['1m'], idx_col='timestamp')
+        self.price_feed = _feed
+
+    async def _load_data_feed(self):
+        # Load all data asked by user at once
+        if self.options['data_feed']:
+            self.data_feed = await self._load_data(self.options['data_feed'])
+
+    async def _load_data(self, data_feed_options):
+        """
+            data = {
+                'ohlcv': {
+                    '1m': [[...], [...]],
+                    '15m': [[...], [...]]
+                }
+            }
+        """
+        data = {}
+        exchange = self.options['exchange']
+        symbol = self.options['symbol']
+        _symbol = ''.join(symbol.split('/'))  # remove '/'
+        start = self.options['start']
+        end = self.options['end']
+
+        if 'ohlcv' in data_feed_options:
+            data['ohlcv'] = {}
+            for tf in data_feed_options['ohlcv']:
+                pair = f"{symbol}_{tf}"
+                collection = f"{exchange}_ohlcv_{_symbol}_{tf}"
+                coll = getattr(self.mongo.client.exchange, collection)
+                cursor = coll.find({'timestamp': {'$gte': start, '$lt': end}}, {'_id': 0})\
+                             .sort('timestamp', 1)
+                data['ohlcv'][tf] = await cursor.to_list(length=INF)
+
+        return data
 
 
 def build_dict_index(data, idx_col):
