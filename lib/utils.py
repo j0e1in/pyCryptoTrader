@@ -1,6 +1,7 @@
 from pprint import pprint
 from datetime import datetime, timezone, timedelta
 import ccxt.async as ccxt
+import calendar
 import inspect
 import logging
 import json
@@ -32,7 +33,11 @@ def combine(a, b):
 
 def ms_dt(ms):
     """ Convert timestamp in millisecond to datetime. """
-    return datetime.fromtimestamp(int(ms/1000))
+    return datetime.fromtimestamp(int(float(ms)/1000))
+
+
+def utcms_dt(ms):
+    return datetime.utcfromtimestamp(int(float(ms)/1000))
 
 
 def dt_ms(year, month, day, hour=0, min=0, sec=0):
@@ -41,11 +46,11 @@ def dt_ms(year, month, day, hour=0, min=0, sec=0):
 
 
 def ms_sec(ms):
-    return int(ms/1000)
+    return int(float(ms)/1000)
 
 
 def sec_ms(sec):
-    return int(sec*1000)
+    return int(float(sec)*1000)
 
 
 def datetime_str(year, month, day, hour=0, min=0, sec=0):
@@ -63,6 +68,11 @@ def to_local_timestamp(timestamp):
     """ Convert local timestamp to utc. """
     tdelta = datetime.now().timestamp() - datetime.utcnow().timestamp()
     return timestamp + sec_ms(tdelta.timestamp())
+
+
+def exchange_timestamp(year, month, day, hour=0, min=0, sec=0):
+    dt = datetime(year, month, day, hour, min, sec)
+    return calendar.timegm(dt.utctimetuple()) * 1000
 
 
 def timeframe_timedelta(timeframe):
