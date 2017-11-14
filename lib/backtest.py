@@ -42,9 +42,6 @@ class Backtest():
         if not self._check_options(options):
             raise ValueError('Backtest options are invalid.')
 
-        options['start_timestamp'] = Exchange.parse8601(options['start'])
-        options['end_timestamp'] = Exchange.parse8601(options['end'])
-
         if 'margin' not in options:
             options['margin'] = False
 
@@ -62,13 +59,13 @@ class Backtest():
             if reload:
                 await self._load_price_feed()
 
-
-
     def test(self):
         if not self.options:
             raise ValueError("Use Backtest.setup() to set testing options first. ")
 
+        # Initialize parameters
         self.order_id = 0
+
         self.test_info = combine(self.options, self.settings)
 
         self.account = {
@@ -91,7 +88,7 @@ class Backtest():
         }
 
         self.options['strategy'](self) # run stategy
-        self.close_all_orders(self.options['end_timestamp'])
+        self.close_all_orders(self.options['end'])
         self.report['profit_loss'] = self.account["qoute_balance"] - self.options['fund']
         self.report['profit_percent'] = self.report['profit_loss'] / self.options['fund']
         return self.report
@@ -199,8 +196,8 @@ class Backtest():
         ms_delta = sec_ms(timedelta(minutes=1).seconds)
         ts = timestamp
 
-        while ts >= self.test_info['start_timestamp'] \
-          and ts <= self.test_info['end_timestamp']:
+        while ts >= self.test_info['start'] \
+          and ts <= self.test_info['end']:
 
             if ts in self.price_feed:
                 tmp = 'open' if foreward else 'close'
@@ -247,11 +244,11 @@ class Backtest():
         return change
 
     def get_first_ohlcv(self):
-        ts = self.options['start_timestamp']
+        ts = self.options['start']
         self.get_foreward_price(ts)
 
     def get_last_ohlcv(self):
-        ts = self.options['end_timestamp']
+        ts = self.options['end']
         self.get_backward_price(ts)
 
     # ==================================== #
@@ -272,7 +269,7 @@ class Backtest():
         return True
 
     async def _load_price_feed(self):
-        _feed = await self._load_data({'ohlcv': ['1m', '5m', '']})
+        _feed = await self._load_data({'ohlcv': ['1m']})
         _feed = build_dict_index(_feed['ohlcv']['1m'], idx_col='timestamp')
         self.price_feed = _feed
 
@@ -294,8 +291,8 @@ class Backtest():
         exchange = self.options['exchange']
         symbol = self.options['symbol']
         _symbol = ''.join(symbol.split('/'))  # remove '/'
-        start = self.options['start_timestamp']
-        end = self.options['end_timestamp']
+        start = self.options['start']
+        end = self.options['end']
 
         if 'ohlcv' in data_feed_options:
             data['ohlcv'] = {}

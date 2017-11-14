@@ -13,23 +13,21 @@ logger = logging.getLogger()
 log = logger.debug
 
 
-async def fetch_ohlcv_handler(exchange, symbol, start_str, end_str, timeframe='1m'):
+async def fetch_ohlcv_handler(exchange, symbol, start, end, timeframe='1m'):
     """ Fetch all ohlcv candles since 'start_timestamp' and use generator to stream results. """
-    start_timestamp = Exchange.parse8601(start_str)
-    end_timestamp = Exchange.parse8601(end_str)
     now = sec_ms(time.time())
     wait = get_constants()['wait']
     params = {
-        'end': end_timestamp,
+        'end': end,
         'sort': 1
     }
 
-    while start_timestamp < end_timestamp:
+    while start < end:
 
         try:
-            logger.info(f'Fetching {symbol}_{timeframe} candles starting from {exchange.iso8601(start_timestamp)}')
-            ohlcvs = await exchange.fetch_ohlcv(symbol, timeframe=timeframe, since=start_timestamp, params=params)
-            start_timestamp = ohlcvs[-1][0]
+            logger.info(f'Fetching {symbol}_{timeframe} candles starting from {exchange.iso8601(start)}')
+            ohlcvs = await exchange.fetch_ohlcv(symbol, timeframe=timeframe, since=start, params=params)
+            start = ohlcvs[-1][0]
             del ohlcvs[-1]
             yield ohlcvs
 
@@ -38,22 +36,21 @@ async def fetch_ohlcv_handler(exchange, symbol, start_str, end_str, timeframe='1
             await asyncio.sleep(wait)
 
 
-async def find_missing_candles(coll, start_str, end_str, timeframe):
+async def find_missing_candles(coll, start, end, timeframe):
 
     if not Mongo.check_colums(coll, ['timestamp', 'open', 'close', 'high', 'low', 'volume']):
         raise ValueError('Collection\'s colums do not match candle\'s.')
 
-    start_timestamp = Exchange.parse8601(start_str)
-    end_timestamp = Exchange.parse8601(end_str)
-
     td = timeframe_timedelta(timeframe)
     td = sec_ms(td.seconds)
 
-    prev_ts = start_timestamp - td
+    prev_ts = start - td
     ts = None
 
+    res = coll.find({'timestamp': {'$gte': start, '$lt': end}}).sort('timestamp', 1)
+
     missing_candles = []
-    async for candle in coll.find().sort('timestamp', 1):
+    async for candle in res:
         ts = candle['timestamp']
         while prev_ts+td <= ts:
             if prev_ts+td != ts:
@@ -61,4 +58,11 @@ async def find_missing_candles(coll, start_str, end_str, timeframe):
             prev_ts += td
 
     return missing_candles
+
+
+async def fetch_trades_handler(exchange, symbol, start, end):
+    pass
+
+
+
 
