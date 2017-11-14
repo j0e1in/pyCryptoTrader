@@ -5,7 +5,6 @@ import ccxt.async as ccxt
 import motor.motor_asyncio as motor
 import asyncio
 from asyncio import ensure_future
-from datetime import datetime
 import logging
 
 from utils import init_exchange
