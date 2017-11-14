@@ -111,8 +111,8 @@ class TestStrategy(bt.Strategy):
 async def main():
     cerebro = bt.Cerebro()
 
-    # cerebro.addstrategy(bt.Strategy)
-    cerebro.addstrategy(TestStrategy)
+    cerebro.addstrategy(bt.Strategy)
+    # cerebro.addstrategy(TestStrategy)
 
     # datapath = '../data/bitfinex_ohlcv_ETHUSD_1m.csv'
     # df = pd.read_csv(
@@ -128,7 +128,7 @@ async def main():
     mongo = Mongo(host='localhost', port=27017)
     df = await mongo.read_to_dataframe(
         'exchange',
-        'bitfinex_ohlcv_ETHUSD_1m',
+        'bitfinex_ohlcv_ETHUSD_5m',
         {'timestamp': {'$gte': start, '$lt': end}},
         date_parser=utcms_dt,
         date_col='timestamp',
