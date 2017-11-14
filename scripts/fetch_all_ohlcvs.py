@@ -5,10 +5,9 @@ import ccxt.async as ccxt
 import motor.motor_asyncio as motor
 import asyncio
 from asyncio import ensure_future
-from datetime import datetime
 import logging
 
-from utils import init_exchange, datetime_str
+from utils import init_exchange
 from hist_data import fetch_ohlcv_handler
 
 logger = logging.getLogger()
@@ -17,11 +16,11 @@ logger = logging.getLogger()
 
 async def fetch_all_ohlcv(exchange, symbol, timeframe):
 
-    start_str = datetime_str(2017, 1, 1)
-    end_str = datetime_str(2017, 11, 1)
+    start = exchange_timestamp(2017, 1, 1)
+    end = exchange_timestamp(2017, 11, 1)
 
     await exchange.load_markets()
-    res = fetch_ohlcv_handler(exchange, symbol, start_str, end_str, timeframe)
+    res = fetch_ohlcv_handler(exchange, symbol, start, end, timeframe)
     async for candles in res:
         yield candles
 
