@@ -84,6 +84,7 @@ async def fetch_trades_handler(exchange, symbol, start, end):
     params = {
         'start': start,
         'end': end,
+        'limit': 1000,
         'sort': 1
     }
 
@@ -92,7 +93,7 @@ async def fetch_trades_handler(exchange, symbol, start, end):
             logger.info(f'Fetching {symbol} trades starting from {utcms_dt(start)}')
             trades = await exchange.fetch_trades(symbol, params=params)
             if trades[0]['timestamp'] == trades[-1]['timestamp']:
-                # All 120 trades have the same timestamp,
+                # All 1000 trades have the same timestamp, (unlikely to happen)
                 # just ignore the rest of trades that have same timestamp,
                 # no much we can do about it.
                 start += 1000
@@ -108,7 +109,4 @@ async def fetch_trades_handler(exchange, symbol, start, end):
                 ccxt.DDoSProtection) as error:
             logger.info(f'|{type(error).__name__}| retrying in {wait} seconds...')
             await asyncio.sleep(wait)
-
-
-
 
