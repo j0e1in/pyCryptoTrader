@@ -19,6 +19,7 @@ async def fetch_ohlcv_handler(exchange, symbol, start, end, timeframe='1m'):
     wait = get_constants()['wait']
     params = {
         'end': end,
+        'limit': 1000,
         'sort': 1
     }
 
@@ -26,41 +27,18 @@ async def fetch_ohlcv_handler(exchange, symbol, start, end, timeframe='1m'):
         try:
             logger.info(f'Fetching {symbol}_{timeframe} candles starting from {utcms_dt(start)}')
             ohlcvs = await exchange.fetch_ohlcv(symbol, timeframe=timeframe, since=start, params=params)
-            start = ohlcvs[-1][0]
-            del ohlcvs[-1]
+            start = ohlcvs[-1][0] + 1000
             yield ohlcvs
 
-        except (ccxt.ExchangeError,
-                ccxt.AuthenticationError,
+        except (ccxt.AuthenticationError,
                 ccxt.ExchangeNotAvailable,
                 ccxt.RequestTimeout,
+                ccxt.ExchangeError,
                 ccxt.DDoSProtection) as error:
+            if is_empty_response(error): # finished fetching all ohlcv
+                break
             logger.info(f'|{type(error).__name__}| retrying in {wait} seconds...')
             await asyncio.sleep(wait)
-
-
-async def find_missing_candles(coll, start, end, timeframe):
-
-    if not Mongo.check_colums(coll, ['timestamp', 'open', 'close', 'high', 'low', 'volume']):
-        raise ValueError('Collection\'s colums do not match candle\'s.')
-
-    td = timeframe_timedelta(timeframe)
-    td = sec_ms(td.seconds)
-
-    prev_ts = start - td
-    ts = None
-
-    res = coll.find({'timestamp': {'$gte': start, '$lt': end}}).sort('timestamp', 1)
-
-    missing_candles = []
-    async for candle in res:
-        ts = candle['timestamp']
-        while prev_ts+td <= ts:
-            if prev_ts+td != ts:
-                missing_candles.append(prev_ts+td)
-            prev_ts += td
-
-    return missing_candles
 
 
 async def fetch_trades_handler(exchange, symbol, start, end):
@@ -92,21 +70,56 @@ async def fetch_trades_handler(exchange, symbol, start, end):
         try:
             logger.info(f'Fetching {symbol} trades starting from {utcms_dt(start)}')
             trades = await exchange.fetch_trades(symbol, params=params)
+            if not trades:
+                break
             if trades[0]['timestamp'] == trades[-1]['timestamp']:
-                # All 1000 trades have the same timestamp, (unlikely to happen)
+                # All 1000 trades have the same timestamp,
+                # (1000 transactions in 1 sec, which is unlikely to happen)
                 # just ignore the rest of trades that have same timestamp,
                 # no much we can do about it.
                 start += 1000
+            if len(trades) < params['limit']:
+                start = trades[-1]['timestamp'] + 1000
             else:
                 start, trades = remove_last_timestamp(trades)
             params['start'] = start
             yield trades
 
-        except (ccxt.ExchangeError,
-                ccxt.AuthenticationError,
+        except (ccxt.AuthenticationError,
                 ccxt.ExchangeNotAvailable,
                 ccxt.RequestTimeout,
+                ccxt.ExchangeError,
                 ccxt.DDoSProtection) as error:
+            if is_empty_response(error): # finished fetching all trades
+                break
             logger.info(f'|{type(error).__name__}| retrying in {wait} seconds...')
             await asyncio.sleep(wait)
+
+
+async def find_missing_candles(coll, start, end, timeframe):
+
+    if not Mongo.check_colums(coll, ['timestamp', 'open', 'close', 'high', 'low', 'volume']):
+        raise ValueError('Collection\'s colums do not match candle\'s.')
+
+    td = timeframe_timedelta(timeframe)
+    td = sec_ms(td.seconds)
+
+    prev_ts = start - td
+    ts = None
+
+    res = coll.find({'timestamp': {'$gte': start, '$lt': end}}).sort('timestamp', 1)
+
+    missing_candles = []
+    async for candle in res:
+        ts = candle['timestamp']
+        while prev_ts+td <= ts:
+            if prev_ts+td != ts:
+                missing_candles.append(prev_ts+td)
+            prev_ts += td
+
+    return missing_candles
+
+
+def is_empty_response(err):
+    return True if 'empty response' in str(err) else False
 
