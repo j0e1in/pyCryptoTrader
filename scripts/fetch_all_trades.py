@@ -41,10 +41,12 @@ async def fetch_trades_to_mongo(coll, exchange, symbol):
 
         ops.append(ensure_future(coll.insert_many(processed_trades)))
 
-        # insert ~120 trades per op, clear up task stack periodically
+        # insert ~1000 trades per op, clear up task stack periodically
         if len(ops) > 50:
             await asyncio.gather(*ops)
             ops = []
+
+    await asyncio.gather(*ops)
 
 
 async def main():
@@ -60,8 +62,6 @@ async def main():
         coll = getattr(mongo.exchange, coll_tamplate.format(_symbol))
         await fetch_trades_to_mongo(coll, exchange, symbol)
         logger.info(f"Finished fetching {symbol}.")
-
-
 
 
 run(main)

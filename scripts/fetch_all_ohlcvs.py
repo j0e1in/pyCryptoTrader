@@ -7,7 +7,7 @@ import asyncio
 from asyncio import ensure_future
 import logging
 
-from utils import init_exchange
+from utils import init_exchange, exchange_timestamp
 from hist_data import fetch_ohlcv_handler
 
 logger = logging.getLogger()
@@ -45,10 +45,12 @@ async def fetch_ohlcv_to_mongo(coll, exchange, symbol, timeframe):
 
         ops.append(ensure_future(coll.insert_many(processed_candles)))
 
-        # insert 120 candles per op, clear up task stack periodically
-        if len(ops) > 1000:
+        # insert 1000 candles per op, clear up task stack periodically
+        if len(ops) > 50:
             await asyncio.gather(*ops)
             ops = []
+
+    await asyncio.gather(*ops)
 
 
 async def main():
