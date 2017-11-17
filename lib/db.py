@@ -98,3 +98,8 @@ class EXMongo():
         """ Convert BTC/USD -> BTCUSD """
         return ''.join(symbol.split('/'))
 
+    @staticmethod
+    def cond_timestamp_range(start, end):
+        """ Returns mongo command condition of a timestmap range. """
+        return {'timestamp': {'$gte': start, '$lt': end}}
+

@@ -131,7 +131,7 @@ async def fill_ohlcv_missing_timestamp(coll, start, end, timeframe):
     if not await EXMongo.check_columns(coll, ['timestamp', 'open', 'close', 'high', 'low', 'volume']):
         raise ValueError('Collection\'s fields do not match candle\'s.')
 
-
+    coll.find(EXMongo.cond_timestamp_range(start, end)}})
 
 
 def is_empty_response(err):

@@ -300,7 +300,7 @@ class Backtest():
                 pair = f"{symbol}_{tf}"
                 collection = f"{exchange}_ohlcv_{_symbol}_{tf}"
                 coll = getattr(self.mongo.client.exchange, collection)
-                cursor = coll.find({'timestamp': {'$gte': start, '$lt': end}}, {'_id': 0})\
+                cursor = coll.find(EXMongo.cond_timestamp_range(start, end), {'_id': 0})\
                              .sort('timestamp', 1)
                 data['ohlcv'][tf] = await cursor.to_list(length=INF)
 
