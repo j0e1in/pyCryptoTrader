@@ -10,8 +10,8 @@ import logging
 from utils import init_exchange, exchange_timestamp
 from hist_data import fetch_ohlcv_handler
 
-logger = logging.getLogger()
 
+logger = logging.getLogger()
 
 
 async def fetch_all_ohlcv(exchange, symbol, timeframe):

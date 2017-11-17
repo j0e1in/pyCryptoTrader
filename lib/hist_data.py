@@ -7,7 +7,7 @@ import logging
 import time
 
 from utils import get_constants, sec_ms, ms_sec, timeframe_timedelta, utcms_dt
-from mongo import Mongo
+from db import EXMongo
 
 logger = logging.getLogger()
 log = logger.debug
@@ -98,7 +98,7 @@ async def fetch_trades_handler(exchange, symbol, start, end):
 
 async def find_missing_candles(coll, start, end, timeframe):
 
-    if not Mongo.check_colums(coll, ['timestamp', 'open', 'close', 'high', 'low', 'volume']):
+    if not EXMongo.check_colums(coll, ['timestamp', 'open', 'close', 'high', 'low', 'volume']):
         raise ValueError('Collection\'s colums do not match candle\'s.')
 
     td = timeframe_timedelta(timeframe)

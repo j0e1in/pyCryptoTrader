@@ -2,12 +2,12 @@ import motor.motor_asyncio as motor
 import logging
 import pandas as pd
 
-from utils import ld_to_dl, INF
+from utils import INF, utcms_dt
 
 logger = logging.getLogger()
 
 
-class Mongo():
+class EXMongo():
 
     def __init__(self, *, host='localhost', port=27017, uri=None):
         if uri:
@@ -16,6 +16,17 @@ class Mongo():
         else:
             logger.info(f"Connecting mongo client to {host}:{port}")
             self.client = motor.AsyncIOMotorClient(host, port)
+
+    async def load_exchanges_info(self):
+        """
+            exchanges: {
+                symbols
+                timeframes
+                start,
+                end
+            }
+        """
+        pass
 
     async def export_to_csv(self, db, collection, path):
         await self._dump_to_file(db, collection, path, 'csv')
@@ -26,10 +37,11 @@ class Mongo():
             df.to_csv(path, index=False)
 
     async def read_to_dataframe(self, db, collection, condition={}, *,
-                                date_parser=None,
-                                date_col=None,
                                 index_col=None,
+                                date_col=None,
+                                date_parser=None,
                                 df_options={}):
+        """ If date_col is provided, date_parser must be as well. """
         coll = self.client.get_database(db).get_collection(collection)
         docs = await coll.find(condition, {'_id': 0}).to_list(length=INF)
         df = pd.DataFrame(data=docs, **df_options)
@@ -46,6 +58,27 @@ class Mongo():
 
         return df
 
+    async def get_ohlcv(self, exchange, symbol, start, end, timeframe):
+        """ Read ohlcv from mongodb into DataFrame,
+            Params
+                exchange: str or ccxt exchange instance
+                symbol: str
+                start, end: timestamp
+                timeframe: str
+        """
+        db = 'exchange'
+        condition = {'timestamp': {'$gte': start, '$lt': end}}
+
+        if not isinstance(exchange, str):
+            exchange = 'bitfinex' if exchange.id == 'bitfinex2' else exchange.id
+
+        collection = f"{exchange}_ohlcv_{self.sym(symbol)}_{timeframe}"
+
+        return await self.read_to_dataframe(db, collection, condition,
+                                     index_col='timestamp',
+                                     date_col='timestamp',
+                                     date_parser=utcms_dt)
+
     @staticmethod
     async def check_colums(collection, colums):
         sample = await collection.find_one()
@@ -59,3 +92,9 @@ class Mongo():
                 return False
 
         return True
+
+    @staticmethod
+    def sym(symbol):
+        """ Convert BTC/USD -> BTCUSD """
+        return ''.join(symbol.split('/'))
+

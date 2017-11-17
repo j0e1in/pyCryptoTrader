@@ -35,8 +35,6 @@ async def test_fetch_trades_handler():
 
 async def main():
     # await test_find_missing_candles()
-
-    # await test_fetch_trades_handler()
-
+    await test_fetch_trades_handler()
 
 run(main)

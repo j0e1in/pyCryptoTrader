@@ -4,7 +4,7 @@ setup()
 import backtrader as bt
 import pandas as pd
 
-from mongo import Mongo
+from db import EXMongo
 from utils import utcms_dt, exchange_timestamp
 from datetime import datetime
 
@@ -125,7 +125,7 @@ async def main():
     start = exchange_timestamp(2017, 10, 1)
     end = exchange_timestamp(2017, 11, 1)
 
-    mongo = Mongo(host='localhost', port=27017)
+    mongo = EXMongo(host='localhost', port=27017)
     df = await mongo.read_to_dataframe(
         'exchange',
         'bitfinex_ohlcv_ETHUSD_5m',

@@ -4,7 +4,7 @@ setup()
 from pprint import pprint as pp
 
 from backtest import Backtest
-from mongo import Mongo
+from db import EXMongo
 from utils import exchange_timestamp
 
 
@@ -31,7 +31,7 @@ def test_strategy(backtest):
 
 
 async def main():
-    mongo = Mongo(host='localhost', port=27017)
+    mongo = EXMongo(host='localhost', port=27017)
 
     options = {
         'strategy': test_strategy,
