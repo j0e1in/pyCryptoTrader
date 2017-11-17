@@ -80,14 +80,14 @@ class EXMongo():
                                      date_parser=utcms_dt)
 
     @staticmethod
-    async def check_colums(collection, colums):
-        sample = await collection.find_one()
-        cols = list(colums.keys())
+    async def check_columns(collection, columns):
+        sample = await collection.find_one({}, {'_id': 0})
+        cols = list(sample.keys())
 
-        if len(cols) != len(colums):
+        if len(cols) != len(columns):
             return False
 
-        for c in colums:
+        for c in columns:
             if c not in cols:
                 return False
 
