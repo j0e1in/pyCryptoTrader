@@ -14,7 +14,7 @@ log = logger.debug
 
 
 async def fetch_ohlcv_handler(exchange, symbol, start, end, timeframe='1m'):
-    """ Fetch all ohlcv candles since 'start_timestamp' and use generator to stream results. """
+    """ Fetch all ohlcv ohlcv since 'start_timestamp' and use generator to stream results. """
     now = sec_ms(time.time())
     wait = get_constants()['wait']
     params = {
@@ -25,7 +25,7 @@ async def fetch_ohlcv_handler(exchange, symbol, start, end, timeframe='1m'):
 
     while start < end:
         try:
-            logger.info(f'Fetching {symbol}_{timeframe} candles starting from {utcms_dt(start)}')
+            logger.info(f'Fetching {symbol}_{timeframe} ohlcv starting from {utcms_dt(start)}')
             ohlcvs = await exchange.fetch_ohlcv(symbol, timeframe=timeframe, since=start, params=params)
             start = ohlcvs[-1][0] + 1000
             yield ohlcvs
@@ -96,10 +96,10 @@ async def fetch_trades_handler(exchange, symbol, start, end):
             await asyncio.sleep(wait)
 
 
-async def find_missing_candles(coll, start, end, timeframe):
+async def find_missing_ohlcv(coll, start, end, timeframe):
 
-    if not EXMongo.check_colums(coll, ['timestamp', 'open', 'close', 'high', 'low', 'volume']):
-        raise ValueError('Collection\'s colums do not match candle\'s.')
+    if not await EXMongo.check_columns(coll, ['timestamp', 'open', 'close', 'high', 'low', 'volume']):
+        raise ValueError('Collection\'s fields do not match candle\'s.')
 
     td = timeframe_timedelta(timeframe)
     td = sec_ms(td.seconds)
@@ -109,15 +109,29 @@ async def find_missing_candles(coll, start, end, timeframe):
 
     res = coll.find({'timestamp': {'$gte': start, '$lt': end}}).sort('timestamp', 1)
 
-    missing_candles = []
-    async for candle in res:
-        ts = candle['timestamp']
+    missing_ohlcv = []
+    async for ohlcv in res:
+        ts = ohlcv['timestamp']
         while prev_ts+td <= ts:
             if prev_ts+td != ts:
-                missing_candles.append(prev_ts+td)
+                missing_ohlcv.append(prev_ts+td)
             prev_ts += td
 
-    return missing_candles
+    ts = end - 1
+    while prev_ts+td <= ts:
+        if prev_ts+td != ts:
+            missing_ohlcv.append(prev_ts+td)
+        prev_ts += td
+
+    return missing_ohlcv
+
+
+async def fill_ohlcv_missing_timestamp(coll, start, end, timeframe):
+
+    if not await EXMongo.check_columns(coll, ['timestamp', 'open', 'close', 'high', 'low', 'volume']):
+        raise ValueError('Collection\'s fields do not match candle\'s.')
+
+
 
 
 def is_empty_response(err):
