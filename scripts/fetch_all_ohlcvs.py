@@ -54,18 +54,45 @@ async def fetch_ohlcv_to_mongo(coll, exchange, symbol, timeframe):
 
 
 async def main():
-    exchange = init_exchange('bitfinex2')
-    coll_tamplate = 'bitfinex_ohlcv_{}_{}'
+    ex = 'bitfinex'
+    # ex_id = ex
+    ex_id = ex+'2'
+    coll_tamplate = '{}_ohlcv_{}_{}'
+
+    exchange = init_exchange(ex_id)
 
     mongo = motor.AsyncIOMotorClient('localhost', 27017)
-    ohlcv_pairs = [('ETH/USD', '3h'), ('ETH/USD', '6h'), ('ETH/USD', '12h'), ('ETH/USD', '1d')]
-    ohlcv_pairs = ohlcv_pairs[::-1] # reverse the order
+    symbols = [
+        'BCH/USD',
+        'XRP/USD',
+        'XMR/USD',
+        'NEO/USD',
+        'ZEC/USD',
+        'DASH/USD',
+        'ETC/USD',
+        'LTC/USD'
+    ]
 
-    for symbol, timeframe in ohlcv_pairs:
-        _symbol = ''.join(symbol.split('/')) # remove '/'
-        coll = getattr(mongo.exchange, coll_tamplate.format(_symbol, timeframe))
-        await fetch_ohlcv_to_mongo(coll, exchange, symbol, timeframe)
-        logger.info(f"Finished fetching {symbol} {timeframe}.")
+    for sym in symbols:
+        ohlcv_pairs = [
+            (sym, '1m'),
+            (sym, '5m'),
+            (sym, '15m'),
+            (sym, '30m'),
+            (sym, '1h'),
+            (sym, '3h'),
+            (sym, '6h'),
+            (sym, '12h'),
+            (sym, '1d')
+        ]
+
+        ohlcv_pairs = ohlcv_pairs[::-1] # reverse the order
+
+        for symbol, timeframe in ohlcv_pairs:
+            _symbol = ''.join(symbol.split('/')) # remove '/'
+            coll = getattr(mongo.exchange, coll_tamplate.format(ex, _symbol, timeframe))
+            await fetch_ohlcv_to_mongo(coll, exchange, symbol, timeframe)
+            logger.info(f"Finished fetching {symbol} {timeframe}.")
 
 
 run(main)
