@@ -156,7 +156,7 @@ async def fill_missing_ohlcv(mongo, exchange, symbol, start, end, timeframe):
                 row.volume = 0
 
     df = await mongo.get_ohlcv(exchange, symbol, start, end, timeframe)
-    df = df.asfreq('15min')
+    df = df.asfreq(timeframe_to_freq(timeframe))
 
     fill_ohlcv(df)
     return df
