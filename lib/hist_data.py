@@ -41,8 +41,12 @@ async def fetch_ohlcv_handler(exchange, symbol, start, end, timeframe='1m'):
                 ccxt.RequestTimeout,
                 ccxt.ExchangeError,
                 ccxt.DDoSProtection) as error:
+
             if is_empty_response(error): # finished fetching all ohlcv
                 break
+            else:
+                raise error
+
             logger.info(f'|{type(error).__name__}| retrying in {wait} seconds...')
             await asyncio.sleep(wait)
 
@@ -96,8 +100,12 @@ async def fetch_trades_handler(exchange, symbol, start, end):
                 ccxt.RequestTimeout,
                 ccxt.ExchangeError,
                 ccxt.DDoSProtection) as error:
+
             if is_empty_response(error): # finished fetching all trades
                 break
+            else:
+                raise error
+
             logger.info(f'|{type(error).__name__}| retrying in {wait} seconds...')
             await asyncio.sleep(wait)
 
