@@ -1,17 +1,23 @@
-from pprint import pprint as pp
 import ccxt.async as ccxt
 from ccxt.base.exchange import Exchange
 from datetime import timedelta
 import asyncio
 import logging
 import time
+import pandas as pd
 
-from utils import get_constants, sec_ms, ms_sec, timeframe_timedelta, utcms_dt
+from utils import get_constants, \
+                  sec_ms, ms_sec, \
+                  timeframe_timedelta, \
+                  utcms_dt, \
+                  timeframe_to_freq, \
+                  INF
 from db import EXMongo
 
 logger = logging.getLogger()
 log = logger.debug
 
+from pprint import pprint as pp
 
 async def fetch_ohlcv_handler(exchange, symbol, start, end, timeframe='1m'):
     """ Fetch all ohlcv ohlcv since 'start_timestamp' and use generator to stream results. """
@@ -98,7 +104,8 @@ async def fetch_trades_handler(exchange, symbol, start, end):
 
 async def find_missing_ohlcv(coll, start, end, timeframe):
 
-    if not await EXMongo.check_columns(coll, ['timestamp', 'open', 'close', 'high', 'low', 'volume']):
+    if not await EXMongo.check_columns(coll,
+            ['timestamp', 'open', 'close', 'high', 'low', 'volume']):
         raise ValueError('Collection\'s fields do not match candle\'s.')
 
     td = timeframe_timedelta(timeframe)
@@ -126,14 +133,26 @@ async def find_missing_ohlcv(coll, start, end, timeframe):
     return missing_ohlcv
 
 
-async def fill_ohlcv_missing_timestamp(coll, start, end, timeframe):
+async def fill_missing_ohlcv(mongo, exchange, symbol, start, end, timeframe):
 
-    if not await EXMongo.check_columns(coll, ['timestamp', 'open', 'close', 'high', 'low', 'volume']):
-        raise ValueError('Collection\'s fields do not match candle\'s.')
+    def fill_ohlcv(df):
+        for i in range(len(df)):
+            row = df.iloc[i]
+            if pd.isna(row.close):
+                if i == 0:
+                    raise ValueError("Starting ohlcv is empty.")
 
-    coll.find(EXMongo.cond_timestamp_range(start, end)}})
+                c = df.iloc[i-1].close
+                row.open = row.close = c
+                row.high = row.low = c
+                row.volume = 0
+
+    df = await mongo.get_ohlcv(exchange, symbol, start, end, timeframe)
+    df = df.asfreq('15min')
+
+    fill_ohlcv(df)
+    return df
 
 
 def is_empty_response(err):
     return True if 'empty response' in str(err) else False
-

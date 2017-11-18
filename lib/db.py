@@ -75,9 +75,9 @@ class EXMongo():
         collection = f"{exchange}_ohlcv_{self.sym(symbol)}_{timeframe}"
 
         return await self.read_to_dataframe(db, collection, condition,
-                                     index_col='timestamp',
-                                     date_col='timestamp',
-                                     date_parser=utcms_dt)
+                                            index_col='timestamp',
+                                            date_col='timestamp',
+                                            date_parser=utcms_dt)
 
     @staticmethod
     async def check_columns(collection, columns):

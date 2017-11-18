@@ -5,6 +5,7 @@ import calendar
 import inspect
 import logging
 import json
+import pandas as pd
 
 logger = logging.getLogger()
 
@@ -126,3 +127,38 @@ def ld_to_dl(ld):
             l += [ld[i][k]]
         out[k] = l
     return out
+
+
+def timeframe_to_freq(timeframe):
+    freq = ''
+    if timeframe[-1] == 'm':
+        freq = timeframe[:-1]+'T' # min
+    elif timeframe[-1] == 'h':
+        freq = timeframe[:-1]+'H'
+    elif timeframe[-1] == 'd':
+        freq = timeframe[:-1]+'D'
+    elif timeframe[-1] == 'M':
+        freq = timeframe[:-1]+'M'
+    else:
+        raise ValueError(f"Cannot interpret timeframe "\
+                         f"{timeframe} to pandas frequency.")
+    return freq
+
+
+class EXPeriod():
+
+    def __init__(self, timeframe):
+        self.freq = timeframe_to_freq(timeframe)
+
+    def utcms_period(self, ms):
+        return pd.Period(datetime.utcfromtimestamp(int(float(ms)/1000)), self.freq)
+
+    def datetime_period(self, dt):
+        return pd.Period(dt, self.freq)
+
+def dataframe_diff(df1, df2):
+    merged = df1.merge(df2, indicator=True, how='outer')
+    diff_l = merged[merged['_merge'] == 'left_only']
+    diff_r = merged[merged['_merge'] == 'right_only']
+    return pd.concat([diff_l, diff_r], copy=False)
+
