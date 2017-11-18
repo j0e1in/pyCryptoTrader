@@ -44,7 +44,7 @@ async def fetch_ohlcv_handler(exchange, symbol, start, end, timeframe='1m'):
 
             if is_empty_response(error): # finished fetching all ohlcv
                 break
-            else:
+            elif isinstance(error, ccxt.ExchangeError):
                 raise error
 
             logger.info(f'|{type(error).__name__}| retrying in {wait} seconds...')
@@ -103,7 +103,7 @@ async def fetch_trades_handler(exchange, symbol, start, end):
 
             if is_empty_response(error): # finished fetching all trades
                 break
-            else:
+            elif isinstance(error, ccxt.ExchangeError):
                 raise error
 
             logger.info(f'|{type(error).__name__}| retrying in {wait} seconds...')
