@@ -3,6 +3,7 @@ setup()
 
 import motor.motor_asyncio as motor
 from datetime import datetime
+import pandas as pd
 
 from db import EXMongo
 from utils import exchange_timestamp, ms_sec, init_exchange, utcms_dt
@@ -22,8 +23,8 @@ async def test_find_missing_ohlcv():
     end = exchange_timestamp(2017, 11, 1)
 
     count = 0
-    missing_candles_ts = await find_missing_ohlcv(coll, start, end, timeframe)
-    for ts in missing_candles_ts:
+    missing_ohlcv_ts = await find_missing_ohlcv(coll, start, end, timeframe)
+    for ts in missing_ohlcv_ts:
         count += 1
         # print(ts, '-', datetime.utcfromtimestamp(ms_sec(ts)))
 
@@ -45,7 +46,7 @@ async def test_fill_ohlcv_missing_timestamp():
     mongo = EXMongo()
     exchange = init_exchange('bitfinex2')
     symbol = 'ETH/USD'
-    start = exchange_timestamp(2017, 1, 1)
+    start = exchange_timestamp(2017, 10, 1)
     end = exchange_timestamp(2017, 11, 1)
     timeframe = '15m'
 
@@ -53,10 +54,11 @@ async def test_fill_ohlcv_missing_timestamp():
         mongo, exchange, symbol, start, end, timeframe)
 
     missing_ohlcv = filled_df[filled_df.volume == 0]
-    print(missing_ohlcv)
+    print('#missing_ohlcv', len(missing_ohlcv))
+
 
 async def main():
-    await test_find_missing_ohlcv()
+    # await test_find_missing_ohlcv()
     # await test_fetch_trades_handler()
     await test_fill_ohlcv_missing_timestamp()
 
