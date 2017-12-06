@@ -1,5 +1,0 @@
-backtrader
-ccxt
-chromalog
-motor
-pandas

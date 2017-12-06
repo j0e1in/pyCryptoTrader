@@ -60,7 +60,7 @@ class EXMongo():
             raise ValueError('date_col is provided but date_parser is not.')
 
         if index_col:
-            df = df.set_index(index_col)
+            df.set_index(index_col, inplace=True)
 
         return df
 
@@ -73,7 +73,7 @@ class EXMongo():
                 timeframe: str
         """
         db = 'exchange'
-        condition = {'timestamp': {'$gte': start, '$lt': end}}
+        condition = self.cond_timestamp_range(start, end)
 
         ex = exchange_name(exchange)
         collection = f"{ex}_ohlcv_{self.sym(symbol)}_{timeframe}"

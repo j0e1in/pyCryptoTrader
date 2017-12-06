@@ -110,6 +110,10 @@ async def fetch_trades_handler(exchange, symbol, start, end):
             await asyncio.sleep(wait)
 
 
+def is_empty_response(err):
+    return True if 'empty response' in str(err) else False
+
+
 async def find_missing_ohlcv(coll, start, end, timeframe):
 
     if not await EXMongo.check_columns(coll,
@@ -161,6 +165,3 @@ async def fill_missing_ohlcv(mongo, exchange, symbol, start, end, timeframe):
     fill_ohlcv(df)
     return df
 
-
-def is_empty_response(err):
-    return True if 'empty response' in str(err) else False
