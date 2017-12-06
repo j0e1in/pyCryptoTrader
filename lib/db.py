@@ -83,6 +83,18 @@ class EXMongo():
                                             date_col='timestamp',
                                             date_parser=utcms_dt)
 
+    async def get_trades(self, exchange, symbol, start, end):
+        db = 'exchange'
+        condition = self.cond_timestamp_range(start, end)
+
+        ex = exchange_name(exchange)
+        collection = f"{ex}_trades_{self.sym(symbol)}"
+
+        return await self.read_to_dataframe(db, collection, condition,
+                                            index_col='id',
+                                            date_col='timestamp',
+                                            date_parser=utcms_dt)
+
     async def insert_ohlcv(self, ohlcv_df, exchange, symbol, timeframe):
         """ Insert ohlcv dateframe to mongodb. """
         ex = exchange_name(exchange)

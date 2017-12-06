@@ -10,20 +10,22 @@ from hist_data import fill_missing_ohlcv
 from pprint import pprint as pp
 
 
-async def test_get_ohlcv():
+async def test_get_ohlcv(mongo):
     exchange = init_exchange('bitfinex2')
-    mongo = EXMongo()
 
     start = exchange_timestamp(2017, 1, 1)
     end = exchange_timestamp(2017, 1, 2)
+
     res = await mongo.get_ohlcv(exchange, 'BTC/USD', start, end, '1h')
-    pp(res)
+    print('BTC/USD ohlcv')
+    pp(res) # should not be empty
+
     res = await mongo.get_ohlcv(exchange, 'BCH/USD', start, end, '1h')
-    pp(res)
+    print('BCH/USD ohlcv')
+    pp(res) # should be empty
 
 
-async def test_insert_ohlcv():
-    mongo = EXMongo()
+async def test_insert_ohlcv(mongo):
     exchange = init_exchange('bitfinex2')
     symbol = 'ETH/USD'
     start = exchange_timestamp(2017, 10, 1)
@@ -39,9 +41,21 @@ async def test_insert_ohlcv():
     await mongo.insert_ohlcv(missing_ohlcv, exchange, symbol, timeframe)
 
 
+async def test_get_trades(mongo):
+    exchange = init_exchange('bitfinex2')
+
+    start = exchange_timestamp(2017, 1, 1)
+    end = exchange_timestamp(2017, 1, 2)
+    res = await mongo.get_trades(exchange, 'BTC/USD', start, end)
+    pp(res)
+
+
 async def main():
-    await test_get_ohlcv()
-    await test_insert_ohlcv()
+    mongo = EXMongo()
+
+    await test_get_ohlcv(mongo)
+    await test_insert_ohlcv(mongo)
+    await test_get_trades(mongo)
 
 
 run(main)

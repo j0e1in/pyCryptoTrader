@@ -2,7 +2,7 @@ colls=(
   # "bitfinex_ohlcv_ETHUSD_12h"
   # "bitfinex_ohlcv_ETHUSD_15m"
   # "bitfinex_ohlcv_ETHUSD_1d"
-  "bitfinex_ohlcv_ETHUSD_1h"
+  # "bitfinex_ohlcv_ETHUSD_1h"
   # "bitfinex_ohlcv_ETHUSD_1m"
   # "bitfinex_ohlcv_ETHUSD_30m"
   # "bitfinex_ohlcv_ETHUSD_3h"
