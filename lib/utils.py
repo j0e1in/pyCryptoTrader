@@ -11,7 +11,6 @@ logger = logging.getLogger()
 
 INF = 9999999
 
-
 def get_constants():
     with open('../settings/config.json') as f:
         return json.load(f)['constants']
@@ -161,4 +160,10 @@ def dataframe_diff(df1, df2):
     diff_l = merged[merged['_merge'] == 'left_only']
     diff_r = merged[merged['_merge'] == 'right_only']
     return pd.concat([diff_l, diff_r], copy=False)
+
+
+def exchange_name(ex):
+    if not isinstance(ex, str):
+        ex = 'bitfinex' if ex.id == 'bitfinex2' else ex.id
+    return ex
 
