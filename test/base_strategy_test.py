@@ -35,14 +35,19 @@ async def test_feed_trades(mongo):
     start = exchange_timestamp(2017, 1, 1)
     end = exchange_timestamp(2017, 1, 2)
 
-    trades = await mongo.get_trades(exchange, 'BTC/USD', start, end)
+    fields_condition = {'symbol': 0}
+
+    trades = await mongo.get_trades(exchange, 'BTC/USD', start, end, fields_condition=fields_condition)
+    bs.feed_trades(trades)
+
+    pprint(bs.trades)
 
 
 async def main():
     mongo = EXMongo()
 
-    await test_feed_ohlcv(mongo)
-    # await test_feed_trades()
+    # await test_feed_ohlcv(mongo)
+    await test_feed_trades(mongo)
 
 
 run(main)

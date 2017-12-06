@@ -40,13 +40,17 @@ class EXMongo():
             df.to_csv(path, index=False)
 
     async def read_to_dataframe(self, db, collection, condition={}, *,
+                                fields_condition={},
                                 index_col=None,
                                 date_col=None,
                                 date_parser=None,
                                 df_options={}):
         """ If date_col is provided, date_parser must be as well. """
+        fields_condition = {**fields_condition, **{'_id': 0}}
+
+
         coll = self.client.get_database(db).get_collection(collection)
-        docs = await coll.find(condition, {'_id': 0}).to_list(length=INF)
+        docs = await coll.find(condition, fields_condition).to_list(length=INF)
         df = pd.DataFrame(data=docs, **df_options)
 
         if len(df) == 0:
@@ -83,14 +87,16 @@ class EXMongo():
                                             date_col='timestamp',
                                             date_parser=utcms_dt)
 
-    async def get_trades(self, exchange, symbol, start, end):
+    async def get_trades(self, exchange, symbol, start, end, *, fields_condition={}):
         db = 'exchange'
         condition = self.cond_timestamp_range(start, end)
+        fields_condition = {**fields_condition, **{'_id': 0}}
 
         ex = exchange_name(exchange)
         collection = f"{ex}_trades_{self.sym(symbol)}"
 
         return await self.read_to_dataframe(db, collection, condition,
+                                            fields_condition=fields_condition,
                                             index_col='id',
                                             date_col='timestamp',
                                             date_parser=utcms_dt)
