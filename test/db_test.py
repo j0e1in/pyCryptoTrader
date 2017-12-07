@@ -4,14 +4,14 @@ setup()
 import motor.motor_asyncio as motor
 
 from db import EXMongo
-from utils import exchange_timestamp, init_exchange
+from utils import exchange_timestamp, init_ccxt_exchange
 from hist_data import fill_missing_ohlcv
 
 from pprint import pprint as pp
 
 
 async def test_get_ohlcv(mongo):
-    exchange = init_exchange('bitfinex2')
+    exchange = init_ccxt_exchange('bitfinex2')
 
     start = exchange_timestamp(2017, 1, 1)
     end = exchange_timestamp(2017, 1, 2)
@@ -26,7 +26,7 @@ async def test_get_ohlcv(mongo):
 
 
 async def test_insert_ohlcv(mongo):
-    exchange = init_exchange('bitfinex2')
+    exchange = init_ccxt_exchange('bitfinex2')
     symbol = 'ETH/USD'
     start = exchange_timestamp(2017, 10, 1)
     end = exchange_timestamp(2017, 11, 1)
@@ -42,7 +42,7 @@ async def test_insert_ohlcv(mongo):
 
 
 async def test_get_trades(mongo):
-    exchange = init_exchange('bitfinex2')
+    exchange = init_ccxt_exchange('bitfinex2')
 
     start = exchange_timestamp(2017, 1, 1)
     end = exchange_timestamp(2017, 1, 2)

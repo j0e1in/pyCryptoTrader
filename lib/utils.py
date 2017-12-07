@@ -169,5 +169,7 @@ def dataframe_diff(df1, df2):
 def exchange_name(ex):
     if not isinstance(ex, str):
         ex = 'bitfinex' if ex.id == 'bitfinex2' else ex.id
+    else:
+        ex = 'bitfinex' if ex == 'bitfinex2' else ex
     return ex
 
