@@ -7,7 +7,7 @@ import asyncio
 from asyncio import ensure_future
 import logging
 
-from utils import exchange_timestamp, ms_sec, init_exchange, utcms_dt
+from utils import exchange_timestamp, ms_sec, init_ccxt_exchange, utcms_dt
 from hist_data import fetch_trades_handler
 
 
@@ -50,7 +50,7 @@ async def fetch_trades_to_mongo(coll, exchange, symbol):
 
 
 async def main():
-    exchange = init_exchange('bitfinex2')
+    exchange = init_ccxt_exchange('bitfinex2')
 
     coll_tamplate = 'bitfinex_trades_{}'
 

@@ -6,7 +6,7 @@ from datetime import datetime
 import pandas as pd
 
 from db import EXMongo
-from utils import exchange_timestamp, ms_sec, init_exchange, utcms_dt
+from utils import exchange_timestamp, ms_sec, init_ccxt_exchange, utcms_dt
 from hist_data import find_missing_ohlcv, \
                       fetch_trades_handler, \
                       fill_missing_ohlcv
@@ -32,7 +32,7 @@ async def test_find_missing_ohlcv():
 
 
 async def test_fetch_trades_handler():
-    exchange = init_exchange('bitfinex2')
+    exchange = init_ccxt_exchange('bitfinex2')
 
     start = exchange_timestamp(2017, 10, 1)
     end = exchange_timestamp(2017, 11, 1)
@@ -44,7 +44,7 @@ async def test_fetch_trades_handler():
 
 async def test_fill_ohlcv_missing_timestamp():
     mongo = EXMongo()
-    exchange = init_exchange('bitfinex2')
+    exchange = init_ccxt_exchange('bitfinex2')
     symbol = 'ETH/USD'
     start = exchange_timestamp(2017, 10, 1)
     end = exchange_timestamp(2017, 11, 1)

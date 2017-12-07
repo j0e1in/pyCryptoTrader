@@ -7,7 +7,7 @@ import asyncio
 from asyncio import ensure_future
 import logging
 
-from utils import init_exchange, exchange_timestamp
+from utils import init_ccxt_exchange, exchange_timestamp
 from hist_data import fetch_ohlcv_handler
 
 
@@ -59,7 +59,7 @@ async def main():
     ex_id = ex+'2'
     coll_tamplate = '{}_ohlcv_{}_{}'
 
-    exchange = init_exchange(ex_id)
+    exchange = init_ccxt_exchange(ex_id)
 
     mongo = motor.AsyncIOMotorClient('localhost', 27017)
     symbols = [

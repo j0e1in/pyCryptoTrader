@@ -94,7 +94,8 @@ def timeframe_timedelta(timeframe):
         raise ValueError(f'Invalid timeframe \'{timeframe}\'')
 
 
-def init_exchange(exchange_id):
+def init_ccxt_exchange(exchange_id):
+    """ Return an initialized ccxt API instance. """
     options = combine({
         'rateLimit': consts['rate_limit'],
         'enableRateLimit': True
