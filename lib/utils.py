@@ -11,12 +11,14 @@ logger = logging.getLogger()
 
 INF = 9999999
 
-def get_constants():
+def load_config():
     with open('../settings/config.json') as f:
-        return json.load(f)['constants']
+        return json.load(f)
 
 
-consts = get_constants()
+config = load_config()
+consts = config['constants']
+currencies = config['currencies']
 
 
 def get_keys():
@@ -105,7 +107,7 @@ def init_exchange(exchange_id):
 def not_implemented():
     filename = inspect.stack()[1][1]
     funcname = inspect.stack()[1][3]
-    logger.warn(f'| {filename} | {funcname}() | is not implemented.')
+    raise NotImplementedError(f'{filename} >> `{funcname}` is not implemented.')
 
 
 def ld_to_dl(ld):
@@ -154,6 +156,7 @@ class EXPeriod():
 
     def datetime_period(self, dt):
         return pd.Period(dt, self.freq)
+
 
 def dataframe_diff(df1, df2):
     merged = df1.merge(df2, indicator=True, how='outer')

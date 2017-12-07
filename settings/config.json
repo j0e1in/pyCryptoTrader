@@ -3,4 +3,17 @@
     "wait": 45,
     "rate_limit": 2500
   }
+  "currencies": [
+    "USD",
+    "BTC",
+    "BCH",
+    "DASH",
+    "ETH",
+    "ETC",
+    "LTC",
+    "NEO",
+    "XMR",
+    "XRP",
+    "ZEC"
+  ]
 }
