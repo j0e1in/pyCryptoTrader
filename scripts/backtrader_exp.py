@@ -5,7 +5,7 @@ import backtrader as bt
 import pandas as pd
 
 from db import EXMongo
-from utils import utcms_dt, exchange_timestamp
+from utils import ms_dt, ex_timestamp
 from datetime import datetime
 
 from ccxt.base.exchange import Exchange
@@ -118,19 +118,19 @@ async def main():
     # df = pd.read_csv(
     #     datapath,
     #     parse_dates=True,
-    #     date_parser=utcms_dt,
+    #     date_parser=ms_dt,
     #     index_col='timestamp',
     # )
 
-    start = exchange_timestamp(2017, 10, 1)
-    end = exchange_timestamp(2017, 11, 1)
+    start = ex_timestamp(2017, 10, 1)
+    end = ex_timestamp(2017, 11, 1)
 
     mongo = EXMongo(host='localhost', port=27017)
     df = await mongo.read_to_dataframe(
         'exchange',
         'bitfinex_ohlcv_ETHUSD_5m',
         {'timestamp': {'$gte': start, '$lt': end}},
-        date_parser=utcms_dt,
+        date_parser=ms_dt,
         date_col='timestamp',
         index_col='timestamp'
     )
