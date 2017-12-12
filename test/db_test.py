@@ -4,7 +4,7 @@ setup()
 import motor.motor_asyncio as motor
 
 from db import EXMongo
-from utils import exchange_timestamp, init_ccxt_exchange
+from utils import ex_timestamp, init_ccxt_exchange
 from hist_data import fill_missing_ohlcv
 
 from pprint import pprint as pp
@@ -13,8 +13,8 @@ from pprint import pprint as pp
 async def test_get_ohlcv(mongo):
     exchange = init_ccxt_exchange('bitfinex2')
 
-    start = exchange_timestamp(2017, 1, 1)
-    end = exchange_timestamp(2017, 1, 2)
+    start = ex_timestamp(2017, 1, 1)
+    end = ex_timestamp(2017, 1, 2)
 
     res = await mongo.get_ohlcv(exchange, 'BTC/USD', start, end, '1h')
     print('BTC/USD ohlcv')
@@ -28,8 +28,8 @@ async def test_get_ohlcv(mongo):
 async def test_insert_ohlcv(mongo):
     exchange = init_ccxt_exchange('bitfinex2')
     symbol = 'ETH/USD'
-    start = exchange_timestamp(2017, 10, 1)
-    end = exchange_timestamp(2017, 11, 1)
+    start = ex_timestamp(2017, 10, 1)
+    end = ex_timestamp(2017, 11, 1)
     timeframe = '1m'
 
     filled_df = await fill_missing_ohlcv(
@@ -44,8 +44,8 @@ async def test_insert_ohlcv(mongo):
 async def test_get_trades(mongo):
     exchange = init_ccxt_exchange('bitfinex2')
 
-    start = exchange_timestamp(2017, 1, 1)
-    end = exchange_timestamp(2017, 1, 2)
+    start = ex_timestamp(2017, 1, 1)
+    end = ex_timestamp(2017, 1, 2)
     res = await mongo.get_trades(exchange, 'BTC/USD', start, end)
     pp(res)
 

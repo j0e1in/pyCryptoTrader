@@ -9,10 +9,12 @@ import pandas as pd
 from utils import get_constants, \
                   sec_ms, ms_sec, \
                   timeframe_timedelta, \
-                  utcms_dt, \
+                  ms_dt, \
                   timeframe_to_freq, \
                   INF
 from db import EXMongo
+
+## TODO: build ohlcvs from trades and check they matches ohlcvs downloaded from exchange
 
 logger = logging.getLogger()
 log = logger.debug
@@ -31,7 +33,7 @@ async def fetch_ohlcv_handler(exchange, symbol, start, end, timeframe='1m'):
 
     while start < end:
         try:
-            logger.info(f'Fetching {symbol}_{timeframe} ohlcv starting from {utcms_dt(start)}')
+            logger.info(f'Fetching {symbol}_{timeframe} ohlcv starting from {ms_dt(start)}')
             ohlcvs = await exchange.fetch_ohlcv(symbol, timeframe=timeframe, since=start, params=params)
             start = ohlcvs[-1][0] + 1000
             yield ohlcvs
@@ -78,7 +80,7 @@ async def fetch_trades_handler(exchange, symbol, start, end):
 
     while start < end:
         try:
-            logger.info(f'Fetching {symbol} trades starting from {utcms_dt(start)}')
+            logger.info(f'Fetching {symbol} trades starting from {ms_dt(start)}')
             trades = await exchange.fetch_trades(symbol, params=params)
             if not trades:
                 break

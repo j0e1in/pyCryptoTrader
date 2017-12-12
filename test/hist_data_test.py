@@ -6,7 +6,7 @@ from datetime import datetime
 import pandas as pd
 
 from db import EXMongo
-from utils import exchange_timestamp, ms_sec, init_ccxt_exchange, utcms_dt
+from utils import ex_timestamp, ms_sec, init_ccxt_exchange, ms_dt
 from hist_data import find_missing_ohlcv, \
                       fetch_trades_handler, \
                       fill_missing_ohlcv
@@ -19,8 +19,8 @@ async def test_find_missing_ohlcv():
     coll_tamplate = "bitfinex_ohlcv_ETHUSD_{}"
     coll = getattr(mongo.exchange, coll_tamplate.format(timeframe))
 
-    start = exchange_timestamp(2017, 1, 1)
-    end = exchange_timestamp(2017, 11, 1)
+    start = ex_timestamp(2017, 1, 1)
+    end = ex_timestamp(2017, 11, 1)
 
     count = 0
     missing_ohlcv_ts = await find_missing_ohlcv(coll, start, end, timeframe)
@@ -34,20 +34,20 @@ async def test_find_missing_ohlcv():
 async def test_fetch_trades_handler():
     exchange = init_ccxt_exchange('bitfinex2')
 
-    start = exchange_timestamp(2017, 10, 1)
-    end = exchange_timestamp(2017, 11, 1)
+    start = ex_timestamp(2017, 10, 1)
+    end = ex_timestamp(2017, 11, 1)
 
     trades = fetch_trades_handler(exchange, 'ETH/USD', start, end)
     async for trd in trades:
-        print('Last trade:', utcms_dt(trd[-1]['timestamp']))
+        print('Last trade:', ms_dt(trd[-1]['timestamp']))
 
 
 async def test_fill_ohlcv_missing_timestamp():
     mongo = EXMongo()
     exchange = init_ccxt_exchange('bitfinex2')
     symbol = 'ETH/USD'
-    start = exchange_timestamp(2017, 10, 1)
-    end = exchange_timestamp(2017, 11, 1)
+    start = ex_timestamp(2017, 10, 1)
+    end = ex_timestamp(2017, 11, 1)
     timeframe = '15m'
 
     filled_df = await fill_missing_ohlcv(

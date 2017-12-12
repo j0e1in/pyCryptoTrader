@@ -3,7 +3,7 @@ import logging
 import pandas as pd
 import pymongo
 
-from utils import INF, utcms_dt, sec_ms, exchange_name
+from utils import INF, ms_dt, sec_ms, ex_name, config
 
 pd.options.mode.chained_assignment = None
 
@@ -68,44 +68,45 @@ class EXMongo():
 
         return df
 
-    async def get_ohlcv(self, exchange, symbol, start, end, timeframe):
+    async def get_ohlcv(self, ex, symbol, start, end, timeframe):
         """ Read ohlcv from mongodb into DataFrame,
             Params
-                exchange: str or ccxt exchange instance
+                ex: str or ccxt exchange instance
                 symbol: str
                 start, end: timestamp
                 timeframe: str
         """
-        db = 'exchange'
+        db = config['database']['dbname_exchange']
         condition = self.cond_timestamp_range(start, end)
 
-        ex = exchange_name(exchange)
+        ex = ex_name(ex)
         collection = f"{ex}_ohlcv_{self.sym(symbol)}_{timeframe}"
 
         return await self.read_to_dataframe(db, collection, condition,
                                             index_col='timestamp',
                                             date_col='timestamp',
-                                            date_parser=utcms_dt)
+                                            date_parser=ms_dt)
 
-    async def get_trades(self, exchange, symbol, start, end, *, fields_condition={}):
-        db = 'exchange'
+    async def get_trades(self, ex, symbol, start, end, fields_condition={}):
+        db = config['database']['dbname_exchange']
         condition = self.cond_timestamp_range(start, end)
         fields_condition = {**fields_condition, **{'_id': 0}}
 
-        ex = exchange_name(exchange)
+        ex = ex_name(ex)
         collection = f"{ex}_trades_{self.sym(symbol)}"
 
         return await self.read_to_dataframe(db, collection, condition,
                                             fields_condition=fields_condition,
-                                            index_col='id',
+                                            index_col='timestamp',
                                             date_col='timestamp',
-                                            date_parser=utcms_dt)
+                                            date_parser=ms_dt)
 
-    async def insert_ohlcv(self, ohlcv_df, exchange, symbol, timeframe):
+    async def insert_ohlcv(self, ohlcv_df, ex, symbol, timeframe):
         """ Insert ohlcv dateframe to mongodb. """
-        ex = exchange_name(exchange)
+        db = config['database']['dbname_exchange']
+        ex = ex_name(ex)
         collection = f"test_{ex}_ohlcv_{self.sym(symbol)}_{timeframe}"
-        coll = self.client.exchange.get_collection(collection)
+        coll = self.client.get_database(db).get_collection(collection)
 
         def to_timestamp(ts):
             return sec_ms(ts.timestamp())
@@ -150,6 +151,20 @@ class EXMongo():
         res = await coll.find_one({},{'_id':0})
         return pd.DataFrame(columns=res.keys())
 
+    async def get_ohlcv_of_symbols(self, ex, symbols, start, end):
+        """ Returns ohlcvs with all timeframes of symbols in the list. """
+        ohlcvs = {}
+        timeframes = config['trader']['exchanges'][ex_name(ex)]['timeframes']
+        for sym in symbols:
+            ohlcvs[sym] = {}
+            for tf in timeframes:
+                ohlcvs[sym][tf] = await self.get_ohlcv(ex, sym, start, end, tf)
+        return ohlcvs
 
-
-
+    async def get_trades_of_symbols(self, ex, symbols, start, end, fields_condition=None):
+        """ Returns trades of symbols in the list. """
+        trades = {}
+        timeframes = config['trader']['exchanges'][ex_name(ex)]['timeframes']
+        for sym in symbols:
+            trades[sym] = await self.get_trades(ex, sym, start, end, fields_condition)
+        return trades
