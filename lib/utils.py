@@ -6,10 +6,12 @@ import inspect
 import logging
 import json
 import pandas as pd
+import uuid
 
 logger = logging.getLogger()
 
 INF = 9999999
+
 
 def load_config():
     with open('../settings/config.json') as f:
@@ -17,8 +19,6 @@ def load_config():
 
 
 config = load_config()
-consts = config['constants']
-currencies = config['currencies']
 
 
 def get_keys():
@@ -27,24 +27,16 @@ def get_keys():
 
 
 def combine(a, b):
+    """ Combine two dicts. """
     if isinstance(a, dict) and isinstance(b, dict):
         return {**a, **b}
-    elif isinstance(a, list) and isinstance(b, list):
-        return a + b
-
 
 def ms_dt(ms):
-    """ Convert timestamp in millisecond to datetime. """
-    return datetime.fromtimestamp(int(float(ms)/1000))
-
-
-def utcms_dt(ms):
     return datetime.utcfromtimestamp(int(float(ms)/1000))
 
 
-def dt_ms(year, month, day, hour=0, min=0, sec=0):
-    """ Covert datetime to milliscond. """
-    return int(datetime(year, month, day, hour, min, sec).timestamp()*1000)
+def dt_ms(dt):
+    return int(dt.timestamp()*1000)
 
 
 def ms_sec(ms):
@@ -72,7 +64,7 @@ def to_local_timestamp(timestamp):
     return timestamp + sec_ms(tdelta.timestamp())
 
 
-def exchange_timestamp(year, month, day, hour=0, min=0, sec=0):
+def ex_timestamp(year, month, day, hour=0, min=0, sec=0):
     dt = datetime(year, month, day, hour, min, sec)
     return calendar.timegm(dt.utctimetuple()) * 1000
 
@@ -97,7 +89,7 @@ def timeframe_timedelta(timeframe):
 def init_ccxt_exchange(exchange_id):
     """ Return an initialized ccxt API instance. """
     options = combine({
-        'rateLimit': consts['rate_limit'],
+        'rateLimit': config['constants']['rate_limit'],
         'enableRateLimit': True
     }, get_keys()[exchange_id])
 
@@ -134,7 +126,7 @@ def ld_to_dl(ld):
 def timeframe_to_freq(timeframe):
     freq = ''
     if timeframe[-1] == 'm':
-        freq = timeframe[:-1]+'T' # min
+        freq = timeframe[:-1]+'T'  # min
     elif timeframe[-1] == 'h':
         freq = timeframe[:-1]+'H'
     elif timeframe[-1] == 'd':
@@ -142,9 +134,60 @@ def timeframe_to_freq(timeframe):
     elif timeframe[-1] == 'M':
         freq = timeframe[:-1]+'M'
     else:
-        raise ValueError(f"Cannot interpret timeframe "\
+        raise ValueError(f"Cannot interpret timeframe "
                          f"{timeframe} to pandas frequency.")
     return freq
+
+
+def dataframe_diff(df1, df2):
+    merged = df1.merge(df2, indicator=True, how='outer')
+    diff_l = merged[merged['_merge'] == 'left_only']
+    diff_r = merged[merged['_merge'] == 'right_only']
+    return pd.concat([diff_l, diff_r], copy=False)
+
+
+def ex_name(ex):
+    if not isinstance(ex, str):
+        ex = 'bitfinex' if ex.id == 'bitfinex2' else ex.id
+    else:
+        ex = 'bitfinex' if ex == 'bitfinex2' else ex
+    return ex
+
+
+def gen_id():
+    return uuid.uuid4()
+
+
+def get_rows_with_timestamp(df, start, end):
+    """ Return rows with timestamp between start and end.
+        `df` must use datetime object as index.
+    """
+    return df.loc[(df.index >= ms_dt(start)) & (df.index < ms_dt(end))]
+
+
+class Timer():
+
+    def __init__(self, start, interval):
+        """ Attribute
+                start: timestamp
+                interval: seconds
+                now: timestamp
+        """
+        self.now = ms_dt(start)
+        self.interval = timedelta(seconds=interval)
+
+    def tick(self):
+        self.now += self.interval
+
+    def set_now(self, ts):
+        self.now = ms_dt(ts)
+
+    def tsnow(self):
+        """ Returns current utc timestamp in ms. """
+        return dt_ms(self.now)
+
+    def tsnext(self):
+        return dt_ms(self.now + self.interval)
 
 
 class EXPeriod():
@@ -157,19 +200,3 @@ class EXPeriod():
 
     def datetime_period(self, dt):
         return pd.Period(dt, self.freq)
-
-
-def dataframe_diff(df1, df2):
-    merged = df1.merge(df2, indicator=True, how='outer')
-    diff_l = merged[merged['_merge'] == 'left_only']
-    diff_r = merged[merged['_merge'] == 'right_only']
-    return pd.concat([diff_l, diff_r], copy=False)
-
-
-def exchange_name(ex):
-    if not isinstance(ex, str):
-        ex = 'bitfinex' if ex.id == 'bitfinex2' else ex.id
-    else:
-        ex = 'bitfinex' if ex == 'bitfinex2' else ex
-    return ex
-
