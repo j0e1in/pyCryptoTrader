@@ -5,7 +5,7 @@ from pprint import pprint
 
 from db import EXMongo
 from trader import SimulatedTrader
-from utils import Timer, config, ex_timestamp, init_ccxt_exchange, config, ex_name
+from utils import Timer, config, utc_ts, init_ccxt_exchange, config, ex_name
 
 
 timer_interval = config['backtest']['base_timeframe']
@@ -13,8 +13,8 @@ timer_interval = config['backtest']['base_timeframe']
 exchange = init_ccxt_exchange('bitfinex2')
 markets = ['BTC/USD', 'ETH/USD']
 
-start = ex_timestamp(2017, 1, 1)
-end = ex_timestamp(2017, 1, 2)
+start = utc_ts(2017, 1, 1)
+end = utc_ts(2017, 1, 2)
 
 
 def test_init_account(trader):
@@ -53,15 +53,15 @@ async def test_normarl_limit_order_execution(trader, mongo):
     fields_condition = {'symbol': 0}
     trades[ex_name(exchange)] = await mongo.get_trades_of_symbols(exchange, markets, start, end,
                                                                   fields_condition=fields_condition)
-    buy_time = ex_timestamp(2017, 1, 1, 12)
-    sell_time = ex_timestamp(2017, 1, 1, 18)
+    buy_time = utc_ts(2017, 1, 1, 12)
+    sell_time = utc_ts(2017, 1, 1, 18)
 
     trader.feed_data(buy_time, sell_time, ohlcvs, trades)
     print(trader.trades['bitfinex']['BTC/USD'])
 
 
 async def main():
-    start = ex_timestamp(2017, 1, 1)
+    start = utc_ts(2017, 1, 1)
     timer = Timer(start, timer_interval)
     trader = SimulatedTrader(timer)
     mongo = EXMongo()

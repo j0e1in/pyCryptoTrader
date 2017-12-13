@@ -64,7 +64,7 @@ def to_local_timestamp(timestamp):
     return timestamp + sec_ms(tdelta.timestamp())
 
 
-def ex_timestamp(year, month, day, hour=0, min=0, sec=0):
+def utc_ts(year, month, day, hour=0, min=0, sec=0):
     dt = datetime(year, month, day, hour, min, sec)
     return calendar.timegm(dt.utctimetuple()) * 1000
 

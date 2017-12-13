@@ -5,7 +5,7 @@ from pprint import pprint as pp
 
 from backtest import Backtest
 from db import EXMongo
-from utils import ex_timestamp
+from utils import utc_ts
 
 
 def test_strategy(backtest):
@@ -39,8 +39,8 @@ async def main():
         'symbol': 'ETH/USD',
         'fund': 1000,
         'margin': True,
-        'start': ex_timestamp(2017, 10, 1),
-        'end': ex_timestamp(2017, 10, 31),
+        'start': utc_ts(2017, 10, 1),
+        'end': utc_ts(2017, 10, 31),
         'data_feed': {
             'ohlcv': ['5m', '15m', '1h']
         }

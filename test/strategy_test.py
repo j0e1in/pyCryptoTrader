@@ -5,7 +5,7 @@ import asyncio
 from db import EXMongo
 from strategy import BaseStrategy, PatternStrategy
 from trader import SimulatedTrader
-from utils import init_ccxt_exchange, ex_timestamp
+from utils import init_ccxt_exchange, utc_ts
 
 from pprint import pprint
 

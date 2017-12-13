@@ -7,7 +7,7 @@ import asyncio
 from asyncio import ensure_future
 import logging
 
-from utils import ex_timestamp, ms_sec, init_ccxt_exchange, ms_dt
+from utils import utc_ts, ms_sec, init_ccxt_exchange, ms_dt
 from hist_data import fetch_trades_handler
 
 
@@ -16,8 +16,8 @@ logger = logging.getLogger()
 
 async def fetch_all_trades(exchange, symbol):
 
-    start = ex_timestamp(2017, 1, 1)
-    end = ex_timestamp(2017, 11, 1)
+    start = utc_ts(2017, 1, 1)
+    end = utc_ts(2017, 11, 1)
 
     await exchange.load_markets()
     res = fetch_trades_handler(exchange, symbol, start, end)

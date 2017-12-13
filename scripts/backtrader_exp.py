@@ -5,7 +5,7 @@ import backtrader as bt
 import pandas as pd
 
 from db import EXMongo
-from utils import ms_dt, ex_timestamp
+from utils import ms_dt, utc_ts
 from datetime import datetime
 
 from ccxt.base.exchange import Exchange
@@ -122,8 +122,8 @@ async def main():
     #     index_col='timestamp',
     # )
 
-    start = ex_timestamp(2017, 10, 1)
-    end = ex_timestamp(2017, 11, 1)
+    start = utc_ts(2017, 10, 1)
+    end = utc_ts(2017, 11, 1)
 
     mongo = EXMongo(host='localhost', port=27017)
     df = await mongo.read_to_dataframe(

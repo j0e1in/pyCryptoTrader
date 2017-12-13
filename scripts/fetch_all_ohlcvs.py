@@ -7,7 +7,7 @@ import asyncio
 from asyncio import ensure_future
 import logging
 
-from utils import init_ccxt_exchange, ex_timestamp
+from utils import init_ccxt_exchange, utc_ts
 from hist_data import fetch_ohlcv_handler
 
 
@@ -16,8 +16,8 @@ logger = logging.getLogger()
 
 async def fetch_all_ohlcv(exchange, symbol, timeframe):
 
-    start = ex_timestamp(2017, 1, 1)
-    end = ex_timestamp(2017, 11, 1)
+    start = utc_ts(2017, 1, 1)
+    end = utc_ts(2017, 11, 1)
 
     await exchange.load_markets()
     res = fetch_ohlcv_handler(exchange, symbol, start, end, timeframe)
