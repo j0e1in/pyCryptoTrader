@@ -101,11 +101,11 @@ class EXMongo():
                                             date_col='timestamp',
                                             date_parser=ms_dt)
 
-    async def insert_ohlcv(self, ohlcv_df, ex, symbol, timeframe):
+    async def insert_ohlcv(self, ohlcv_df, ex, symbol, timeframe, *, coll_prefix=''):
         """ Insert ohlcv dateframe to mongodb. """
         db = config['database']['dbname_exchange']
         ex = ex_name(ex)
-        collection = f"test_{ex}_ohlcv_{self.sym(symbol)}_{timeframe}"
+        collection = f"{coll_prefix}{ex}_ohlcv_{self.sym(symbol)}_{timeframe}"
         coll = self.client.get_database(db).get_collection(collection)
 
         def to_timestamp(ts):

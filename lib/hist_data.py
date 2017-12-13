@@ -6,7 +6,7 @@ import logging
 import time
 import pandas as pd
 
-from utils import get_constants, \
+from utils import config, \
                   sec_ms, ms_sec, \
                   timeframe_timedelta, \
                   ms_dt, \
@@ -17,14 +17,12 @@ from db import EXMongo
 ## TODO: build ohlcvs from trades and check they matches ohlcvs downloaded from exchange
 
 logger = logging.getLogger()
-log = logger.debug
 
-from pprint import pprint as pp
 
-async def fetch_ohlcv_handler(exchange, symbol, start, end, timeframe='1m'):
+async def fetch_ohlcv(exchange, symbol, start, end, timeframe='1m'):
     """ Fetch all ohlcv ohlcv since 'start_timestamp' and use generator to stream results. """
     now = sec_ms(time.time())
-    wait = get_constants()['wait']
+    wait = config['constants']['wait']
     params = {
         'end': end,
         'limit': 1000,
@@ -53,7 +51,7 @@ async def fetch_ohlcv_handler(exchange, symbol, start, end, timeframe='1m'):
             await asyncio.sleep(wait)
 
 
-async def fetch_trades_handler(exchange, symbol, start, end):
+async def fetch_trades(exchange, symbol, start, end):
 
     def remove_last_timestamp(records):
         _last_timestamp = records[-1]['timestamp']
@@ -70,7 +68,7 @@ async def fetch_trades_handler(exchange, symbol, start, end):
 
 
     now = sec_ms(time.time())
-    wait = get_constants()['wait']
+    wait = config['constants']['wait']
     params = {
         'start': start,
         'end': end,

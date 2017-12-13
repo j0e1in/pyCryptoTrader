@@ -38,7 +38,7 @@ async def test_insert_ohlcv(mongo):
     missing_ohlcv = filled_df[filled_df.volume == 0]
 
     print('#missing_ohlcv:', len(missing_ohlcv))
-    await mongo.insert_ohlcv(missing_ohlcv, exchange, symbol, timeframe)
+    await mongo.insert_ohlcv(missing_ohlcv, exchange, symbol, timeframe, coll_prefix="test_")
 
 
 async def test_get_trades(mongo):
