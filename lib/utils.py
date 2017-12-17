@@ -13,12 +13,12 @@ logger = logging.getLogger()
 INF = 9999999
 
 
-def load_config():
-    with open('../settings/config.json') as f:
+def load_config(file):
+    with open(file) as f:
         return json.load(f)
 
 
-config = load_config()
+config = load_config('../settings/config.json')
 
 
 def get_keys():
@@ -231,8 +231,12 @@ class Timer():
         if not isinstance(start, datetime):
             start = ms_dt(start)
 
-        self._now = start
+        self.start = start
         self.interval = timedelta(seconds=interval)
+        self.reset()
+
+    def reset(self):
+        self._now = self.start
 
     def tick(self):
         self._now += self.interval

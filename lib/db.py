@@ -149,7 +149,7 @@ class EXMongo():
         res = await coll.find_one({},{'_id':0})
         return pd.DataFrame(columns=res.keys())
 
-    async def get_ohlcv_of_symbols(self, ex, symbols, start, end, fields_condition={}):
+    async def get_ohlcvs_of_symbols(self, ex, symbols, timeframes, start, end, fields_condition={}):
         """ Returns ohlcvs with all timeframes of symbols in the list.
             Return
                 {
@@ -160,7 +160,6 @@ class EXMongo():
                 }
         """
         ohlcvs = {}
-        timeframes = config['trader']['exchanges'][ex_name(ex)]['timeframes']
         for sym in symbols:
             ohlcvs[sym] = {}
             for tf in timeframes:

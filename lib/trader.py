@@ -20,7 +20,7 @@ from utils import not_implemented,\
 # TODO: Add different order type
 
 logger = logging.getLogger()
-
+_config = config
 
 class SimulatedTrader():
     """ Available attributes:
@@ -50,42 +50,57 @@ class SimulatedTrader():
             - cancel_all_orders
             - cur_price
         Available methods for backtesting:
+            - feed_data
             - feed_ohlcv
             - feed_trades
     """
 
-    def __init__(self, timer):
-        self.config = config['trader']
+    def __init__(self, timer, custom_config=None):
+
+        if custom_config:
+            self.config = custom_config['trader']
+            _config = custom_config # change global config to custom_config
+        else:
+            self.config = config['trader']
+
         self.timer = timer  # synchronization timer for backtesting
 
         self.markets = self.get_markets()
         self.timeframes = self.get_timeframes()
+        self._init()
 
-        self.account = None
-        self.init_account()
+    def _init(self):
+        """ Initialize all trade-dependent variables. """
+        self.timer.reset()
+        self._init_account()
 
         self.ohlcvs = self.create_empty_ohlcv_store()
         self.trades = self.create_empty_trade_store()
         self.last_ohlcv = None
         self.last_trade = None
 
-    def init_account(self, funds=None):
+    def reset(self):
+        self._init()
+
+    def _init_account(self, funds=None):
         ex_empty_dict = {ex: {} for ex in self.markets}
 
         if not funds:
             funds = self.config['funds']
 
-        self.account = {
-            "wallet": self._init_wallet(funds),
-            "orders": copy.deepcopy(ex_empty_dict),                 # active orders
-            "order_history": copy.deepcopy(ex_empty_dict),          # inactive orders
-            "positions": copy.deepcopy(ex_empty_dict)               # active margin positions
+        self.order_records = {
+            # active orders
+            "orders": copy.deepcopy(ex_empty_dict),
+            # inactive orders
+            "order_history": copy.deepcopy(ex_empty_dict),
+            # active margin positions
+            "positions": copy.deepcopy(ex_empty_dict)
         }
 
-        self.wallet = self.account['wallet']
-        self.orders = self.account['orders']
-        self.order_history = self.account['order_history']
-        self.positions = self.account['positions']
+        self.wallet = self._init_wallet(funds)
+        self.orders = self.order_records['orders']
+        self.order_history = self.order_records['order_history']
+        self.positions = self.order_records['positions']
         self._order_count = 0
 
     def _init_wallet(self, funds):
@@ -232,8 +247,7 @@ class SimulatedTrader():
         self.update_timer(max_dt)
         self._tick()
 
-
-        if config['mode'] == 'debug':
+        if _config['mode'] == 'debug':
             ### For checking if data is correct ###
             ### If errors are raised means ohlcv and trade timestamp doesn't match. ###
             # if max_dt is not None:
@@ -247,7 +261,8 @@ class SimulatedTrader():
 
             if self.last_trade.name - self.last_ohlcv.name > dt_diff:
                 # logger.debug(f"trade timestamp {self.last_trade.name} > "
-                #              f"ohlcv timestamp {self.last_ohlcv.name} by more than 1 minute")
+                # f"ohlcv timestamp {self.last_ohlcv.name} by more than 1
+                # minute")
                 raise ValueError(f"trade timestamp {self.last_trade.name} > "
                                  f"ohlcv timestamp {self.last_ohlcv.name} by more than 1 minute")
 
@@ -258,7 +273,9 @@ class SimulatedTrader():
 
             if self.last_ohlcv.name - ohlcv_dt_diff - self.last_trade.name > dt_diff:
                 # logger.debug(f"last_ohlcv {ms_dt(self.last_ohlcv.name.timestamp()*1000)}/{self.last_ohlcv.name} > "
-                #              f"last_trade {ms_dt(self.last_trade.name.timestamp()*1000)}/{self.last_trade.name} by more than 1 minute")
+                # f"last_trade
+                # {ms_dt(self.last_trade.name.timestamp()*1000)}/{self.last_trade.name}
+                # by more than 1 minute")
                 raise ValueError(f"last_ohlcv {ms_dt(self.last_ohlcv.name.timestamp()*1000)}/{self.last_ohlcv.name} > "
                                  f"last_trade {ms_dt(self.last_trade.name.timestamp()*1000)}/{self.last_trade.name} by more than 1 minute")
 
@@ -299,7 +316,7 @@ class SimulatedTrader():
             'side': side,
             'order_type': order_type,
             'amount': amount,
-            'price': price,
+            'open_price': price,
             'margin': margin
         }
 
@@ -313,7 +330,7 @@ class SimulatedTrader():
                     'side':
                     'order_type':
                     'amount':
-                    'price': (if order_type is 'limit')
+                    'open_price': (if order_type is 'limit')
                 }
         """
         if not self.is_valid_order(order):
@@ -336,8 +353,9 @@ class SimulatedTrader():
             return order
 
     def _gen_order(self, order):
-        curr = self.trading_balance(order['market'], order['side'], order['margin'])
-        price = order['price'] if order['order_type'] == 'limit' else 0
+        curr = self.trading_balance(order['market'], order[
+                                    'side'], order['margin'])
+        price = order['open_price'] if order['order_type'] == 'limit' else 0
         order = {
             "#": self.order_count(),
             "uuid": gen_id(),
@@ -347,7 +365,7 @@ class SimulatedTrader():
             "order_type": order['order_type'],
             "open_time": self.timer.now(),
             "close_time": None,    # filled after closed/canceled/executed
-            "price": price,             # open price
+            "open_price": price,        # open price
             "amount": order['amount'],
             "currency": curr,
             "cost": 0,                  # filled before open
@@ -379,13 +397,13 @@ class SimulatedTrader():
         order_fields = ['market', 'side', 'order_type', 'amount']
 
         if order['order_type'] == 'limit':
-            order_fields += ['price']
+            order_fields += ['open_price']
 
         if not set(order_fields).issubset(order.keys()):
             logger.warn(f"Invalid order {order}")
             return False
 
-        if order['order_type'] == 'limit' and order['price'] == 0:
+        if order['order_type'] == 'limit' and order['open_price'] == 0:
             logger.warn(f"Cannot open order at price 0")
             return False
 
@@ -400,8 +418,6 @@ class SimulatedTrader():
 
             # queue the order to activate order again for trader to execute
             self.orders[ex][id] = order
-
-            del self.positions[ex][id]
             return order
         else:
             return None
@@ -465,7 +481,7 @@ class SimulatedTrader():
             if is_buy(order):
                 self.wallet[ex][curr] += order['amount']
             else:
-                self.wallet[ex][curr] += order['amount'] * order['price']
+                self.wallet[ex][curr] += order['amount'] * order['open_price']
 
             self.order_history[ex][order['#']] = order
             executed_orders.append(order)
@@ -473,7 +489,7 @@ class SimulatedTrader():
         for ex, orders in self.orders.items():
             for id, order in orders.items():
 
-                # Close margin position
+                # Close margin position, all margin orders are closed at market price
                 if order['margin'] and order['active']:
                     execute_close_position(order)
 
@@ -488,7 +504,8 @@ class SimulatedTrader():
 
                 # Execute market order
                 elif order['order_type'] == 'market':
-                    order['price'] = self.cur_price(ex, order['market'])
+
+                    order['open_price'] = self.cur_price(ex, order['market'])
 
                     if order['margin']:
                         self._calc_margin_order(order)
@@ -536,12 +553,13 @@ class SimulatedTrader():
         return curr
 
     def _match_order(self, order):
-        cond1 = (self.cur_price(order['ex'], order['market']) == order['price'])
-        cond2 = (self.cur_price(order['ex'], order['market']) < order['price'])
+        cond1 = (self.cur_price(order['ex'], order[
+                 'market']) == order['open_price'])
+        cond2 = (self.cur_price(order['ex'], order['market']) < order['open_price'])
 
         if (cond1)\
-        or (is_buy(order) and cond2)\
-        or (is_sell(order) and not cond2):
+                or (is_buy(order) and cond2)\
+                or (is_sell(order) and not cond2):
             return True
         else:
             return False
@@ -570,13 +588,19 @@ class SimulatedTrader():
         self._order_count += 1
         return self._order_count
 
+    def is_position_open(self, order):
+        if not isinstance(order, dict) or '#' not in order or 'ex' not in order:
+            return False
+        return True if order['#'] in self.positions[order['ex']] else False
+
     def _calc_order(self, order):
 
         if is_buy(order):
-            order['cost'] = order['price'] * order['amount']
-            order['fee'] = order['price'] * order['amount'] * self.config['fee']
+            order['cost'] = order['open_price'] * order['amount']
+            order['fee'] = order['open_price'] * \
+                order['amount'] * self.config['fee']
             remain = order['cost'] - order['fee']
-            order['amount'] = remain / order['price']
+            order['amount'] = remain / order['open_price']
         else:
             order['cost'] = order['amount']
             order['fee'] = order['amount'] * self.config['fee']
@@ -587,14 +611,17 @@ class SimulatedTrader():
             base_amount = order['amount'] / self.config['margin_rate']
             order['margin_fund'] = order['amount'] - base_amount
             order['margin_fee'] = order['margin_fund'] * self.config['margin_fee']
-            order['fee'] += order['price'] * order['amount'] * self.config['fee']
-            order['cost'] = order['price'] * base_amount + order['fee'] + order['margin_fee']
+            order['fee'] += order['open_price'] * \
+                order['amount'] * self.config['fee']
+            order['cost'] = order['open_price'] * base_amount + \
+                order['fee'] + order['margin_fee']
         else:  # closing a margin position
-            order['fee'] += order['price'] * order['amount'] * self.config['fee']
+            order['fee'] += order['open_price'] * \
+                order['amount'] * self.config['fee']
             order['PL'] = self._calc_margin_pl(order)
 
     def _calc_margin_pl(self, order):
-        price_diff = order['close_price'] - order['price']
+        price_diff = order['close_price'] - order['open_price']
 
         if order['side'] == 'sell':
             price_diff *= -1
@@ -605,8 +632,7 @@ class SimulatedTrader():
     def _calc_margin_return(self, order):
         base_amount = order['amount'] / self.config['margin_rate']
         PL = self._calc_margin_pl(order)
-        return_ = order['open_price'] * base_amount + PL
-
+        return order['open_price'] * base_amount + PL
 
 def is_buy(order):
     return True if order['side'] == 'buy' else False
