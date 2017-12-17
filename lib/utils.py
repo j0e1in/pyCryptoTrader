@@ -31,12 +31,20 @@ def combine(a, b):
     if isinstance(a, dict) and isinstance(b, dict):
         return {**a, **b}
 
+
+def pdts_dt(ts):
+    """ Convert pandas.Timestamp to datetime.datetime """
+    return ts.to_pydatetime()
+
+
 def ms_dt(ms):
     return datetime.utcfromtimestamp(int(float(ms)/1000))
 
 
 def dt_ms(dt):
-    return int(dt.timestamp()*1000)
+    if isinstance(dt, pd.Timestamp):
+        dt = dt.to_pydatetime()
+    return calendar.timegm(dt.utctimetuple()) * 1000
 
 
 def ms_sec(ms):
@@ -158,11 +166,58 @@ def gen_id():
     return uuid.uuid4()
 
 
-def get_rows_with_timestamp(df, start, end):
+def select_time(df, start, end):
     """ Return rows with timestamp between start and end.
         `df` must use datetime object as index.
     """
-    return df.loc[(df.index >= ms_dt(start)) & (df.index < ms_dt(end))]
+    return df.loc[(df.index >= start) & (df.index < end)]
+
+
+def roundup_dt(dt, month=None, day=None, hour=None, min=None, sec=None):
+    if isinstance(dt, pd.Timestamp):
+        dt = dt.to_pydatetime()
+
+    if month:
+        fill = timedelta(months=month - (dt.month % month))
+        reset = timedelta(days=dt.day,
+                          hours=dt.hour,
+                          minutes=dt.minute,
+                          seconds=dt.second,
+                          microseconds=dt.microsecond)
+    elif day:
+        fill = timedelta(days=day - (dt.day % day))
+        reset = timedelta(hours=dt.hour,
+                          minutes=dt.minute,
+                          seconds=dt.second,
+                          microseconds=dt.microsecond)
+    elif hour:
+        fill = timedelta(hours=hour - (dt.hour % hour))
+        reset = timedelta(minutes=dt.minute,
+                          seconds=dt.second,
+                          microseconds=dt.microsecond)
+    elif min:
+        fill = timedelta(minutes=min - (dt.minute % min))
+        reset = timedelta(seconds=dt.second,
+                          microseconds=dt.microsecond)
+    elif sec:
+        fill = timedelta(seconds=sec - (dt.second % sec))
+        reset = timedelta(microseconds=dt.microsecond)
+    else:
+        raise ValueError("Invalid parameters in round_dt.")
+
+    return dt + fill - reset
+
+
+def dt_max(d1, d2):
+    max_dt = None
+
+    if d1 is not None and d2 is not None:
+        max_dt = d1 if d1 > d2 else d2
+
+    if max_dt is None:
+        max_dt = d1 if d1 is not None else d2
+
+    return max_dt
 
 
 class Timer():
@@ -173,21 +228,38 @@ class Timer():
                 interval: seconds
                 now: timestamp
         """
-        self.now = ms_dt(start)
+        if not isinstance(start, datetime):
+            start = ms_dt(start)
+
+        self._now = start
         self.interval = timedelta(seconds=interval)
 
     def tick(self):
-        self.now += self.interval
+        self._now += self.interval
 
-    def set_now(self, ts):
-        self.now = ms_dt(ts)
+    def now(self):
+        return self._now
+
+    def next(self):
+        return self._now + self.interval
+
+    def set_now(self, time):
+        if not isinstance(time, datetime):
+            time = ms_dt(time)
+        self._now = time
 
     def tsnow(self):
         """ Returns current utc timestamp in ms. """
-        return dt_ms(self.now)
+        return dt_ms(self._now)
 
     def tsnext(self):
-        return dt_ms(self.now + self.interval)
+        return dt_ms(self._now + self.interval)
+
+    def interval_sec(self):
+        return self.interval.total_seconds()
+
+    def interval_ms(self):
+        return self.interval_sec() * 1000
 
 
 class EXPeriod():
