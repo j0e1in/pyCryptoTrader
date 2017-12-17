@@ -3,12 +3,13 @@ import logging
 import pandas as pd
 import pymongo
 
-from utils import INF, ms_dt, sec_ms, ex_name, config
+from utils import INF, ms_dt, dt_ms, sec_ms, ex_name, config
 
 pd.options.mode.chained_assignment = None
 
 logger = logging.getLogger()
 
+## TODO: Add insert_trades()
 
 class EXMongo():
 
@@ -68,7 +69,7 @@ class EXMongo():
 
         return df
 
-    async def get_ohlcv(self, ex, symbol, start, end, timeframe):
+    async def get_ohlcv(self, ex, symbol, start, end, timeframe, fields_condition={}):
         """ Read ohlcv from mongodb into DataFrame,
             Params
                 ex: str or ccxt exchange instance
@@ -108,12 +109,9 @@ class EXMongo():
         collection = f"{coll_prefix}{ex}_ohlcv_{self.sym(symbol)}_{timeframe}"
         coll = self.client.get_database(db).get_collection(collection)
 
-        def to_timestamp(ts):
-            return sec_ms(ts.timestamp())
-
         # put 'timestamp' index to first column
         ohlcv_df.reset_index(level=0, inplace=True)
-        ohlcv_df.timestamp = ohlcv_df.timestamp.apply(to_timestamp)
+        ohlcv_df.timestamp = ohlcv_df.timestamp.apply(dt_ms)
 
         records = ohlcv_df.to_dict(orient='records')
 
@@ -144,25 +142,39 @@ class EXMongo():
     @staticmethod
     def cond_timestamp_range(start, end):
         """ Returns mongo command condition of a timestmap range. """
-        return {'timestamp': {'$gte': start, '$lt': end}}
+        return {'timestamp': {'$gte': dt_ms(start), '$lt': dt_ms(end)}}
 
     async def create_empty_df_coll(self, coll):
         """ Fetch fields in the collection and create an empty df with columns. """
         res = await coll.find_one({},{'_id':0})
         return pd.DataFrame(columns=res.keys())
 
-    async def get_ohlcv_of_symbols(self, ex, symbols, start, end):
-        """ Returns ohlcvs with all timeframes of symbols in the list. """
+    async def get_ohlcv_of_symbols(self, ex, symbols, start, end, fields_condition={}):
+        """ Returns ohlcvs with all timeframes of symbols in the list.
+            Return
+                {
+                    'BTC/USD': {
+                        '1m': DataFrame(...),
+                        '5m': DataFrame(...),
+                    },
+                }
+        """
         ohlcvs = {}
         timeframes = config['trader']['exchanges'][ex_name(ex)]['timeframes']
         for sym in symbols:
             ohlcvs[sym] = {}
             for tf in timeframes:
-                ohlcvs[sym][tf] = await self.get_ohlcv(ex, sym, start, end, tf)
+                ohlcvs[sym][tf] = await self.get_ohlcv(ex, sym, start, end, tf, fields_condition)
         return ohlcvs
 
-    async def get_trades_of_symbols(self, ex, symbols, start, end, fields_condition=None):
-        """ Returns trades of symbols in the list. """
+    async def get_trades_of_symbols(self, ex, symbols, start, end, fields_condition={}):
+        """ Returns trades of symbols in the list.
+            Return
+                {
+                    'BTC/USD': DataFrame(...),
+                    'ETH/USD': DataFrame(...),
+                }
+        """
         trades = {}
         timeframes = config['trader']['exchanges'][ex_name(ex)]['timeframes']
         for sym in symbols:

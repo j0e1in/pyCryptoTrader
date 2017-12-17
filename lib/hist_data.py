@@ -6,11 +6,12 @@ import logging
 import time
 import pandas as pd
 
-from utils import config, \
-                  sec_ms, ms_sec, \
-                  timeframe_timedelta, \
-                  ms_dt, \
-                  timeframe_to_freq, \
+from utils import config,\
+                  sec_ms, ms_sec,\
+                  timeframe_timedelta,\
+                  ms_dt,\
+                  dt_ms,\
+                  timeframe_to_freq,\
                   INF
 from db import EXMongo
 
@@ -21,6 +22,9 @@ logger = logging.getLogger()
 
 async def fetch_ohlcv(exchange, symbol, start, end, timeframe='1m'):
     """ Fetch all ohlcv ohlcv since 'start_timestamp' and use generator to stream results. """
+    start = dt_ms(start)
+    end = dt_ms(end)
+
     now = sec_ms(time.time())
     wait = config['constants']['wait']
     params = {
@@ -66,6 +70,8 @@ async def fetch_trades(exchange, symbol, start, end):
 
         return _last_timestamp, records
 
+    start = dt_ms(start)
+    end = dt_ms(end)
 
     now = sec_ms(time.time())
     wait = config['constants']['wait']
@@ -115,6 +121,9 @@ def is_empty_response(err):
 
 
 async def find_missing_ohlcv(coll, start, end, timeframe):
+
+    start = dt_ms(start)
+    end = dt_ms(end)
 
     if not await EXMongo.check_columns(coll,
             ['timestamp', 'open', 'close', 'high', 'low', 'volume']):

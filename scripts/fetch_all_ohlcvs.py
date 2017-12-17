@@ -1,14 +1,16 @@
 from setup import run, setup
 setup()
 
+from asyncio import ensure_future
+from datetime import datetime
+
+import asyncio
 import ccxt.async as ccxt
 import motor.motor_asyncio as motor
-import asyncio
-from asyncio import ensure_future
 import logging
 
-from utils import init_ccxt_exchange, utc_ts
-from hist_data import fetch_ohlcv_handler
+from hist_data import fetch_ohlcv
+from utils import init_ccxt_exchange
 
 
 logger = logging.getLogger()
@@ -16,36 +18,35 @@ logger = logging.getLogger()
 
 async def fetch_all_ohlcv(exchange, symbol, timeframe):
 
-    start = utc_ts(2017, 1, 1)
-    end = utc_ts(2017, 11, 1)
+    start = datetime(2017, 1, 1)
+    end = datetime(2017, 11, 1)
 
-    await exchange.load_markets()
-    res = fetch_ohlcv_handler(exchange, symbol, start, end, timeframe)
-    async for candles in res:
-        yield candles
+    res = fetch_ohlcv(exchange, symbol, start, end, timeframe)
+    async for ohlcv in res:
+        yield ohlcv
 
 
 async def fetch_ohlcv_to_mongo(coll, exchange, symbol, timeframe):
     ops = []
     count = 0
 
-    async for candles in fetch_all_ohlcv(exchange, symbol, timeframe):
-        processed_candles = []
+    async for ohlcv in fetch_all_ohlcv(exchange, symbol, timeframe):
+        processed_ohlcv = []
 
         # [ MTS, OPEN, CLOSE, HIGH, LOW, VOLUME ]
-        for cand in candles:
-            processed_candles.append({
-                'timestamp': cand[0],
-                'open':     cand[1],
-                'close':    cand[2],
-                'high':     cand[3],
-                'low':      cand[4],
-                'volume':   cand[5]
+        for oh in ohlcv:
+            processed_ohlcv.append({
+                'timestamp': oh[0],
+                'open':     oh[1],
+                'close':    oh[2],
+                'high':     oh[3],
+                'low':      oh[4],
+                'volume':   oh[5]
             })
 
-        ops.append(ensure_future(coll.insert_many(processed_candles)))
+        ops.append(ensure_future(coll.insert_many(processed_ohlcv)))
 
-        # insert 1000 candles per op, clear up task stack periodically
+        # insert 1000 ohlcv per op, clear up task stack periodically
         if len(ops) > 50:
             await asyncio.gather(*ops)
             ops = []
