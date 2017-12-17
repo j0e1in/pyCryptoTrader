@@ -245,7 +245,7 @@ class SimulatedTrader():
         max_dt = dt_max(dt_ohlcv, dt_trade)
 
         self.update_timer(max_dt)
-        self._tick()
+        self.tick()
 
         if _config['mode'] == 'debug':
             ### For checking if data is correct ###
@@ -286,7 +286,7 @@ class SimulatedTrader():
             dt = roundup_dt(dt, sec=self.timer.interval_sec())
             self.timer.set_now(dt)
 
-    def _tick(self):
+    def tick(self):
         """ Execute pending orders. """
         self._check_data_feed_time()
         self._execute_orders()

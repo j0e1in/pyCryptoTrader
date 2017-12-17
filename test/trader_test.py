@@ -140,9 +140,9 @@ async def test_margin_order_execution(order_type, trader, mongo):
 
 
 async def main():
+    mongo = EXMongo()
     timer = Timer(start, timer_interval)
     trader = SimulatedTrader(timer)
-    mongo = EXMongo()
 
     print('------------------------------')
     await test_feed_ohlcv_trades(trader, mongo)

@@ -174,38 +174,42 @@ def select_time(df, start, end):
 
 
 def roundup_dt(dt, month=None, day=None, hour=None, min=None, sec=None):
+    """ Round up datetime object to specified interval,
+        eg. min = 20, 10:03 => 10:20
+        eg. sec = 120, 10:00 => 10:02
+    """
     if isinstance(dt, pd.Timestamp):
         dt = dt.to_pydatetime()
 
     if month:
         fill = timedelta(months=month - (dt.month % month))
-        reset = timedelta(days=dt.day,
-                          hours=dt.hour,
-                          minutes=dt.minute,
-                          seconds=dt.second,
-                          microseconds=dt.microsecond)
+        rest = timedelta(days=dt.day,
+                         hours=dt.hour,
+                         minutes=dt.minute,
+                         seconds=dt.second,
+                         microseconds=dt.microsecond)
     elif day:
         fill = timedelta(days=day - (dt.day % day))
-        reset = timedelta(hours=dt.hour,
-                          minutes=dt.minute,
-                          seconds=dt.second,
-                          microseconds=dt.microsecond)
+        rest = timedelta(hours=dt.hour,
+                         minutes=dt.minute,
+                         seconds=dt.second,
+                         microseconds=dt.microsecond)
     elif hour:
         fill = timedelta(hours=hour - (dt.hour % hour))
-        reset = timedelta(minutes=dt.minute,
-                          seconds=dt.second,
-                          microseconds=dt.microsecond)
+        rest = timedelta(minutes=dt.minute,
+                         seconds=dt.second,
+                         microseconds=dt.microsecond)
     elif min:
         fill = timedelta(minutes=min - (dt.minute % min))
-        reset = timedelta(seconds=dt.second,
-                          microseconds=dt.microsecond)
+        rest = timedelta(seconds=dt.second,
+                         microseconds=dt.microsecond)
     elif sec:
         fill = timedelta(seconds=sec - (dt.second % sec))
-        reset = timedelta(microseconds=dt.microsecond)
+        rest = timedelta(microseconds=dt.microsecond)
     else:
         raise ValueError("Invalid parameters in round_dt.")
 
-    return dt + fill - reset
+    return dt + fill - rest
 
 
 def dt_max(d1, d2):
