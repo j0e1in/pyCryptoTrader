@@ -1,4 +1,4 @@
 from strgy import base_strategy, pattern_strategy
 
-BaseStrategy = base_strategy.BaseStrategy
+SingleExchangeStrategy = base_strategy.SingleExchangeStrategy
 PatternStrategy = pattern_strategy.PatternStrategy

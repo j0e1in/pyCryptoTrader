@@ -6,7 +6,7 @@ from datetime import datetime
 
 from db import EXMongo
 from trader import SimulatedTrader
-from utils import Timer, config, init_ccxt_exchange, config, ex_name, ms_dt
+from utils import Timer, config, init_ccxt_exchange, ex_name, ms_dt
 
 
 timer_interval = config['backtest']['base_timeframe']

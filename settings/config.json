@@ -7,7 +7,7 @@
 
   "backtest":{
     "_comment_base_timeframe": "in second",
-    "base_timeframe": 30
+    "base_timeframe": 60
   },
 
   "database":{

@@ -10,33 +10,40 @@ class Backtest():
         self.config = config['backtest']
         self.mongo = mongo
 
-    async def init(self, options={}):
-        """
+    async def init(self, options):
+        """ Can be used to reset and run tests with different options.
             Param
                 options: {
+                    'strategy': a strategy object
                     'start': datetime
                     'end': datetime
                     'config_file': (optional) path to config file
                 }
         """
         self._set_init_options(options)
-
-        self.timer = Timer(self.start, self.config['base_timeframe'])
-        self.trader = SimulatedTrader(self.timer)
-        self.markets = self.trader.markets
-        self.timeframes = self.trader.timeframes
-
+        self.strategy.init(self.trader)
         await self._get_all_data()
+        return self
 
     def reset(self):
         self.trader.reset()
 
     def _set_init_options(self, options):
-        if 'config_file' not in options:
-            self.config = config['backtest']
-
+        self.strategy = options['strategy']
         self.start = options['start']
         self.end = options['end']
+
+        if 'config_file' not in options:
+            self.config = config['backtest']
+            custom_config = None
+        else:
+            custom_config = load_config(options['config_file'])
+            self.config = custom_config['backtest']
+
+        self.timer = Timer(self.start, self.config['base_timeframe'])
+        self.trader = SimulatedTrader(self.timer, self.strategy, custom_config)
+        self.markets = self.trader.markets
+        self.timeframes = self.trader.timeframes
 
     async def _get_all_data(self):
         self.ohlcvs = {}

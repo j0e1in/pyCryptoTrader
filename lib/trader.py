@@ -22,6 +22,7 @@ from utils import not_implemented,\
 logger = logging.getLogger()
 _config = config
 
+
 class SimulatedTrader():
     """ Available attributes:
             - trader: a Trader instance
@@ -30,16 +31,21 @@ class SimulatedTrader():
                     'bitfinex': ['BTC/USD', 'ETH/USD'],
                     'poloniex': ['BTC/USDT', ETH/USDT']
                 }
-            - timeframes: list of timeframes, eg. ['1m', '5m', ...]
+            - timeframes: list of timeframes, eg. {
+                'bitfinex': ['1m', '5m', ...]
+            }
             - ohlcvs: dict of ohlcv DataFrames by symbol, eg. {
-                'BTC/USD': {
-                    '1m': DataFrame(...),
-                    '5m': DataFrame(...),
+                'bitfinex': {
+                    'BTC/USD': {
+                        '1m': DataFrame(...),
+                        '5m': DataFrame(...),
+                    }
                 }
             }
             - trades: dict of DataFrame of trades by symbol, eg. {
-                'BTC/USD': DataFrame(...),
-                ...
+                'bitfinex': {
+                    'BTC/USD': DataFrame(...),
+                 }
             }
             - timer
         Available methods for strategy:
@@ -55,22 +61,22 @@ class SimulatedTrader():
             - feed_trades
     """
 
-    def __init__(self, timer, custom_config=None):
-
+    def __init__(self, timer, strategy=None, custom_config=None):
+        # If custom_config is not specified, use default config
         if custom_config:
             self.config = custom_config['trader']
-            _config = custom_config # change global config to custom_config
+            _config = custom_config  # change global config to custom_config
         else:
             self.config = config['trader']
 
+        self.strategy = strategy
         self.timer = timer  # synchronization timer for backtesting
-
         self.markets = self.get_markets()
         self.timeframes = self.get_timeframes()
         self._init()
 
     def _init(self):
-        """ Initialize all trade-dependent variables. """
+        """ Initialize all trade-session-dependent variables. """
         self.timer.reset()
         self._init_account()
 
@@ -290,6 +296,8 @@ class SimulatedTrader():
         """ Execute pending orders. """
         self._check_data_feed_time()
         self._execute_orders()
+        if self.strategy is not None:
+            self.strategy.run()
 
     def _check_data_feed_time(self):
         cur_time = self.timer.now()
@@ -353,8 +361,7 @@ class SimulatedTrader():
             return order
 
     def _gen_order(self, order):
-        curr = self.trading_balance(order['market'], order[
-                                    'side'], order['margin'])
+        curr = self.trading_currency(order['market'], order['side'], order['margin'])
         price = order['open_price'] if order['order_type'] == 'limit' else 0
         order = {
             "#": self.order_count(),
@@ -540,7 +547,7 @@ class SimulatedTrader():
         else:
             return True
 
-    def trading_balance(self, market, side, margin):
+    def trading_currency(self, market, side, margin):
         curr = ''
         if margin:
             curr = market.split('/')[1]
@@ -549,7 +556,7 @@ class SimulatedTrader():
         elif side == 'sell':
             curr = market.split('/')[0]  # base balance
         else:
-            raise ValueError("Invalid parameters in `trading_balance`")
+            raise ValueError("Invalid parameters in `trading_currency`")
         return curr
 
     def _match_order(self, order):
@@ -633,6 +640,7 @@ class SimulatedTrader():
         base_amount = order['amount'] / self.config['margin_rate']
         PL = self._calc_margin_pl(order)
         return order['open_price'] * base_amount + PL
+
 
 def is_buy(order):
     return True if order['side'] == 'buy' else False
