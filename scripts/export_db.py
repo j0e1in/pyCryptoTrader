@@ -1,11 +1,11 @@
 from setup import setup, run
 setup()
 
-from mongo import Mongo
+from db import EXMongo
 
 
 async def main():
-    mongo = Mongo(host='localhost', port=27017)
+    mongo = EXMongo(host='localhost', port=27017)
 
     collections = [
         'bitfinex_ohlcv_BTCUSD_12h',

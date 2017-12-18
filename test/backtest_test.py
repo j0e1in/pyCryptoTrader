@@ -1,58 +1,32 @@
 from setup import run, setup
 setup()
 
-from pprint import pprint as pp
+from datetime import datetime
+from pprint import pprint
 
 from backtest import Backtest
-from mongo import Mongo
-from utils import exchange_timestamp
+from db import EXMongo
 
 
-def test_strategy(backtest):
-    account = backtest.account
-    data_feed = backtest.data_feed
-    test_info = backtest.test_info
-    open_orders = []
-
-    i = 0
-    long_short = "long"
-    for data in data_feed['ohlcv']['5m']:
-        i += 1
-        if i % 1000 == 0:
-            if len(open_orders) > 0:
-                backtest.close_all_orders(data['timestamp'])
-
-            price = backtest.get_foreward_price(data['timestamp'], long_short, margin=test_info['margin'])
-            amount = account['qoute_balance'] * 0.9 / price
-            succ, order_id = backtest.open_order(long_short, data['timestamp'], amount)
-            if succ:
-                open_orders.append(order_id)
-                long_short = "short" if long_short == "long" else "long"
+async def test_run(backtest):
+    # Add {"BTC": 1} to config['trader']['funds'] to test thoroughly.
+    start = datetime(2017, 1, 1)
+    end = datetime(2017, 1, 2)
+    options = {
+        'start': start,
+        'end': end
+    }
+    await backtest.init(options)
+    report = backtest.run()
+    pprint(report)
 
 
 async def main():
-    mongo = Mongo(host='localhost', port=27017)
+    mongo = EXMongo()
+    backtest = Backtest(mongo)
 
-    options = {
-        'strategy': test_strategy,
-        'exchange': 'bitfinex',
-        'symbol': 'ETH/USD',
-        'fund': 1000,
-        'margin': True,
-        'start': exchange_timestamp(2017, 10, 1),
-        'end': exchange_timestamp(2017, 10, 31),
-        'data_feed': {
-            'ohlcv': ['5m', '15m', '1h']
-        }
-    }
-    btest = Backtest(mongo)
-    await btest.setup(options)
-    report = btest.test()
-    del report['trades']
-
-    print('\n================= [Report] =================')
-    pp(report)
-    print('============================================\n')
+    print('------------------------------')
+    await test_run(backtest)
 
 
 run(main)

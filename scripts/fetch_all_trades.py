@@ -1,14 +1,16 @@
 from setup import run, setup
 setup()
 
+from asyncio import ensure_future
+from datetime import datetime
+
+import asyncio
 import ccxt.async as ccxt
 import motor.motor_asyncio as motor
-import asyncio
-from asyncio import ensure_future
 import logging
 
-from utils import exchange_timestamp, ms_sec, init_exchange, utcms_dt
-from hist_data import fetch_trades_handler
+from utils import ms_sec, init_ccxt_exchange, ms_dt
+from hist_data import fetch_trades
 
 
 logger = logging.getLogger()
@@ -16,11 +18,11 @@ logger = logging.getLogger()
 
 async def fetch_all_trades(exchange, symbol):
 
-    start = exchange_timestamp(2017, 1, 1)
-    end = exchange_timestamp(2017, 11, 1)
+    start = datetime(2017, 1, 1)
+    end = datetime(2017, 11, 1)
 
     await exchange.load_markets()
-    res = fetch_trades_handler(exchange, symbol, start, end)
+    res = fetch_trades(exchange, symbol, start, end)
     async for trades in res:
         yield trades
 
@@ -50,7 +52,7 @@ async def fetch_trades_to_mongo(coll, exchange, symbol):
 
 
 async def main():
-    exchange = init_exchange('bitfinex2')
+    exchange = init_ccxt_exchange('bitfinex2')
 
     coll_tamplate = 'bitfinex_trades_{}'
 
