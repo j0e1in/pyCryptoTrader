@@ -59,6 +59,7 @@ class SimulatedTrader():
             - feed_data
             - feed_ohlcv
             - feed_trades
+            - tick
     """
 
     def __init__(self, timer, strategy=None, custom_config=None):
@@ -251,7 +252,6 @@ class SimulatedTrader():
         max_dt = dt_max(dt_ohlcv, dt_trade)
 
         self.update_timer(max_dt)
-        self.tick()
 
         if _config['mode'] == 'debug':
             ### For checking if data is correct ###
@@ -352,6 +352,8 @@ class SimulatedTrader():
                 self.orders[ex][order['#']] = order
                 return order
             else:
+                logger.warn(f"Not enough balance to open order => "
+                            f"{curr}--{self.wallet[ex][curr]}<{cost}")
                 return None
         else:
             # (order_type: market)
@@ -541,8 +543,6 @@ class SimulatedTrader():
 
     def has_enough_balance(self, ex, curr, cost):
         if self.wallet[ex][curr] < cost:
-            logger.warn(f"Not enough balance to open order => "
-                        f"{curr}--{self.wallet[ex][curr]}<{cost}")
             return False
         else:
             return True

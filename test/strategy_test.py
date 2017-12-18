@@ -18,8 +18,8 @@ from pprint import pprint
 ################################
 
 async def test_pattern_strategy(mongo):
-    start = datetime(2017, 1, 1)
-    end = datetime(2017, 1, 2)
+    start = datetime(2017, 9, 1)
+    end = datetime(2017, 9, 10)
     exchange = 'bitfinex'
     strategy = PatternStrategy(exchange)
 

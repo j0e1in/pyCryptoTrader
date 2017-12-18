@@ -1,4 +1,5 @@
 import copy
+from datetime import timedelta
 
 from utils import config, Timer, roundup_dt, timeframe_timedelta
 from trader import SimulatedTrader
@@ -55,20 +56,25 @@ class Backtest():
     def run(self):
         self.report = self._init_report()
 
+        # Feed one day data to trader to let strategy has initial data to setup variables
+        pre_feed_end = self.start + timedelta(days=1)
+        self.trader.feed_data(self.ohlcvs, self.trades, self.start, pre_feed_end)
+        self.strategy.prefeed()
+
+        # Feed the rest of data and tell trader to execute orders
         cur_time = self.timer.now()
         while cur_time < self.end:
             cur_time = self.timer.now()
             next_time = self.timer.next()
             self.trader.feed_data(self.ohlcvs, self.trades, cur_time, next_time)
+            self.tick() # execute orders
 
         for ex, markets in self.markets.items():
             self.trader.cancel_all_orders(ex)
             self.trader.close_all_positions(ex)
 
         self.trader.tick()  # force execution of all close position orders
-
         self._analyze_orders()
-
         return self.report
 
     def _init_report(self):

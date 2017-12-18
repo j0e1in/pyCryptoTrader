@@ -57,6 +57,8 @@ async def test_normarl_order_execution(order_type, trader, mongo):
         cur_time = trader.timer.now()
         next_time = trader.timer.next()
         trader.feed_data(ohlcvs, trades, cur_time, next_time)
+        trader.tick()
+
 
         if not bought and cur_time >= buy_time:
             ex = 'bitfinex'
@@ -110,6 +112,7 @@ async def test_margin_order_execution(order_type, trader, mongo):
         cur_time = trader.timer.now()
         next_time = trader.timer.next()
         trader.feed_data(ohlcvs, trades, cur_time, next_time)
+        trader.tick()
 
         if not bought and cur_time >= buy_time:
             ex = 'bitfinex'
