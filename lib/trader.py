@@ -180,19 +180,18 @@ class SimulatedTrader():
             for sym, tfs in syms.items():
                 for tf, ohlcv in tfs.items():
                     if len(ohlcv) > 0:
-                        # self.ohlcvs[ex][sym][tf] = \
-                        #     self.ohlcvs[ex][sym][tf].append(ohlcv)
-                        tmp = ohlcv.loc[ohlcv.index < end]
+
+                        tmp = ohlcv[:end]
                         self.ohlcvs[ex][sym][tf] = tmp
 
-                        if tmp.index[-1] > last.name:
+                        if last is None or tmp.index[-1] > last.name:
                             last = tmp.iloc[-1]
 
-                        # Check if there's new ohlcv
-                        if last.name > self.ohlcvs[ex][sym][tf].index[-1]:
-                        else:
-                            last = None
-        self.last_ohlcv = last
+        if self.last_ohlcv is None or last.name > self.last_ohlcv.name:
+            self.last_ohlcv = last
+        else:
+            last = None
+
         return last
 
     def feed_trade(self, ex_trades, end):
@@ -206,58 +205,28 @@ class SimulatedTrader():
                     }
                 }
         """
+        last = self.last_trade
+
         for ex, syms in ex_trades.items():
-            for sym, trades in syms.items():
-                if len(trades) > 0:
-                    # self.trades[ex][sym] = self.trades[ex][sym].append(trades)
-                    tmp = trades.loc[trades.index < end]
+            for sym, trade in syms.items():
+                if len(trade) > 0:
 
-                    if tmp.index[-1] > self.last_trade.name:
-                        self.last_trade = tmp.iloc[-1]
+                    tmp = trade[:end]
+                    self.trades[ex][sym] = tmp
 
-                    if self.last_trade.name > self.trades[ex][sym].index[-1]:
-                        self.trades[ex][sym] = tmp
+                    if last is None or tmp.index[-1] > last.name:
+                        last = tmp.iloc[-1]
+
+        if self.last_trade is None or last.name > self.last_trade.name:
+            self.last_trade = last
+        else:
+            last = None
+
+        return last
 
     def feed_data(self, ex_ohlcvs, ex_trades, end):
         last_ohlcv = self.feed_ohlcv(ex_ohlcvs, end)
         last_trade = self.feed_trade(ex_trades, end)
-
-        if last_ohlcv is None and last_trade is None:
-            return
-
-
-
-
-
-    def feed_data_v1(self, ex_ohlcvs, ex_trades, start=None, end=None):
-        """ Feed (partial) data from ohlcvs and trades with timestamp between start and end. """
-        last_ohlcv = None
-        last_trade = None
-        prev_ohlcv = self.last_ohlcv
-
-        if not start or not end:  # feed all records in data
-            last_ohlcv = self.feed_ohlcv(ex_ohlcvs)
-            last_trade = self.feed_trade(ex_trades)
-        else:
-            partial1 = {}
-            for ex, syms in ex_ohlcvs.items():
-                partial1[ex] = {}
-                for sym, tfs in syms.items():
-                    partial1[ex][sym] = {}
-                    for tf, ohlcv in tfs.items():
-                        rows = select_time(ohlcv, start, end)
-                        partial1[ex][sym][tf] = rows
-
-            last_ohlcv = self.feed_ohlcv(partial1)
-
-            partial = {}
-            for ex, syms in ex_trades.items():
-                partial[ex] = {}
-                for sym, trades in syms.items():
-                    rows = select_time(trades, start, end)
-                    partial[ex][sym] = rows
-
-            last_trade = self.feed_trade(partial)
 
         dt_ohlcv = last_ohlcv.name if last_ohlcv is not None else None
         dt_trade = last_trade.name if last_trade is not None else None
@@ -266,36 +235,24 @@ class SimulatedTrader():
         self.update_timer(max_dt)
 
         if _config['mode'] == 'debug':
-            ### For checking if data is correct ###
-            ### If errors are raised means ohlcv and trade timestamp doesn't match. ###
-            # if max_dt is not None:
-            #     dt_ohlcv = '' if dt_ohlcv is None else dt_ohlcv
-            #     dt_trade = '' if dt_trade is None else dt_trade
-            #     logger.debug(f"last ohlcv/trade feeded "
-            #                  f"{dt_ohlcv.__str__():<19} || "
-            #                  f"{dt_trade.__str__():<19}")
+            self._debug_feed_data()
 
-            dt_diff = timedelta(seconds=60)
+    def _debug_feed_data(self):
 
-            if self.last_trade.name - self.last_ohlcv.name > dt_diff:
-                # logger.debug(f"trade timestamp {self.last_trade.name} > "
-                # f"ohlcv timestamp {self.last_ohlcv.name} by more than 1
-                # minute")
-                raise ValueError(f"trade timestamp {self.last_trade.name} > "
-                                 f"ohlcv timestamp {self.last_ohlcv.name} by more than 1 minute")
+        ### For checking if data is correct ###
+        ### If errors are raised means ohlcv and trade timestamp doesn't match. ###
+        # if max_dt is not None:
+        #     dt_ohlcv = '' if dt_ohlcv is None else dt_ohlcv
+        #     dt_trade = '' if dt_trade is None else dt_trade
+        #     logger.debug(f"last ohlcv/trade feeded "
+        #                  f"{dt_ohlcv.__str__():<19} || "
+        #                  f"{dt_trade.__str__():<19}")
 
-            if prev_ohlcv is None:
-                prev_ohlcv = self.last_ohlcv
+        dt_diff = timedelta(seconds=60)
 
-            ohlcv_dt_diff = self.last_ohlcv.name - prev_ohlcv.name
-
-            if self.last_ohlcv.name - ohlcv_dt_diff - self.last_trade.name > dt_diff:
-                # logger.debug(f"last_ohlcv {ms_dt(self.last_ohlcv.name.timestamp()*1000)}/{self.last_ohlcv.name} > "
-                # f"last_trade
-                # {ms_dt(self.last_trade.name.timestamp()*1000)}/{self.last_trade.name}
-                # by more than 1 minute")
-                raise ValueError(f"last_ohlcv {ms_dt(self.last_ohlcv.name.timestamp()*1000)}/{self.last_ohlcv.name} > "
-                                 f"last_trade {ms_dt(self.last_trade.name.timestamp()*1000)}/{self.last_trade.name} by more than 1 minute")
+        if self.last_trade.name - self.last_ohlcv.name > dt_diff:
+            raise ValueError(f"trade timestamp {self.last_trade.name} > "
+                             f"ohlcv timestamp {self.last_ohlcv.name} by more than 1 minute")
 
     def update_timer(self, dt):
         if dt is None:

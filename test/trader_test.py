@@ -23,13 +23,13 @@ end = datetime(2017, 1, 2)
 async def _feed_ohlcv(trader, mongo):
     ohlcvs = {}
     ohlcvs[ex_name(exchange)] = await mongo.get_ohlcvs_of_symbols(exchange, symbols, timeframes, start, end)
-    trader.feed_ohlcv(ohlcvs)
+    trader.feed_ohlcv(ohlcvs, end)
 
 
 async def _feed_trades(trader, mongo):
     trades = {}
     trades[ex_name(exchange)] = await mongo.get_trades_of_symbols(exchange, symbols, start, end)
-    trader.feed_trades(trades)
+    trader.feed_trade(trades, end)
 
 
 async def test_feed_ohlcv_trades(trader, mongo):
@@ -56,9 +56,9 @@ async def test_normarl_order_execution(order_type, trader, mongo):
     while cur_time < end:
         cur_time = trader.timer.now()
         next_time = trader.timer.next()
-        trader.feed_data(ohlcvs, trades, cur_time, next_time)
-        trader.tick()
 
+        trader.feed_data(ohlcvs, trades, next_time)
+        trader.tick()
 
         if not bought and cur_time >= buy_time:
             ex = 'bitfinex'
@@ -100,6 +100,7 @@ async def test_margin_order_execution(order_type, trader, mongo):
 
     trades = {}
     trades[ex_name(exchange)] = await mongo.get_trades_of_symbols(exchange, symbols, start, end)
+
     buy_time = datetime(2017, 1, 1, 12, 33)
     sell_time = datetime(2017, 1, 1, 23, 45)
 
@@ -111,7 +112,7 @@ async def test_margin_order_execution(order_type, trader, mongo):
     while cur_time < end:
         cur_time = trader.timer.now()
         next_time = trader.timer.next()
-        trader.feed_data(ohlcvs, trades, cur_time, next_time)
+        trader.feed_data(ohlcvs, trades, next_time)
         trader.tick()
 
         if not bought and cur_time >= buy_time:
@@ -139,7 +140,6 @@ async def test_margin_order_execution(order_type, trader, mongo):
 
     pprint(trader.wallet)
     pprint(trader.order_records)
-
 
 
 async def main():
