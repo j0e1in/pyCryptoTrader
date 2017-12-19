@@ -224,9 +224,22 @@ class SimulatedTrader():
 
         return last
 
-    def feed_data(self, ex_ohlcvs, ex_trades, end):
-        last_ohlcv = self.feed_ohlcv(ex_ohlcvs, end)
-        last_trade = self.feed_trade(ex_trades, end)
+    def feed_data(self, end, ex_ohlcvs=None, ex_trades=None):
+        """ Param
+                end: datetime, data feed time end for this test period
+                ex_ohlcvs: same format as required in `feed_ohlcv`
+                ex_trades: same format as required in `feed_trade`
+        """
+        # To significantly improve backtesting speed, do not provide trades data.
+
+        last_ohlcv = None
+        last_trade = None
+
+        if ex_ohlcvs is not None:
+            last_ohlcv = self.feed_ohlcv(ex_ohlcvs, end)
+
+        if ex_trades is not None:
+            last_trade = self.feed_trade(ex_trades, end)
 
         dt_ohlcv = last_ohlcv.name if last_ohlcv is not None else None
         dt_trade = last_trade.name if last_trade is not None else None
@@ -250,9 +263,10 @@ class SimulatedTrader():
 
         dt_diff = timedelta(seconds=60)
 
-        if self.last_trade.name - self.last_ohlcv.name > dt_diff:
-            raise ValueError(f"trade timestamp {self.last_trade.name} > "
-                             f"ohlcv timestamp {self.last_ohlcv.name} by more than 1 minute")
+        if self.last_ohlcv is not None and self.last_trade is not None:
+            if self.last_trade.name - self.last_ohlcv.name > dt_diff:
+                raise ValueError(f"trade timestamp {self.last_trade.name} > "
+                                 f"ohlcv timestamp {self.last_ohlcv.name} by more than 1 minute")
 
     def update_timer(self, dt):
         if dt is None:
@@ -558,7 +572,10 @@ class SimulatedTrader():
         return currs[0]
 
     def cur_price(self, ex, market):
-        return self.trades[ex][market].iloc[-1]['price']
+        if len(self.trades[ex][market]) > 0:
+            return self.trades[ex][market].iloc[-1]['price']
+        else:
+            return self.ohlcvs[ex][market]['1m'].iloc[-1]['close']
 
     def order_count(self):
         self._order_count += 1

@@ -17,7 +17,7 @@ timeframes = config['trader']['exchanges']['bitfinex']['timeframes']
 margin_rate = config['trader']['margin_rate']
 
 start = datetime(2017, 1, 1)
-end = datetime(2017, 1, 2)
+end = datetime(2017, 1, 5)
 
 
 async def _feed_ohlcv(trader, mongo):
@@ -57,7 +57,7 @@ async def test_normarl_order_execution(order_type, trader, mongo):
         cur_time = trader.timer.now()
         next_time = trader.timer.next()
 
-        trader.feed_data(ohlcvs, trades, next_time)
+        trader.feed_data(next_time, ohlcvs, trades)
         trader.tick()
 
         if not bought and cur_time >= buy_time:
@@ -98,9 +98,6 @@ async def test_margin_order_execution(order_type, trader, mongo):
     ohlcvs = {}
     ohlcvs[ex_name(exchange)] = await mongo.get_ohlcvs_of_symbols(exchange, symbols, timeframes, start, end)
 
-    trades = {}
-    trades[ex_name(exchange)] = await mongo.get_trades_of_symbols(exchange, symbols, start, end)
-
     buy_time = datetime(2017, 1, 1, 12, 33)
     sell_time = datetime(2017, 1, 1, 23, 45)
 
@@ -112,7 +109,7 @@ async def test_margin_order_execution(order_type, trader, mongo):
     while cur_time < end:
         cur_time = trader.timer.now()
         next_time = trader.timer.next()
-        trader.feed_data(ohlcvs, trades, next_time)
+        trader.feed_data(next_time, ohlcvs)
         trader.tick()
 
         if not bought and cur_time >= buy_time:

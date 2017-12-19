@@ -18,6 +18,8 @@ class Backtest():
                     'strategy': a strategy object
                     'start': datetime
                     'end': datetime
+                    'enable_trade_feed': bool, default is False (optional)
+                                         Turn on trade feed if strategy requires it
                     'config_file': (optional) path to config file
                 }
         """
@@ -33,6 +35,11 @@ class Backtest():
         self.strategy = options['strategy']
         self.start = options['start']
         self.end = options['end']
+
+        if 'enable_trade_feed' in options:
+            self.enable_trade_feed = options['enable_trade_feed']
+        else:
+            self.enable_trade_feed = False
 
         if 'config_file' not in options:
             self.config = config['backtest']
@@ -51,14 +58,16 @@ class Backtest():
         self.trades = {}
         for ex, markets in self.markets.items():
             self.ohlcvs[ex] = await self.mongo.get_ohlcvs_of_symbols(ex, markets, self.timeframes[ex], self.start, self.end)
-            self.trades[ex] = await self.mongo.get_trades_of_symbols(ex, markets, self.start, self.end)
+
+            if self.enable_trade_feed:
+                self.trades[ex] = await self.mongo.get_trades_of_symbols(ex, markets, self.start, self.end)
 
     def run(self):
         self.report = self._init_report()
 
         # Feed one day data to trader to let strategy has initial data to setup variables
         pre_feed_end = self.start + timedelta(days=1)
-        self.trader.feed_data(self.ohlcvs, self.trades, self.start, pre_feed_end)
+        self.trader.feed_data(pre_feed_end, self.ohlcvs)
         self.strategy.prefeed()
 
         # Feed the rest of data and tell trader to execute orders
@@ -66,8 +75,8 @@ class Backtest():
         while cur_time < self.end:
             cur_time = self.timer.now()
             next_time = self.timer.next()
-            self.trader.feed_data(self.ohlcvs, self.trades, cur_time, next_time)
-            self.tick() # execute orders
+            self.trader.feed_data(next_time, self.ohlcvs)
+            self.trader.tick() # execute orders
 
         for ex, markets in self.markets.items():
             self.trader.cancel_all_orders(ex)
