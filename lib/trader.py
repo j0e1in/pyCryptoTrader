@@ -58,7 +58,7 @@ class SimulatedTrader():
         Available methods for backtesting:
             - feed_data
             - feed_ohlcv
-            - feed_trades
+            - feed_trade
             - tick
     """
 
@@ -161,10 +161,10 @@ class SimulatedTrader():
 
         return trades
 
-    def feed_ohlcv(self, ex_ohlcv):
+    def feed_ohlcv(self, ex_ohlcvs, end):
         """ Append new ohlcvs to data feed.
             Param
-                ex_ohlcv: contain 3 levels, exchange > symbol > timeframe
+                ex_ohlcvs: contain 3 levels, exchange > symbol > timeframe
                 {
                     'bitfinex': {                       # ex
                         'BTC/USD': {                    # tf
@@ -174,24 +174,28 @@ class SimulatedTrader():
                     }
                 }
         """
-        last = None
+        last = self.last_ohlcv
 
-        for ex, syms in ex_ohlcv.items():
+        for ex, syms in ex_ohlcvs.items():
             for sym, tfs in syms.items():
                 for tf, ohlcv in tfs.items():
                     if len(ohlcv) > 0:
-                        self.ohlcvs[ex][sym][tf] = \
-                            self.ohlcvs[ex][sym][tf].append(ohlcv)
+                        # self.ohlcvs[ex][sym][tf] = \
+                        #     self.ohlcvs[ex][sym][tf].append(ohlcv)
+                        tmp = ohlcv.loc[ohlcv.index < end]
+                        self.ohlcvs[ex][sym][tf] = tmp
 
-                        if not last or ohlcv.iloc[-1].name > last.name:
-                            last = ohlcv.iloc[-1]
+                        if tmp.index[-1] > last.name:
+                            last = tmp.iloc[-1]
 
-        if last is not None:
-            self.last_ohlcv = last
-
+                        # Check if there's new ohlcv
+                        if last.name > self.ohlcvs[ex][sym][tf].index[-1]:
+                        else:
+                            last = None
+        self.last_ohlcv = last
         return last
 
-    def feed_trades(self, ex_trades):
+    def feed_trade(self, ex_trades, end):
         """ Append new trades to data feed.
             Param
                 ex_trades: contain 2 levels, exchange > symbol
@@ -202,22 +206,30 @@ class SimulatedTrader():
                     }
                 }
         """
-        last = None
-
         for ex, syms in ex_trades.items():
             for sym, trades in syms.items():
                 if len(trades) > 0:
-                    self.trades[ex][sym] = self.trades[ex][sym].append(trades)
+                    # self.trades[ex][sym] = self.trades[ex][sym].append(trades)
+                    tmp = trades.loc[trades.index < end]
 
-                    if not last or trades.iloc[-1].name > last.name:
-                        last = trades.iloc[-1]
+                    if tmp.index[-1] > self.last_trade.name:
+                        self.last_trade = tmp.iloc[-1]
 
-        if last is not None:
-            self.last_trade = last
+                    if self.last_trade.name > self.trades[ex][sym].index[-1]:
+                        self.trades[ex][sym] = tmp
 
-        return last
+    def feed_data(self, ex_ohlcvs, ex_trades, end):
+        last_ohlcv = self.feed_ohlcv(ex_ohlcvs, end)
+        last_trade = self.feed_trade(ex_trades, end)
 
-    def feed_data(self, ex_ohlcvs, ex_trades, start=None, end=None):
+        if last_ohlcv is None and last_trade is None:
+            return
+
+
+
+
+
+    def feed_data_v1(self, ex_ohlcvs, ex_trades, start=None, end=None):
         """ Feed (partial) data from ohlcvs and trades with timestamp between start and end. """
         last_ohlcv = None
         last_trade = None
@@ -225,7 +237,7 @@ class SimulatedTrader():
 
         if not start or not end:  # feed all records in data
             last_ohlcv = self.feed_ohlcv(ex_ohlcvs)
-            last_trade = self.feed_trades(ex_trades)
+            last_trade = self.feed_trade(ex_trades)
         else:
             partial1 = {}
             for ex, syms in ex_ohlcvs.items():
@@ -245,7 +257,7 @@ class SimulatedTrader():
                     rows = select_time(trades, start, end)
                     partial[ex][sym] = rows
 
-            last_trade = self.feed_trades(partial)
+            last_trade = self.feed_trade(partial)
 
         dt_ohlcv = last_ohlcv.name if last_ohlcv is not None else None
         dt_trade = last_trade.name if last_trade is not None else None
