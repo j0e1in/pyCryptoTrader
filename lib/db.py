@@ -86,13 +86,15 @@ class EXMongo():
 
         return df
 
-    async def get_ohlcv(self, ex, symbol, start, end, timeframe, fields_condition={}):
+    async def get_ohlcv(self, ex, symbol, start, end, timeframe, fields_condition={}, compress=False):
         """ Read ohlcv from mongodb into DataFrame,
             Params
                 ex: str or ccxt exchange instance
                 symbol: str
                 start, end: timestamp
                 timeframe: str
+                compress: bool, change data type to smaller ones (eg. float64 -> float32)
+                fields_conditions: select/filter some columns (eg. remove 'close' column: {'close': 0})
         """
         db = config['database']['dbname_exchange']
         condition = self.cond_timestamp_range(start, end)
@@ -105,14 +107,15 @@ class EXMongo():
                                              date_col='timestamp',
                                              date_parser=ms_dt)
 
-        # Covert all float colums to minimum float type, which is float32
-        selected_ohlcv = ohlcv.select_dtypes(include=['float'])
-        selected_ohlcv = selected_ohlcv.apply(pd.to_numeric, downcast='float')
-        ohlcv[selected_ohlcv.columns] = selected_ohlcv
+        if compress:
+            # Covert all float colums to minimum float type, which is float32
+            selected_ohlcv = ohlcv.select_dtypes(include=['float'])
+            selected_ohlcv = selected_ohlcv.apply(pd.to_numeric, downcast='float')
+            ohlcv[selected_ohlcv.columns] = selected_ohlcv
 
         return ohlcv
 
-    async def get_trades(self, ex, symbol, start, end, fields_condition={}):
+    async def get_trades(self, ex, symbol, start, end, fields_condition={}, compress=False):
         db = config['database']['dbname_exchange']
         condition = self.cond_timestamp_range(start, end)
         fields_condition = {**fields_condition, **{'_id': 0}}
@@ -128,12 +131,13 @@ class EXMongo():
 
         print('before:', trade.memory_usage(deep=True).sum())
 
-        # Covert types to significantly reduce memory usage
-        trade['id'] = trade['id'].astype('uint', copy=False)
-        trade['price'] = trade['price'].astype('float32', copy=False)
-        trade['amount'] = trade['amount'].astype('float32', copy=False)
-        trade['side'] = trade['side'].astype('category', copy=False)
-        trade['symbol'] = trade['symbol'].astype('category', copy=False)
+        if compress:
+            # Covert types to significantly reduce memory usage
+            trade['id'] = trade['id'].astype('uint', copy=False)
+            trade['price'] = trade['price'].astype('float32', copy=False)
+            trade['amount'] = trade['amount'].astype('float32', copy=False)
+            trade['side'] = trade['side'].astype('category', copy=False)
+            trade['symbol'] = trade['symbol'].astype('category', copy=False)
 
         return trade
 
