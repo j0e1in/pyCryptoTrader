@@ -1,5 +1,6 @@
 import motor.motor_asyncio as motor
 import logging
+import numpy as np
 import pandas as pd
 import pymongo
 
@@ -49,10 +50,26 @@ class EXMongo():
         """ If date_col is provided, date_parser must be as well. """
         fields_condition = {**fields_condition, **{'_id': 0}}
 
-
         coll = self.client.get_database(db).get_collection(collection)
+
+        ## Process result at once
         docs = await coll.find(condition, fields_condition).to_list(length=INF)
         df = pd.DataFrame(data=docs, **df_options)
+
+        ## Use limited length to process result block by block
+        ## Since uncompressed df will endup using same amount of memory as processing result at once,
+        ## there's no reason to use this method.
+        #
+        # cursor = coll.find(condition, fields_condition)
+        # doc_size = config['mongo_to_list_length']
+        # doc = await cursor.to_list(length=doc_size)
+        # df = pd.DataFrame(data=doc, **df_options)
+
+        # doc = await cursor.to_list(length=doc_size)
+        # while len(doc) > 0:
+        #     tmp = pd.DataFrame(data=doc, index=np.arange(len(doc)).tolist(), columns=df.columns, **df_options)
+        #     df = pd.concat([df, tmp], ignore_index=True)
+        #     doc = await cursor.to_list(length=doc_size)
 
         if len(df) == 0:
             df = await self.create_empty_df_coll(coll)
@@ -83,10 +100,17 @@ class EXMongo():
         ex = ex_name(ex)
         collection = f"{ex}_ohlcv_{self.sym(symbol)}_{timeframe}"
 
-        return await self.read_to_dataframe(db, collection, condition,
-                                            index_col='timestamp',
-                                            date_col='timestamp',
-                                            date_parser=ms_dt)
+        ohlcv = await self.read_to_dataframe(db, collection, condition,
+                                             index_col='timestamp',
+                                             date_col='timestamp',
+                                             date_parser=ms_dt)
+
+        # Covert all float colums to minimum float type, which is float32
+        selected_ohlcv = ohlcv.select_dtypes(include=['float'])
+        selected_ohlcv = selected_ohlcv.apply(pd.to_numeric, downcast='float')
+        ohlcv[selected_ohlcv.columns] = selected_ohlcv
+
+        return ohlcv
 
     async def get_trades(self, ex, symbol, start, end, fields_condition={}):
         db = config['database']['dbname_exchange']
@@ -96,11 +120,22 @@ class EXMongo():
         ex = ex_name(ex)
         collection = f"{ex}_trades_{self.sym(symbol)}"
 
-        return await self.read_to_dataframe(db, collection, condition,
-                                            fields_condition=fields_condition,
-                                            index_col='timestamp',
-                                            date_col='timestamp',
-                                            date_parser=ms_dt)
+        trade = await self.read_to_dataframe(db, collection, condition,
+                                             fields_condition=fields_condition,
+                                             index_col='timestamp',
+                                             date_col='timestamp',
+                                             date_parser=ms_dt)
+
+        print('before:', trade.memory_usage(deep=True).sum())
+
+        # Covert types to significantly reduce memory usage
+        trade['id'] = trade['id'].astype('uint', copy=False)
+        trade['price'] = trade['price'].astype('float32', copy=False)
+        trade['amount'] = trade['amount'].astype('float32', copy=False)
+        trade['side'] = trade['side'].astype('category', copy=False)
+        trade['symbol'] = trade['symbol'].astype('category', copy=False)
+
+        return trade
 
     async def insert_ohlcv(self, ohlcv_df, ex, symbol, timeframe, *, coll_prefix=''):
         """ Insert ohlcv dateframe to mongodb. """

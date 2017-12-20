@@ -8,7 +8,6 @@ from db import EXMongo
 from trader import SimulatedTrader
 from utils import Timer, config, init_ccxt_exchange, ex_name, ms_dt
 
-
 timer_interval = config['backtest']['base_timeframe']
 
 exchange = init_ccxt_exchange('bitfinex2')
@@ -17,7 +16,7 @@ timeframes = config['trader']['exchanges']['bitfinex']['timeframes']
 margin_rate = config['trader']['margin_rate']
 
 start = datetime(2017, 1, 1)
-end = datetime(2017, 1, 5)
+end = datetime(2017, 1, 10)
 
 
 async def _feed_ohlcv(trader, mongo):
@@ -46,6 +45,7 @@ async def test_normarl_order_execution(order_type, trader, mongo):
 
     trades = {}
     trades[ex_name(exchange)] = await mongo.get_trades_of_symbols(exchange, symbols, start, end)
+
     buy_time = datetime(2017, 1, 1, 7, 33)
     sell_time = datetime(2017, 1, 1, 21, 45)
 
@@ -131,7 +131,7 @@ async def test_margin_order_execution(order_type, trader, mongo):
             bought = True
 
         if trader.is_position_open(order)\
-        and not sold and cur_time >= sell_time:
+                and not sold and cur_time >= sell_time:
             trader.close_position(order)
             sold = True
 

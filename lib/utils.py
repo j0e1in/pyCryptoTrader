@@ -224,6 +224,15 @@ def dt_max(d1, d2):
     return max_dt
 
 
+def pd_mem_usage(pandas_obj):
+    if isinstance(pandas_obj,pd.DataFrame):
+        usage_b = pandas_obj.memory_usage(deep=True).sum()
+    else: # we assume if not a df it's a series
+        usage_b = pandas_obj.memory_usage(deep=True)
+    usage_mb = usage_b / 1024 ** 2 # convert bytes to megabytes
+    return "{:03.2f} MB".format(usage_mb)
+
+
 class Timer():
 
     def __init__(self, start, interval):

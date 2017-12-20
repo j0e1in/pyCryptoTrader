@@ -128,7 +128,7 @@ class SimulatedTrader():
         return wallet
 
     def create_empty_ohlcv_store(self):
-        """ ohlcv[ex][tf][market] """
+        """ ohlcv[ex][market][ft] """
         cols = ['timestamp', 'open', 'close', 'high', 'low', 'volume']
         ohlcv = {}
 
