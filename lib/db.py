@@ -133,11 +133,12 @@ class EXMongo():
 
         if compress:
             # Covert types to significantly reduce memory usage
-            trade['id'] = trade['id'].astype('uint', copy=False)
             trade['price'] = trade['price'].astype('float32', copy=False)
             trade['amount'] = trade['amount'].astype('float32', copy=False)
-            trade['side'] = trade['side'].astype('category', copy=False)
-            trade['symbol'] = trade['symbol'].astype('category', copy=False)
+
+        trade['id'] = trade['id'].astype('uint', copy=False)
+        trade['side'] = trade['side'].astype('category', copy=False)
+        trade['symbol'] = trade['symbol'].astype('category', copy=False)
 
         return trade
 
