@@ -16,7 +16,7 @@ timeframes = config['trader']['exchanges']['bitfinex']['timeframes']
 margin_rate = config['trader']['margin_rate']
 
 start = datetime(2017, 1, 1)
-end = datetime(2017, 1, 10)
+end = datetime(2017, 1, 5)
 
 
 async def _feed_ohlcv(trader, mongo):
@@ -160,4 +160,7 @@ async def main():
     await test_margin_order_execution('market', trader, mongo)
     print('------------------------------')
 
-run(main)
+
+if __name__ == '__main__':
+    run(main)
+
