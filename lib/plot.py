@@ -94,13 +94,13 @@ class Plot():
     def plot_order_annotation(self, orders, ohlc):
         """
             Param
-                orders: DataFrame converted from orders used in trader
+                orders: List of orders
                 ohlc: DataFrame used to plot ohlc
         """
         for order in orders:
             margin_label = 'M' if order['margin'] else 'N'
             type_label = 'L' if order['order_type'] == 'limit' else 'M'
-            label = f"{margin_label},{type_label}"
+            label = f"({margin_label}, {type_label})"
 
             if order['margin'] and SimulatedTrader.is_position_open(order):
                 time = order['open_time']

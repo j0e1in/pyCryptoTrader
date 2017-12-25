@@ -14,7 +14,9 @@ from utils import not_implemented,\
     select_time,\
     roundup_dt,\
     pdts_dt,\
-    dt_max
+    dt_max,\
+    Timer,\
+    to_ordered_dict
 
 # TODO: Use different config (fee etc.) for different exchanges
 # TODO: Add different order type
@@ -74,6 +76,7 @@ class SimulatedTrader():
         self.timer = timer  # synchronization timer for backtesting
         self.markets = self.get_markets()
         self.timeframes = self.get_timeframes()
+        self.fast_mode = False
         self._init()
 
     def _init(self):
@@ -275,11 +278,14 @@ class SimulatedTrader():
             dt = roundup_dt(dt, sec=self.timer.interval_sec())
             self.timer.set_now(dt)
 
-    def tick(self):
+    def tick(self, last=False):
         """ Execute pending orders. """
-        self._check_data_feed_time()
+        if _config['mode'] == 'debug':
+            self._check_data_feed_time()
+
         self._execute_orders()
-        if self.strategy is not None:
+
+        if self.strategy is not None and not last:
             self.strategy.run()
 
     def _check_data_feed_time(self):
@@ -296,7 +302,8 @@ class SimulatedTrader():
                 if len(trades) > 0 and trades.index[-1] > cur_time:
                     raise ValueError(f"trades feed's timestamp exceeds timer's. :: {trades.index[-1]} > {cur_time}")
 
-    def generate_order(self, ex, market, side, order_type, amount, price=None, *, margin=False):
+    @staticmethod
+    def generate_order(ex, market, side, order_type, amount, price=None, *, margin=False):
         """ Helper function for generating order dict for `open`. """
         if order_type == 'limit' and not price:
             raise ValueError("limit orders must provide a price.")
@@ -384,7 +391,8 @@ class SimulatedTrader():
 
         return order
 
-    def is_valid_order(self, order):
+    @staticmethod
+    def is_valid_order(order):
         """ Check fields in the order. """
         order_fields = ['market', 'side', 'order_type', 'amount']
 
@@ -424,7 +432,7 @@ class SimulatedTrader():
             order['close_time'] = self.timer.now()
 
             self.wallet[ex][order['currency']] += order['cost']
-            self.orders_history[ex][id] = order
+            self.order_history[ex][id] = order
             del self.orders[ex][id]
             return order
         else:
@@ -470,19 +478,17 @@ class SimulatedTrader():
             order['close_time'] = self.timer.now()
             curr = self.opposite_currency(order)
 
-            if is_buy(order):
+            if self.is_buy(order):
                 self.wallet[ex][curr] += order['amount']
             else:
                 self.wallet[ex][curr] += order['amount'] * order['open_price']
-
-            self.order_history[ex][order['#']] = order
             executed_orders.append(order)
 
         for ex, orders in self.orders.items():
             for id, order in orders.items():
 
                 # Close margin position, all margin orders are closed at market price
-                if order['margin'] and order['active']:
+                if self.is_margin_close(order):
                     execute_close_position(order)
 
                 # Execute limit order
@@ -530,7 +536,8 @@ class SimulatedTrader():
         else:
             return True
 
-    def trading_currency(self, market, side, margin):
+    @staticmethod
+    def trading_currency(market, side, margin):
         curr = ''
         if margin:
             curr = market.split('/')[1]
@@ -548,8 +555,8 @@ class SimulatedTrader():
         cond2 = (self.cur_price(order['ex'], order['market']) < order['open_price'])
 
         if (cond1)\
-                or (is_buy(order) and cond2)\
-                or (is_sell(order) and not cond2):
+                or (self.is_buy(order) and cond2)\
+                or (self.is_sell(order) and not cond2):
             return True
         else:
             return False
@@ -566,12 +573,16 @@ class SimulatedTrader():
             tfs[ex] = info['timeframes']
         return tfs
 
-    def opposite_currency(self, order):
+    @staticmethod
+    def opposite_currency(order):
         currs = order['market'].split('/')
         currs.remove(order['currency'])
         return currs[0]
 
     def cur_price(self, ex, market):
+        if self.fast_mode:
+            raise RuntimeError('SimulatedTrader cur_price is called in fast mode.')
+
         if len(self.trades[ex][market]) > 0:
             return self.trades[ex][market].iloc[-1]['price']
         else:
@@ -588,7 +599,7 @@ class SimulatedTrader():
 
     def _calc_order(self, order):
 
-        if is_buy(order):
+        if self.is_buy(order):
             order['cost'] = order['open_price'] * order['amount']
             order['fee'] = order['open_price'] * \
                 order['amount'] * self.config['fee']
@@ -627,10 +638,180 @@ class SimulatedTrader():
         PL = self._calc_margin_pl(order)
         return order['open_price'] * base_amount + PL
 
+    def get_hist_margin_orders(self, ex, market):
+        margin_orders = []
 
-def is_buy(order):
-    return True if order['side'] == 'buy' else False
+        for order in self.order_history[ex].values():
+            if order['margin'] and order['market'] == market:
+                margin_orders.append(order)
+
+        return margin_orders
+
+    def get_hist_normal_orders(self, ex, market):
+        normal_orders = []
+
+        for order in self.order_history[ex].values():
+            if not order['margin'] and order['market'] == market:
+                normal_orders.append(order)
+
+        return normal_orders
+
+    def liquidate(self):
+        for ex, markets in self.markets.items():
+            self.cancel_all_orders(ex)
+            self.close_all_positions(ex)
+
+        self.tick(last=True)  # force execution of all close position orders
+
+    @classmethod
+    def is_margin_open(cls, order):
+        return not cls.is_margin_close(order)
+
+    @classmethod
+    def is_margin_close(cls, order):
+        if (order['margin'] and order['active'])\
+        or (order['margin'] and order['close_time']):
+            return True
+        else:
+            return False
+
+    @staticmethod
+    def is_buy(order):
+        return True if order['side'] == 'buy' else False
 
 
-def is_sell(order):
-    return True if order['side'] == 'sell' else False
+    @staticmethod
+    def is_sell(order):
+        return True if order['side'] == 'sell' else False
+
+
+
+class FastTrader(SimulatedTrader):
+
+    def __init__(self, timer, strategy=None, custom_config=None):
+        super().__init__(timer, strategy, custom_config)
+        self._init()
+
+    def _init(self):
+        super()._init()
+        self._op_order_count = 0
+
+    def reset(self):
+        super().reset()
+        self._init()
+
+    def tick(self, last=False):
+        if last:
+            super().tick(last)
+            return
+
+        if _config['mode'] == 'debug':
+            self._check_data_feed_time()
+
+        fast_mode_timer = Timer(self.timer.start, self.timer.interval)
+
+        ops = self.strategy.fast_run()
+        ops = to_ordered_dict(ops, sort_by='key')
+
+        if len(ops) == 0:
+            return
+
+        real_orders = {}
+        cur_time = fast_mode_timer.now()
+        end = self.timer.now()
+
+        while cur_time < end:
+
+            executed_ops_dt = []
+            for dt, op in ops.items():
+
+                if dt <= cur_time:
+                    if op['name'] == 'open':
+                        real_orders[op['order']['op_#']] = self.open(op['order'])
+
+                    elif op['name'] == 'close_position':
+                        order = real_orders[op['order']['op_#']]
+                        self.close_position(order)
+
+                    elif op['name'] == 'cancel_order':
+                        order = real_orders[op['order']['op_#']]
+                        self.cancel_order(order)
+
+                    elif op['name'] == 'close_all_positions':
+                        self.close_all_positions(op['ex'])
+
+                    elif op['name'] == 'cancel_all_orders':
+                        self.cancel_all_orders(op['ex'])
+
+                    executed_ops_dt.append(dt)
+                else:
+                    break
+
+            # remove executed ops
+            for dt in executed_ops_dt:
+                del ops[dt]
+
+            if self.has_open_orders():
+                fast_mode_timer.tick()
+            else:
+                # No active order is waiting for execution, skip to next op.
+                dt = ops.items()[0][0]
+                fast_mode_timer.set_now(dt)
+
+            cur_time = fast_mode_timer.now()
+
+    def has_open_orders(self):
+        for ex, orders in self.orders.items():
+            if len(orders) > 0:
+                return True
+        return False
+
+    def cur_price(self, ex, market):
+        now = self.timer.now()
+        if len(self.trades[ex][market]) > 0:
+            return self.trades[ex][market][:now].iloc[-1]['price']
+        else:
+            return self.ohlcvs[ex][market]['1m'][:now].iloc[-1]['close']
+
+    def op_open(self, order):
+        order['op_#'] = self.op_order_count()
+        op = {
+            'name': 'open',
+            'order': order
+        }
+        return op
+
+    def op_close_position(self, order):
+        if not order['margin']:
+            raise ValueError(f"A normal order can't be closed.")
+        op = {
+            'name': 'close_position',
+            'order': order
+        }
+        return op
+
+    def op_cancel_order(self, order):
+        op = {
+            'name': 'cancel_order',
+            'order': order
+        }
+        return op
+
+    def op_close_all_positions(self, ex):
+        op = {
+            'name': 'close_all_positions',
+            'ex': ex
+        }
+        return op
+
+    def op_cancel_all_orders(self, ex):
+        op = {
+            'name': 'cancel_all_orders',
+            'ex': ex
+        }
+        return op
+
+    def op_order_count(self):
+        self._op_order_count += 1
+        return self._op_order_count
+

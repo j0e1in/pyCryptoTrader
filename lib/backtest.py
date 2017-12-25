@@ -2,7 +2,8 @@ import copy
 from datetime import timedelta
 
 from utils import config, Timer, roundup_dt, timeframe_timedelta
-from trader import SimulatedTrader
+from trader import SimulatedTrader, FastTrader
+from plot import Plot
 
 
 class Backtest():
@@ -11,7 +12,7 @@ class Backtest():
         self.config = config['backtest']
         self.mongo = mongo
 
-    async def init(self, options):
+    async def init(self, **options):
         """ Can be used to reset and run tests with different options.
             Param
                 options: {
@@ -20,10 +21,10 @@ class Backtest():
                     'end': datetime
                     'enable_trade_feed': bool, default is False (optional)
                                          Turn on trade feed if strategy requires it
-                    'config_file': (optional) path to config file
+                    'custom_config': (optional) JSON, loaded config
                 }
         """
-        self._set_init_options(options)
+        self._set_init_options(**options)
         self.strategy.init(self.trader)
         await self._get_all_data()
         return self
@@ -31,7 +32,7 @@ class Backtest():
     def reset(self):
         self.trader.reset()
 
-    def _set_init_options(self, options):
+    def _set_init_options(self, **options):
         self.strategy = options['strategy']
         self.start = options['start']
         self.end = options['end']
@@ -41,15 +42,25 @@ class Backtest():
         else:
             self.enable_trade_feed = False
 
-        if 'config_file' not in options:
-            self.config = config['backtest']
+        # Set backtest config file
+        if 'custom_config' not in options:
             custom_config = None
+            self.config = config['backtest']
+            self.plot = Plot()
         else:
-            custom_config = load_config(options['config_file'])
+            custom_config = options['custom_config']
             self.config = custom_config['backtest']
+            self.plot = Plot(custom_config=custom_config)
 
         self.timer = Timer(self.start, self.config['base_timeframe'])
-        self.trader = SimulatedTrader(self.timer, self.strategy, custom_config)
+
+        if self.config['fast_mode']:
+            self.trader = FastTrader(self.timer, self.strategy, custom_config)
+            self.trader.fast_mode = True
+            self.strategy.fast_mode = True
+        else:
+            self.trader = SimulatedTrader(self.timer, self.strategy, custom_config)
+
         self.markets = self.trader.markets
         self.timeframes = self.trader.timeframes
 
@@ -65,8 +76,30 @@ class Backtest():
     def run(self):
         self.report = self._init_report()
 
+        if self.config['fast_mode']:
+            # Feed all data at once and accept and execute a sequence of orders
+            self.fast_run()
+
+        else:
+            # Feed data by base timeframe, is same as oneline strategy trading,
+            # also stricts stratgy from cheating.
+            self.slow_run()
+
+        self._analyze_orders()
+
+        if self.plot.config['enable']:
+            self.plot_result()
+
+        return self.report
+
+    def fast_run(self):
+        self.trader.feed_data(self.end, self.ohlcvs)
+        self.trader.tick()
+        self.trader.liquidate()
+
+    def slow_run(self):
         # Feed one day data to trader to let strategy has initial data to setup variables
-        pre_feed_end = self.start + timedelta(days=1)
+        pre_feed_end = self.start + timedelta(days=self.strategy.prefeed_days)
         self.trader.feed_data(pre_feed_end, self.ohlcvs)
         self.strategy.prefeed()
 
@@ -78,13 +111,7 @@ class Backtest():
             self.trader.feed_data(next_time, self.ohlcvs)
             self.trader.tick() # execute orders
 
-        for ex, markets in self.markets.items():
-            self.trader.cancel_all_orders(ex)
-            self.trader.close_all_positions(ex)
-
-        self.trader.tick()  # force execution of all close position orders
-        self._analyze_orders()
-        return self.report
+        self.trader.liquidate()
 
     def _init_report(self):
         return {
@@ -118,8 +145,7 @@ class Backtest():
                 # TODO: Add PL calculations for normal order
 
     def _calc_total_value(self, dt):
-        # TODO: Add conversion to BTC than to USD at the price of other exchanges
-        # for exchanges that don't have USD pairs.
+        # TODO: Add conversion to BTC than to USD for exchanges that don't have USD pairs.
 
         total_value = 0
         for ex, wallet in self.trader.wallet.items():
@@ -139,3 +165,13 @@ class Backtest():
                     total_value += amount * price
 
         return total_value
+
+    def plot_result(self):
+        ## TODO: plot markets in different subplots and their orders
+        ohlc = self.ohlcvs['bitfinex']['BTC/USD']['30m']
+        orders = list(self.trader.order_history['bitfinex'].values())
+        self.plot.plot_ohlc(ohlc)
+        self.plot.plot_order_annotation(orders, ohlc)
+        self.plot.show()
+
+

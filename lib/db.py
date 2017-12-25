@@ -1,3 +1,4 @@
+from datetime import datetime
 import motor.motor_asyncio as motor
 import logging
 import numpy as np
@@ -10,7 +11,8 @@ pd.options.mode.chained_assignment = None
 
 logger = logging.getLogger()
 
-## TODO: Add insert_trades()
+# TODO: Add insert_trades()
+
 
 class EXMongo():
 
@@ -52,13 +54,13 @@ class EXMongo():
 
         coll = self.client.get_database(db).get_collection(collection)
 
-        ## Process result at once
+        # Process result at once
         docs = await coll.find(condition, fields_condition).to_list(length=INF)
         df = pd.DataFrame(data=docs, **df_options)
 
-        ## Use limited length to process result block by block
-        ## Since uncompressed df will endup using same amount of memory as processing result at once,
-        ## there's no reason to use this method.
+        # Use limited length to process result block by block
+        # Since uncompressed df will endup using same amount of memory as processing result at once,
+        # there's no reason to use this method.
         #
         # cursor = coll.find(condition, fields_condition)
         # doc_size = config['mongo_to_list_length']
@@ -86,16 +88,17 @@ class EXMongo():
 
         return df
 
-    async def get_ohlcv(self, ex, symbol, start, end, timeframe, fields_condition={}, compress=False):
-        """ Read ohlcv from mongodb into DataFrame,
+    async def get_ohlcv(self, ex, symbol, timeframe, start, end, fields_condition={}, compress=False):
+        """ Read ohlcv of 'one' symbol and 'one' timeframe from mongodb into DataFrame,
             Params
                 ex: str or ccxt exchange instance
                 symbol: str
-                start, end: timestamp
+                start, end: datetime
                 timeframe: str
                 compress: bool, change data type to smaller ones (eg. float64 -> float32)
                 fields_conditions: select/filter some columns (eg. remove 'close' column: {'close': 0})
         """
+
         db = config['database']['dbname_exchange']
         condition = self.cond_timestamp_range(start, end)
 
@@ -116,6 +119,7 @@ class EXMongo():
         return ohlcv
 
     async def get_trades(self, ex, symbol, start, end, fields_condition={}, compress=False):
+        """ Read ohlcv of 'one' symbol from mongodb into DataFrame. """
         db = config['database']['dbname_exchange']
         condition = self.cond_timestamp_range(start, end)
         fields_condition = {**fields_condition, **{'_id': 0}}
@@ -129,8 +133,6 @@ class EXMongo():
                                              date_col='timestamp',
                                              date_parser=ms_dt)
 
-        print('before:', trade.memory_usage(deep=True).sum())
-
         if compress:
             # Covert types to significantly reduce memory usage
             trade['price'] = trade['price'].astype('float32', copy=False)
@@ -141,6 +143,37 @@ class EXMongo():
         trade['symbol'] = trade['symbol'].astype('category', copy=False)
 
         return trade
+
+    async def get_ohlcvs_of_symbols(self, ex, symbols, timeframes, start, end, fields_condition={}, compress=False):
+        """ Returns ohlcvs of multiple timeframes and symbols in an exchange.
+            Return
+                {
+                    'BTC/USD': {
+                        '1m': DataFrame(...),
+                        '5m': DataFrame(...),
+                    },
+                }
+        """
+        ohlcvs = {}
+        for sym in symbols:
+            ohlcvs[sym] = {}
+            for tf in timeframes:
+                ohlcvs[sym][tf] = await self.get_ohlcv(ex, sym, tf, start, end, fields_condition, compress)
+        return ohlcvs
+
+    async def get_trades_of_symbols(self, ex, symbols, start, end, fields_condition={}, compress=False):
+        """ Returns trades of multiple symbols in an exchange.
+            Return
+                {
+                    'BTC/USD': DataFrame(...),
+                    'ETH/USD': DataFrame(...),
+                }
+        """
+        trades = {}
+        timeframes = config['trader']['exchanges'][ex_name(ex)]['timeframes']
+        for sym in symbols:
+            trades[sym] = await self.get_trades(ex, sym, start, end, fields_condition, compress)
+        return trades
 
     async def insert_ohlcv(self, ohlcv_df, ex, symbol, timeframe, *, coll_prefix=''):
         """ Insert ohlcv dateframe to mongodb. """
@@ -186,36 +219,5 @@ class EXMongo():
 
     async def create_empty_df_coll(self, coll):
         """ Fetch fields in the collection and create an empty df with columns. """
-        res = await coll.find_one({},{'_id':0})
+        res = await coll.find_one({}, {'_id': 0})
         return pd.DataFrame(columns=res.keys())
-
-    async def get_ohlcvs_of_symbols(self, ex, symbols, timeframes, start, end, fields_condition={}):
-        """ Returns ohlcvs with all timeframes of symbols in the list.
-            Return
-                {
-                    'BTC/USD': {
-                        '1m': DataFrame(...),
-                        '5m': DataFrame(...),
-                    },
-                }
-        """
-        ohlcvs = {}
-        for sym in symbols:
-            ohlcvs[sym] = {}
-            for tf in timeframes:
-                ohlcvs[sym][tf] = await self.get_ohlcv(ex, sym, start, end, tf, fields_condition)
-        return ohlcvs
-
-    async def get_trades_of_symbols(self, ex, symbols, start, end, fields_condition={}):
-        """ Returns trades of symbols in the list.
-            Return
-                {
-                    'BTC/USD': DataFrame(...),
-                    'ETH/USD': DataFrame(...),
-                }
-        """
-        trades = {}
-        timeframes = config['trader']['exchanges'][ex_name(ex)]['timeframes']
-        for sym in symbols:
-            trades[sym] = await self.get_trades(ex, sym, start, end, fields_condition)
-        return trades

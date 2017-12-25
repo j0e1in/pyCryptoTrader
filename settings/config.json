@@ -6,8 +6,15 @@
   },
 
   "backtest":{
+    "fast_mode": true,
     "_comment_base_timeframe": "in second",
     "base_timeframe": 60
+  },
+
+  "matplot": {
+    "enable": false,
+    "plot_indicators": true,
+    "window_size": [15, 10]
   },
 
   "database":{
@@ -54,7 +61,7 @@
           "RRT/USD",
           "SAN/USD"
         ],
-        "_comment_currencies": "Currencies can be traded (have history data)",
+        "_comment_currencies": "Currencies can be traded (have history data downloaded)",
         "currencies": [
           "USD",
           "BTC",
@@ -82,13 +89,13 @@
           "SAN"
         ],
         "timeframes": [
-          "1m"
+          "1m",
+          "5m",
+          "30m",
+          "1h"
         ],
         "timeframes_not_used": [
-          "5m",
           "15m",
-          "30m",
-          "1h",
           "3h",
           "6h",
           "12h",

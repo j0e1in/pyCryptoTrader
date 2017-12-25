@@ -1,16 +1,16 @@
 from setup import run, setup
 setup()
 
-from datetime import datetime
 import asyncio
+import matplotlib.pyplot as plt
+from datetime import datetime
+from pprint import pprint
 
 from backtest import Backtest
 from db import EXMongo
-from strategy import SingleExchangeStrategy, PatternStrategy
-from trader import SimulatedTrader
-from utils import Timer, config
+from strategy import PatternStrategy
 
-from pprint import pprint
+
 
 
 ################################
@@ -19,7 +19,7 @@ from pprint import pprint
 
 async def test_pattern_strategy(mongo):
     start = datetime(2017, 9, 1)
-    end = datetime(2017, 9, 10)
+    end = datetime(2017, 9, 15)
     exchange = 'bitfinex'
     strategy = PatternStrategy(exchange)
 
@@ -28,23 +28,18 @@ async def test_pattern_strategy(mongo):
         'start': start,
         'end': end
     }
-    backtest = await Backtest(mongo).init(options)
+    backtest = await Backtest(mongo).init(**options)
     report = backtest.run()
 
     pprint(report)
 
 
+
 async def main():
     mongo = EXMongo()
 
-    # Test SingleExchangeStrategy
-    # await test_base_strategy(mongo)
-
-    # Test PatternStrategy
     await test_pattern_strategy(mongo)
 
 
-
-
-
-run(main)
+if __name__ == '__main__':
+    run(main)

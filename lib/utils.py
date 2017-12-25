@@ -1,4 +1,5 @@
 from pprint import pprint
+from collections import OrderedDict
 from datetime import datetime, timezone, timedelta
 import ccxt.async as ccxt
 import calendar
@@ -17,7 +18,7 @@ def load_config(file):
     with open(file) as f:
         return json.load(f)
 
-
+## TODO: Add set_config and get_config method to let classes set and get global config
 config = load_config('../settings/config.json')
 
 
@@ -233,6 +234,28 @@ def pd_mem_usage(pandas_obj):
     return "{:03.2f} MB".format(usage_mb)
 
 
+def set_options(d, **options):
+    for k, v in options.items():
+        if k not in d:
+            d[k] = v
+
+
+def to_ordered_dict(pairs, sort_by=None):
+    """ Pairs can be a list of tuples or a dict.
+    """
+    if not pairs:
+        return OrderedDict()
+
+    od = OrderedDict(pairs)
+
+    if sort_by == 'key':
+        od = sorted(od.items(), key=lambda x: x[0])
+    elif sort_by == 'value':
+        od = sorted(od.items(), key=lambda x: x[1])
+
+    return od
+
+
 class Timer():
 
     def __init__(self, start, interval):
@@ -244,8 +267,11 @@ class Timer():
         if not isinstance(start, datetime):
             start = ms_dt(start)
 
+        if not isinstance(interval, timedelta):
+            interval = timedelta(seconds=interval)
+
         self.start = start
-        self.interval = timedelta(seconds=interval)
+        self.interval = interval
         self.reset()
 
     def reset(self):

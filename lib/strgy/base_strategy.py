@@ -21,31 +21,58 @@ class SingleExchangeStrategy():
 
     def __init__(self, ex):
         self.ex = ex
+        self.fast_mode = False
 
     def init(self, trader):
         self.trader = trader
         self.markets = self.trader.markets[self.ex]
         self.timeframes = self.trader.timeframes[self.ex]
-        self.set_stores()
+        self.ohlcvs = self.trader.ohlcvs[self.ex]
+        self.trades = self.trader.trades[self.ex]
+        self.prefeed_days = 1 # time period for pre-feed data,
+                              # default is 1, child class can set to different ones in `init_vars()`
         self.init_vars()
         return self
 
+    def init_vars(self):
+        """ (Optional)
+            Implemented by user.
+            Child class implement this method.
+        """
+        pass
+
     def prefeed(self):
-        """ Read pre-feed data from trader to setup initial variables. """
-        not_implemented()
+        """ (Optional)
+            Implemented by user.
+            Read pre-feed data from trader to setup initial variables.
+        """
+        pass
 
     def strategy(self):
-        """ Perform buy/sell actions here.
+        """ Implemented by user.
+            Perform buy/sell actions here.
             Should be implemented in a child class.
         """
-        not_implemented()
-
-    def init_vars(self):
-        """ (Optional) Child class implement this method. """
         pass
 
     def run(self):
-        self.strategy()
+        if not self.fast_mode:
+            self.strategy()
+        else:
+            raise ValueError("Fast mode is enabled.")
+
+    def fast_strategy(self):
+        """ Implemented by user.
+            Returns a list of `(datetime, order)`, to let trader perform the orders.
+            Should be implemented in a child class.
+        """
+        pass
+
+    def fast_run(self):
+        if self.fast_mode:
+            return self.fast_strategy()
+        else:
+            raise ValueError("Fast mode is not enabled.")
 
     def buy(self, market, amount, margin=False):
         self.trader.close_all_positions()
@@ -60,42 +87,10 @@ class SingleExchangeStrategy():
         self.trader.open(order)
 
     def calc_market_amount(market, portion, margin=False):
-        """ Calculate amount for market orders. """
+        """ Calculate qoute balance (eg. USD, BTC) amount for market orders. """
         price = self.trader.cur_price(self.ex, market)
         curr = market.split('/')[1]
         amount = self.trader.wallet[self.ex][curr] * portion / price
         if margin:
             amount *= self.trader.config['margin_rate']
         return amount
-
-    def set_stores(self):
-        """ Link to trader's data. """
-        if self.ex not in self.trader.ohlcvs\
-        or self.ex not in self.trader.trades:
-            raise ValueError(f"Trader doesn't have data for required exchange: {self.ex}")
-
-        self.open = {}
-        self.close = {}
-        self.high = {}
-        self.low = {}
-        self.volume = {}
-        self.trades = {}
-
-        for market, tfs in self.trader.ohlcvs[self.ex].items():
-            self.open[market] = {}
-            self.close[market] = {}
-            self.high[market] = {}
-            self.low[market] = {}
-            self.volume[market] = {}
-
-            for tf, ohlcv in tfs.items():
-                self.open[market][tf] = ohlcv.open
-                self.close[market][tf] = ohlcv.close
-                self.high[market][tf] = ohlcv.high
-                self.low[market][tf] = ohlcv.low
-                self.volume[market][tf] = ohlcv.volume
-
-        for market, trades in self.trader.trades[self.ex].items():
-            self.trades[market] = trades
-
-

@@ -3,7 +3,8 @@ data/
 ref/
 private/
 .vscode/
-tmp
+tmp/
+Tmp/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
