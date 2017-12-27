@@ -31,6 +31,7 @@ class Backtest():
 
     def reset(self):
         self.trader.reset()
+        self.strategy.init(self.trader)
 
     def _set_init_options(self, **options):
         self.strategy = options['strategy']
@@ -117,6 +118,7 @@ class Backtest():
         return {
             "initial_fund": copy.deepcopy(self.trader.wallet),
             "initial_value": self._calc_total_value(self.timer.now()),
+            "final_fund": None,
             "final_value": 0,
             "PL": 0,
             "PL(%)": 0,
@@ -127,9 +129,10 @@ class Backtest():
 
     def _analyze_orders(self):
         # Calculate total PL
+        self.report['final_fund'] = copy.deepcopy(self.trader.wallet)
         self.report['final_value'] = self._calc_total_value(self.timer.now())
         self.report['PL'] = self.report['final_value'] - self.report['initial_value']
-        self.report['PL(%)'] = self.report['PL'] / self.report['initial_value']
+        self.report['PL(%)'] = self.report['PL'] / self.report['initial_value'] * 100
 
         for ex, orders in self.trader.order_history.items():
             for _, order in orders.items():
