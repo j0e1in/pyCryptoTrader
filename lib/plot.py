@@ -83,6 +83,7 @@ class Plot():
         ax = self.ax
         ax.xaxis_date()
         ax.xaxis.set_major_formatter(mdates.DateFormatter(fmt))
+        ax.set_xlim(left=ohlc.index[0], right=ohlc.index[-1])
         plt.xticks(rotation=30)
 
         # options: which=('major')/'minor'/'both', axis=('both')/'x'/'y'
