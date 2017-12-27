@@ -31,6 +31,7 @@ class SingleExchangeStrategy():
         self.trades = self.trader.trades[self.ex]
         self.prefeed_days = 1 # time period for pre-feed data,
                               # default is 1, child class can set to different ones in `init_vars()`
+        self.ops = []
         self.init_vars()
         return self
 
@@ -70,27 +71,48 @@ class SingleExchangeStrategy():
 
     def fast_run(self):
         if self.fast_mode:
-            return self.fast_strategy()
+            self.fast_strategy()
+            return self.ops
         else:
             raise ValueError("Fast mode is not enabled.")
 
-    def buy(self, market, amount, margin=False):
-        self.trader.close_all_positions()
-        self.trader.cancel_all_orders()
-        order = self.trader.generate_order(self.ex, market, 'buy', 'market', amount, margin=margin)
+    def buy(self, market, cost, margin=False):
+        """ Place an buy market order. """
+        self.trade('buy', market, cost, margin)
+
+    def sell(self, market, cost, margin=False):
+        """ Place an sell market order. """
+        self.trade('sell', market, cost, margin)
+
+    def trade(self, side, market, cost, margin=False):
+        self.trader.close_all_positions(self.ex)
+        self.trader.cancel_all_orders(self.ex)
+        amount = self.calc_market_amount(side, market, cost, margin)
+        order = self.trader.generate_order(self.ex, market, side, 'market', amount, margin=margin)
         self.trader.open(order)
 
-    def sell(self, market, amount, margin=False):
-        self.trader.close_all_positions()
-        self.trader.cancel_all_orders()
-        order = self.trader.generate_order(self.ex, market, 'sell', 'market', amount, margin=margin)
-        self.trader.open(order)
+    def op_buy(self, now, market, cost, margin=False):
+        self.trade('buy', now, market, cost, margin)
 
-    def calc_market_amount(market, portion, margin=False):
-        """ Calculate qoute balance (eg. USD, BTC) amount for market orders. """
-        price = self.trader.cur_price(self.ex, market)
-        curr = market.split('/')[1]
-        amount = self.trader.wallet[self.ex][curr] * portion / price
-        if margin:
-            amount *= self.trader.config['margin_rate']
+    def op_sell(self, now, market, cost, margin=False):
+        self.trade('sell', now, market, cost, margin)
+
+    def trade(self, side, now, market, cost, margin=False):
+        self.append_op(self.trader.op_close_all_positions(self.ex, now))
+        self.append_op(self.trader.op_cancel_all_orders(self.ex, now))
+        amount = self.calc_market_amount(side, market, cost, margin, now)
+        order = self.trader.generate_order(self.ex, market, side, 'market', amount, margin=margin)
+        self.append_op(self.trader.op_open(order, now))
+
+    def calc_market_amount(self, side, market, cost, margin=False, now=None):
+        price = self.trader.cur_price(self.ex, market, now)
+        amount = 0
+        if not margin:
+            amount = cost if side == 'sell' else cost / price
+        else:
+            amount = cost / price * self.trader.config['margin_rate']
         return amount
+
+    def append_op(self, op):
+        self.ops.append(op)
+
