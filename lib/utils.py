@@ -256,6 +256,22 @@ def to_ordered_dict(pairs, sort_by=None):
     return od
 
 
+def visualize_dict(dct):
+
+    def interate(dct, tmp_d):
+        if not isinstance(dct, dict):
+            return '...'
+
+        tmp_d = {k: '...' for k in dct.keys()}
+        for k, v in dct.items():
+            tmp_d[k] = interate(v, tmp_d[k])
+        return tmp_d
+
+    tmp_d = '...'
+    tmp_d = interate(dct, tmp_d)
+    return tmp_d
+
+
 class Timer():
 
     def __init__(self, start, interval):
