@@ -37,11 +37,11 @@ async def fetch_ohlcv_to_mongo(coll, exchange, symbol, timeframe):
         for oh in ohlcv:
             processed_ohlcv.append({
                 'timestamp': oh[0],
-                'open':     oh[1],
-                'close':    oh[2],
-                'high':     oh[3],
-                'low':      oh[4],
-                'volume':   oh[5]
+                'open':      oh[1],
+                'high':      oh[2],
+                'low':       oh[3],
+                'close':     oh[4],
+                'volume':    oh[5]
             })
 
         ops.append(ensure_future(coll.insert_many(processed_ohlcv)))

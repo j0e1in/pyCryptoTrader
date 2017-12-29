@@ -1,4 +1,5 @@
 from pprint import pprint
+from collections import OrderedDict
 from datetime import datetime, timezone, timedelta
 import ccxt.async as ccxt
 import calendar
@@ -7,6 +8,7 @@ import logging
 import json
 import pandas as pd
 import uuid
+import math
 
 logger = logging.getLogger()
 
@@ -17,7 +19,7 @@ def load_config(file):
     with open(file) as f:
         return json.load(f)
 
-
+## TODO: Add set_config and get_config method to let classes set and get global config
 config = load_config('../settings/config.json')
 
 
@@ -224,6 +226,66 @@ def dt_max(d1, d2):
     return max_dt
 
 
+def pd_mem_usage(pandas_obj):
+    if isinstance(pandas_obj,pd.DataFrame):
+        usage_b = pandas_obj.memory_usage(deep=True).sum()
+    else: # we assume if not a df it's a series
+        usage_b = pandas_obj.memory_usage(deep=True)
+    usage_mb = usage_b / 1024 ** 2 # convert bytes to megabytes
+    return "{:03.2f} MB".format(usage_mb)
+
+
+def set_options(d, **options):
+    for k, v in options.items():
+        if k not in d:
+            d[k] = v
+
+
+def to_ordered_dict(pairs, sort_by=None):
+    """ Pairs can be a list of tuples or a dict.
+    """
+    if not pairs:
+        return OrderedDict()
+
+    od = OrderedDict(pairs)
+
+    if sort_by == 'key':
+        od = sorted(od.items(), key=lambda x: x[0])
+    elif sort_by == 'value':
+        od = sorted(od.items(), key=lambda x: x[1])
+
+    return od
+
+
+def visualize_dict(dct):
+
+    def interate(dct, tmp_d):
+        if not isinstance(dct, dict):
+            return '...'
+
+        tmp_d = {k: '...' for k in dct.keys()}
+        for k, v in dct.items():
+            tmp_d[k] = interate(v, tmp_d[k])
+        return tmp_d
+
+    tmp_d = '...'
+    tmp_d = interate(dct, tmp_d)
+    return tmp_d
+
+
+def format_value(n, digits=5):
+    """ Format value to `digits` digits.
+        eg. 10.0012345 => 10.001
+            0.0012345678 => 0.0012345
+            0.00000123456 => 0.0000012345
+    """
+    try:
+        l = math.log10(n)
+    except ValueError:
+        raise ValueError(f"Invalid value for log: {n}")
+    return round(n, digits-math.ceil(l))
+
+
 class Timer():
 
     def __init__(self, start, interval):
@@ -235,8 +297,11 @@ class Timer():
         if not isinstance(start, datetime):
             start = ms_dt(start)
 
+        if not isinstance(interval, timedelta):
+            interval = timedelta(seconds=interval)
+
         self.start = start
-        self.interval = timedelta(seconds=interval)
+        self.interval = interval
         self.reset()
 
     def reset(self):

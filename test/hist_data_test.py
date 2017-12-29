@@ -80,4 +80,7 @@ async def main():
     print('-----------------------------')
     await test_fill_ohlcv_missing_timestamp()
 
-run(main)
+
+if __name__ == '__main__':
+    run(main)
+

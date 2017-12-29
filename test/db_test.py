@@ -18,11 +18,11 @@ async def test_get_ohlcv(mongo):
     start = datetime(2017, 1, 1)
     end = datetime(2017, 1, 2)
 
-    res = await mongo.get_ohlcv(exchange, 'BTC/USD', start, end, '1h')
+    res = await mongo.get_ohlcv(exchange, 'BTC/USD', '1h', start, end)
     print('BTC/USD ohlcv')
     pp(res)  # should not be empty
 
-    res = await mongo.get_ohlcv(exchange, 'BCH/USD', start, end, '1h')
+    res = await mongo.get_ohlcv(exchange, 'BCH/USD', '1h', start, end)
     print('BCH/USD ohlcv')
     pp(res)  # should be empty
 
@@ -66,4 +66,5 @@ async def main():
     print('------------------------------')
 
 
-run(main)
+if __name__ == '__main__':
+    run(main)
