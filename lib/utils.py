@@ -8,6 +8,7 @@ import logging
 import json
 import pandas as pd
 import uuid
+import math
 
 logger = logging.getLogger()
 
@@ -270,6 +271,19 @@ def visualize_dict(dct):
     tmp_d = '...'
     tmp_d = interate(dct, tmp_d)
     return tmp_d
+
+
+def format_value(n, digits=5):
+    """ Format value to `digits` digits.
+        eg. 10.0012345 => 10.001
+            0.0012345678 => 0.0012345
+            0.00000123456 => 0.0000012345
+    """
+    try:
+        l = math.log10(n)
+    except ValueError:
+        raise ValueError(f"Invalid value for log: {n}")
+    return round(n, digits-math.ceil(l))
 
 
 class Timer():

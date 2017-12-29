@@ -76,43 +76,86 @@ class SingleExchangeStrategy():
         else:
             raise ValueError("Fast mode is not enabled.")
 
-    def buy(self, market, cost, margin=False):
+    def buy(self, market, spend, margin=False):
         """ Place an buy market order. """
-        self.trade('buy', market, cost, margin)
+        if self.fast_mode:
+            raise RuntimeError("Wrong method is called in fast mode.")
+        self.trade('buy', market, spend, margin)
 
-    def sell(self, market, cost, margin=False):
+    def sell(self, market, spend, margin=False):
         """ Place an sell market order. """
-        self.trade('sell', market, cost, margin)
+        if self.fast_mode:
+            raise RuntimeError("Wrong method is called in fast mode.")
+        self.trade('sell', market, spend, margin)
 
-    def trade(self, side, market, cost, margin=False):
-        self.trader.close_all_positions(self.ex)
+    def clean_orders(self, side='all'):
+        """
+            Param
+                side: 'buy' / 'sell' / 'all'
+        """
+        if self.fast_mode:
+            raise RuntimeError("Wrong method is called in fast mode.")
+        self.trader.close_all_positions(self.ex, side=side)
         self.trader.cancel_all_orders(self.ex)
-        amount = self.calc_market_amount(side, market, cost, margin)
+
+    def trade(self, side, market, spend, margin=False):
+        price = self.trader.cur_price(self.ex, market, now)
+        curr = self.trader.trading_currency(market, side, margin)
+        value = spend * price if curr != 'USD' else spend
+
+        if value < self.trader.config['min_order_value']:
+            return
+
+        amount = self.calc_market_amount(side, market, spend, margin)
         order = self.trader.generate_order(self.ex, market, side, 'market', amount, margin=margin)
+
         self.trader.open(order)
 
-    def op_buy(self, now, market, cost, margin=False):
-        self.trade('buy', now, market, cost, margin)
+    def op_buy(self, now, market, spend, margin=False):
+        if not self.fast_mode:
+            raise RuntimeError("Wrong method is called in slow mode.")
+        self.trade('buy', now, market, spend, margin)
 
-    def op_sell(self, now, market, cost, margin=False):
-        self.trade('sell', now, market, cost, margin)
+    def op_sell(self, now, market, spend, margin=False):
+        if not self.fast_mode:
+            raise RuntimeError("Wrong method is called in slow mode.")
+        self.trade('sell', now, market, spend, margin)
 
-    def trade(self, side, now, market, cost, margin=False):
-        self.append_op(self.trader.op_close_all_positions(self.ex, now))
+    def op_clean_orders(self, side, now):
+        """
+            Param
+                side: 'buy' / 'sell' / 'all'
+        """
+        if not self.fast_mode:
+            raise RuntimeError("Wrong method is called in slow mode.")
+        self.append_op(self.trader.op_close_all_positions(self.ex, now, side=side))
         self.append_op(self.trader.op_cancel_all_orders(self.ex, now))
-        amount = self.calc_market_amount(side, market, cost, margin, now)
+
+    def trade(self, side, now, market, spend, margin=False):
+        ## TODO: Add BTC pairs value conversion or more precised min value restraint
+        price = self.trader.cur_price(self.ex, market, now)
+        curr = self.trader.trading_currency(market, side, margin)
+        value = spend * price if curr != 'USD' else spend
+
+        if value < self.trader.config['min_order_value']:
+            return
+
+        amount = self.calc_market_amount(side, market, spend, margin, now)
         order = self.trader.generate_order(self.ex, market, side, 'market', amount, margin=margin)
+
         self.append_op(self.trader.op_open(order, now))
 
-    def calc_market_amount(self, side, market, cost, margin=False, now=None):
+    def calc_market_amount(self, side, market, spend, margin=False, now=None):
         price = self.trader.cur_price(self.ex, market, now)
         amount = 0
         if not margin:
-            amount = cost if side == 'sell' else cost / price
+            amount = spend if side == 'sell' else spend / price
         else:
-            amount = cost / price * self.trader.config['margin_rate']
+            amount = spend / price * self.trader.config['margin_rate']
         return amount
 
     def append_op(self, op):
+        if not self.fast_mode:
+            raise RuntimeError("Wrong method is called in slow mode.")
         self.ops.append(op)
 

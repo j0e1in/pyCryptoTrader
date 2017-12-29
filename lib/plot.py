@@ -4,9 +4,10 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import numpy as np
 import logging
+import math
 
 from trader import SimulatedTrader
-from utils import set_options, config
+from utils import set_options, config, format_value
 
 logger = logging.getLogger()
 
@@ -69,7 +70,7 @@ class Plot():
             return
 
         opts = {
-            'width': 1/len(ohlc) * 2,
+            'width': 1/math.log(len(ohlc))/7,
             'colorup': 'g',
             'colordown': 'r',
             'alpha': 1
@@ -98,39 +99,65 @@ class Plot():
                 orders: List of orders
                 ohlc: DataFrame used to plot ohlc
         """
+        ## TODO: use hover to display order's information
+
         for order in orders:
-            margin_label = 'M' if order['margin'] else 'N'
-            type_label = 'L' if order['order_type'] == 'limit' else 'M'
-            label = f"({margin_label}, {type_label})"
-
-            if order['margin'] and SimulatedTrader.is_position_open(order):
+            if order['margin']:
+                # Annotate margin open
+                side = order['side']
                 time = order['open_time']
-            else:
+                price = format_value(order['open_price'])
+                cost = format_value(order['cost'])
+                # text = f"#{order['#']}\nmargin\nopen\nP: {price}\nV: {cost}"
+                text = f"#{order['#']}"
+                self._ohllc_order_annotate(ohlc, side, time, text)
+
+                # Annotate margin close
+                side = 'buy' if order['side'] == 'sell' else 'sell'
                 time = order['close_time']
+                price = format_value(order['close_price'])
+                earn = format_value(order['close_price'] * order['amount'] * (1-config['trader']['fee']))
+                # text = f"#{order['#']}\nmargin\nclose\nP: {price}\nV: {earn}"
+                text = f"#{order['#']}"
+                self._ohllc_order_annotate(ohlc, side, time, text)
 
-            ymin, ymax = self.ax.get_ylim()
-            y_delta_head = (ymax - ymin) / 70
-            y_delta_tail = y_delta_head * 4
+            else: # Annotate normal orders
+                side = order['side']
+                time = order['close_time']
+                price = format_value(order['open_price'])
+                cost = format_value(order['cost'])
+                if side == 'buy':
+                    earn = format_value(order['amount'])
+                else:
+                    earn = format_value(order['amount'] * order['open_price'])
+                # text = f"#{order['#']}\nnormal\nP: {price}\nV: {cost}/{earn}"
+                text = f"#{order['#']}"
+                self._ohllc_order_annotate(ohlc, side, time, text)
 
-            if SimulatedTrader.is_buy(order):
-                y_value = ohlc.low.asof(time)
-                opts = {
-                    'xy': (time, y_value - y_delta_head),
-                    'xytext': (time, y_value - y_delta_tail),
-                    'arrowprops': dict(facecolor='green', headwidth=10, width=5, headlength=5),
-                    'horizontalalignment': 'center',
-                    'verticalalignment': 'down'
-                }
-            else:
-                y_value = ohlc.high.asof(time)
-                opts = {
-                    'xy': (time, y_value + y_delta_head),
-                    'xytext': (time, y_value + y_delta_tail),
-                    'arrowprops': dict(facecolor='red', headwidth=10, width=5, headlength=5),
-                    'horizontalalignment': 'center',
-                    'verticalalignment': 'top'
-                }
-            self.ax.annotate(label, **opts)
+    def _ohllc_order_annotate(self, ohlc, side, time, text):
+        ymin, ymax = self.ax.get_ylim()
+        y_delta_head = (ymax - ymin) / 70
+        y_delta_tail = y_delta_head * 4
+
+        if side == 'sell':
+            y_value = ohlc.high.asof(time)
+            color = 'red'
+            v_align =  'top'
+        else:
+            y_value = ohlc.low.asof(time)
+            y_delta_head *= -1
+            y_delta_tail *= -1
+            color = 'green'
+            v_align =  'down'
+
+        opts = {
+            'xy': (time, y_value + y_delta_head),
+            'xytext': (time, y_value + y_delta_tail),
+            'arrowprops': dict(facecolor=color, headwidth=10, width=5, headlength=5),
+            'horizontalalignment': 'center',
+            'verticalalignment': v_align
+        }
+        self.ax.annotate(text, **opts)
 
     def legend(self, **options):
         self.ax.legend(loc='best', **options)

@@ -12,9 +12,15 @@
   },
 
   "matplot": {
-    "enable": false,
+    "enable": true,
     "plot_indicators": true,
-    "window_size": [15, 10]
+    "window_size": [15, 9],
+    "plot_timeframes": {
+      "_comment_plot_timeframes": "specify timeframes to plot for each market, default is 1h",
+      "default": "1h",
+      "BTC/USD": "1h",
+      "ETH/USD": "1h"
+    }
   },
 
   "database":{
@@ -27,6 +33,8 @@
     "margin_rate": 3,
     "_comment_margin_gap": "+-margin_gap*price",
     "margin_gap": 0.005,
+    "_comment_min_order_value": "minimal USD value is allwed to open an order",
+    "min_order_value": 10,
     "funds": {
       "bitfinex": {
         "USD": 1000
@@ -36,12 +44,12 @@
       "bitfinex": {
         "_comment_markets": "markets to trade",
         "markets": [
-          "BTC/USD"
+          "ETH/USD"
         ],
         "markets_not_used": [
+          "BTC/USD",
           "BCH/USD",
           "DASH/USD",
-          "ETH/USD",
           "ETC/USD",
           "LTC/USD",
           "NEO/USD",

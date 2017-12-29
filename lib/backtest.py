@@ -164,17 +164,49 @@ class Backtest():
                     market = '/'.join([curr, 'USD'])
                     ohlcv = self.ohlcvs[ex][market][min_tf]
                     dt = ohlcv.index[-1] if dt > ohlcv.index[-1] else dt
-                    price = ohlcv.loc[ohlcv.index == dt].close[0]
+
+                    if len(ohlcv[:dt]) == 0:
+                        # if no ohlcv exists before this datetime,
+                        # select the first ohlcv
+                        ohlcv = ohlcv.iloc[0]
+                    else:
+                        # else the last ohlcv of this datetime
+                        ohlcv = ohlcv[:dt].iloc[-1]
+
+                    price = ohlcv.close
                     total_value += amount * price
 
         return total_value
 
     def plot_result(self):
-        ## TODO: plot markets in different subplots and their orders
-        ohlc = self.ohlcvs['bitfinex']['BTC/USD']['30m']
-        orders = list(self.trader.order_history['bitfinex'].values())
-        self.plot.plot_ohlc(ohlc)
-        self.plot.plot_order_annotation(orders, ohlc)
-        self.plot.show()
+        for ex, markets in self.ohlcvs.items():
+            for market, tfs in markets.items():
+
+                # Get timeframe to plot ohlc
+                if market in self.plot.config['plot_timeframes']:
+                    tf = self.plot.config['plot_timeframes'][market]
+                else:
+                    tf = self.plot.config['plot_timeframes']['default']
+
+                # Plot ohlc
+                ohlc = self.ohlcvs[ex][market][tf]
+                self.plot.plot_ohlc(ohlc)
+
+                # Plot orders
+                orders = self.get_order_history_by_market(ex, market)
+                self.plot.plot_order_annotation(orders, ohlc)
+
+    def get_order_history_by_market(self, ex, market):
+        orders = []
+        for ord in list(self.trader.order_history[ex].values()):
+            if ord['market'] == market:
+                orders.append(ord)
+        return orders
+
+
+
+
+
+
 
 

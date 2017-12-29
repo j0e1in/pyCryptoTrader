@@ -2,9 +2,12 @@ from pprint import pprint
 import talib.abstract as talib
 import numpy as np
 import pandas as pd
+import math
+
+from ipdb import set_trace as trace
 
 from strgy.base_strategy import SingleExchangeStrategy
-from utils import visualize_dict
+from utils import config
 
 
 class PatternStrategy(SingleExchangeStrategy):
@@ -14,13 +17,14 @@ class PatternStrategy(SingleExchangeStrategy):
 
     def init_vars(self):
         self.params = {
-            'rsi_tf': '30m',
-            'rsi_period': 5,
+            'rsi_tf': '1h',
+            'rsi_period': 14,
             'rsi_upper_bound': 70,
             'rsi_lower_bound': 30,
+            'rsi_init_confidence': 40,
         }
         self.p = self.params
-        self.trade_portion = 0.9
+        self.trade_portion = 0.5
         self.margin = False
 
     def fast_strategy(self):
@@ -29,45 +33,33 @@ class PatternStrategy(SingleExchangeStrategy):
         indicators['rsi'] = self.calc_talib_func(talib.RSI, period=self.p['rsi_period'])
 
         for market in self.markets:
-            ind = indicators['rsi'][market][self.p['rsi_tf']]
+            sig = self.rsi_signal(indicators['rsi'][market][self.p['rsi_tf']])
+            sig = sig.dropna()
 
-            peak_low = is_peak_low(ind)
-            peak_high = is_peak_high(ind)
+            if not config['matplot']['enable']:
+                indicators['rsi'][market][self.p['rsi_tf']].plot()
 
-            exceed_lower_bound = ind > self.p['rsi_lower_bound']
-            exceed_upper_bound = ind > self.p['rsi_upper_bound']
+            print(sig)
 
-            buy_sig = peak_low & exceed_lower_bound
-            sell_sig = peak_high & exceed_upper_bound
+            for dt, ss in sig.items():
 
-            buy_sig = pd.Series(['B' if i else np.nan for i in buy_sig], index=buy_sig.index)
-            sell_sig = pd.Series(['S' if i else np.nan for i in sell_sig], index=sell_sig.index)
-
-            sig = buy_sig.combine(sell_sig, lambda x, y: x if x == 'B' else y).dropna()
-
-            buy_sell = 'buy'
-            filtered_sig = pd.Series(index=sig.index)
-
-            for idx in sig.index:
-                if sig[idx] == 'B' and buy_sell == 'buy':
-                    filtered_sig[idx] = 'B'
-                    buy_sell = 'sell'
-
-                elif sig[idx] == 'S' and buy_sell == 'sell':
-                    filtered_sig[idx] = 'S'
-                    buy_sell = 'buy'
-
-            filtered_sig = filtered_sig.dropna()
-
-            for dt, sig in filtered_sig.items():
-                if sig == 'B':
+                if ss < 0: # buy
+                    ss = abs(ss)
+                    self.op_clean_orders('sell', dt)
                     curr = self.trader.quote_balance(market)
-                    cost = self.trader.op_wallet[self.ex][curr] * self.trade_portion
+                    cost = abs(ss) / 100 * self.trader.op_wallet[self.ex][curr] * self.trade_portion
                     self.op_buy(dt, market, cost, margin=self.margin)
 
-                elif sig == 'S':
-                    curr = self.trader.base_balance(market)
-                    cost = self.trader.op_wallet[self.ex][curr]
+                elif ss > 0: # sell
+                    ss = abs(ss)
+                    self.op_clean_orders('buy', dt)
+
+                    if self.margin:
+                        curr = self.trader.quote_balance(market)
+                    else:
+                        curr = self.trader.base_balance(market)
+
+                    cost = ss / 100 * self.trader.op_wallet[self.ex][curr] * self.trade_portion
                     self.op_sell(dt, market, cost, margin=self.margin)
 
     def calc_talib_func(self, ta_func, market=None, tf=None, **ta_args):
@@ -130,14 +122,74 @@ class PatternStrategy(SingleExchangeStrategy):
 
         return _check(d, hierarchy)
 
+    def rsi_signal(self, ind):
+        rise = is_rising(ind)
+        drop = is_dropping(ind)
 
-def is_peak_high(x):
-    x1 = x > x.shift(1)  # prev
-    x2 = x > x.shift(-1)  # next
-    return x1 & x2
+        exceed_lower_bound = ind < self.p['rsi_lower_bound']
+        exceed_upper_bound = ind > self.p['rsi_upper_bound']
+
+        buy_sig = rise & exceed_lower_bound
+        sell_sig = drop & exceed_upper_bound
+
+        buy_sig = pd.Series(['B' if i else np.nan for i in buy_sig], index=buy_sig.index)
+        sell_sig = pd.Series(['S' if i else np.nan for i in sell_sig], index=sell_sig.index)
+
+        sig = buy_sig.combine(sell_sig, lambda x, y: x if x == 'B' else y)
+
+        # Convert buy/sell signal to confidence -100(buy) ~ 100(sell)
+        conf = self.p['rsi_init_confidence'] # absolute value
+        trend = ''
+        repeat = 0
+        tmp_sig = sig.dropna()
+
+        for dt, ss in tmp_sig.items():
+            if isinstance(ss, str):
+                if ss != trend and trend != '':
+                    trend = ''
+                    repeat = 0
+
+                trend = ss
+                repeat += 1
+                sig[dt] = conf * repeat
+
+                if ss == 'B':
+                    sig[dt] = sig[dt] * -1
+            else:
+                trend = ''
+                repeat = 0
+
+        sig[sig > 100] = 100
+        sig[sig < -100] = -100
+
+        return sig
+
+    @staticmethod
+    def filter_repeat_buy_sell(sig):
+        """ Filter repeated buy/sell signal.
+            eg. BBSBBSSB => BSBSB
+        """
+        buy_sell = 'buy'
+        filtered_sig = pd.Series(index=sig.index)
+
+        for idx in sig.index:
+            if sig[idx] == 'B' and buy_sell == 'buy':
+                filtered_sig[idx] = 'B'
+                buy_sell = 'sell'
+
+            elif sig[idx] == 'S' and buy_sell == 'sell':
+                filtered_sig[idx] = 'S'
+                buy_sell = 'buy'
+
+        return filtered_sig
 
 
-def is_peak_low(x):
+
+def is_dropping(x):
     x1 = x < x.shift(1)  # prev
-    x2 = x < x.shift(-1)  # next
-    return x1 & x2
+    return x1
+
+
+def is_rising(x):
+    x1 = x > x.shift(1)  # prev
+    return x1
