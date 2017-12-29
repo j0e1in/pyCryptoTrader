@@ -1,5 +1,7 @@
 ccxt
 chromalog
+matplotlib
 motor
 numpy
 pandas
+TA-Lib

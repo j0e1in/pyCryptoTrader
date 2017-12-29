@@ -6,17 +6,21 @@ from pprint import pprint
 
 from backtest import Backtest
 from db import EXMongo
+from strategy import SingleExchangeStrategy
 
 
 async def test_run(backtest):
-    # Add {"BTC": 1} to config['trader']['funds'] to test thoroughly.
+    # Add `"BTC": 1` to config['trader']['funds'] to test thoroughly.
+
+    strategy = SingleExchangeStrategy('bitfinex')
     start = datetime(2017, 1, 1)
-    end = datetime(2017, 1, 2)
+    end = datetime(2017, 2, 5)
     options = {
+        'strategy': strategy,
         'start': start,
         'end': end
     }
-    await backtest.init(options)
+    await backtest.init(**options)
     report = backtest.run()
     pprint(report)
 
@@ -29,4 +33,5 @@ async def main():
     await test_run(backtest)
 
 
-run(main)
+if __name__ == '__main__':
+    run(main)
