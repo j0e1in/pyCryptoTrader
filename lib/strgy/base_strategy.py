@@ -95,8 +95,8 @@ class SingleExchangeStrategy():
         """
         if self.fast_mode:
             raise RuntimeError("Wrong method is called in fast mode.")
-        self.trader.close_all_positions(self.ex, side=side)
         self.trader.cancel_all_orders(self.ex)
+        self.trader.close_all_positions(self.ex, side=side)
 
     def trade(self, side, market, spend, margin=False):
         price = self.trader.cur_price(self.ex, market, now)
@@ -128,8 +128,8 @@ class SingleExchangeStrategy():
         """
         if not self.fast_mode:
             raise RuntimeError("Wrong method is called in slow mode.")
-        self.append_op(self.trader.op_close_all_positions(self.ex, now, side=side))
         self.append_op(self.trader.op_cancel_all_orders(self.ex, now))
+        self.append_op(self.trader.op_close_all_positions(self.ex, now, side=side))
 
     def trade(self, side, now, market, spend, margin=False):
         ## TODO: Add BTC pairs value conversion or more precised min value restraint

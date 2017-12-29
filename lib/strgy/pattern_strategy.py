@@ -132,32 +132,29 @@ class PatternStrategy(SingleExchangeStrategy):
         buy_sig = rise & exceed_lower_bound
         sell_sig = drop & exceed_upper_bound
 
-        buy_sig = pd.Series(['B' if i else np.nan for i in buy_sig], index=buy_sig.index)
-        sell_sig = pd.Series(['S' if i else np.nan for i in sell_sig], index=sell_sig.index)
+        # 101 == 'buy' 202 == 'sell'
+        buy_sig = pd.Series([101 if i else np.nan for i in buy_sig], index=buy_sig.index)
+        sell_sig = pd.Series([202 if i else np.nan for i in sell_sig], index=sell_sig.index)
 
-        sig = buy_sig.combine(sell_sig, lambda x, y: x if x == 'B' else y)
+        sig = buy_sig.combine(sell_sig, lambda x, y: x if x == 101 else y)
 
         # Convert buy/sell signal to confidence -100(buy) ~ 100(sell)
         conf = self.p['rsi_init_confidence'] # absolute value
-        trend = ''
+        trend = 0
         repeat = 0
         tmp_sig = sig.dropna()
 
         for dt, ss in tmp_sig.items():
-            if isinstance(ss, str):
-                if ss != trend and trend != '':
-                    trend = ''
-                    repeat = 0
-
-                trend = ss
-                repeat += 1
-                sig[dt] = conf * repeat
-
-                if ss == 'B':
-                    sig[dt] = sig[dt] * -1
-            else:
+            if ss != trend and trend != 0:
                 trend = ''
                 repeat = 0
+
+            trend = ss
+            repeat += 1
+            sig[dt] = conf * repeat
+
+            if ss == 101:
+                sig[dt] = sig[dt] * -1
 
         sig[sig > 100] = 100
         sig[sig < -100] = -100
@@ -173,12 +170,12 @@ class PatternStrategy(SingleExchangeStrategy):
         filtered_sig = pd.Series(index=sig.index)
 
         for idx in sig.index:
-            if sig[idx] == 'B' and buy_sell == 'buy':
-                filtered_sig[idx] = 'B'
+            if sig[idx] == 101 and buy_sell == 'buy':
+                filtered_sig[idx] = 101
                 buy_sell = 'sell'
 
-            elif sig[idx] == 'S' and buy_sell == 'sell':
-                filtered_sig[idx] = 'S'
+            elif sig[idx] == 202 and buy_sell == 'sell':
+                filtered_sig[idx] = 202
                 buy_sell = 'buy'
 
         return filtered_sig

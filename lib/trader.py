@@ -4,6 +4,7 @@ import pandas as pd
 from copy import deepcopy
 from datetime import timedelta
 from pprint import pprint
+from collections import OrderedDict
 
 from ipdb import set_trace as trace
 
@@ -104,7 +105,7 @@ class SimulatedTrader():
         self._order_count = 0
 
     def _init_order_records(self):
-        ex_empty_dict = {ex: {} for ex in self.markets}
+        ex_empty_dict = {ex: OrderedDict() for ex in self.markets}
 
         return {
             # active orders
@@ -398,7 +399,7 @@ class SimulatedTrader():
         if id in self.positions[ex]:
             order = self.positions[ex][id]
 
-            # queue the order to activate order again for trader to execute
+            # queue the order again for trader to close
             self.orders[ex][id] = order
             return order
         else:
@@ -429,7 +430,7 @@ class SimulatedTrader():
         positions = deepcopy(self.positions[ex])
 
         for id, order in positions.items():
-            if (side is 'all')\
+            if (side == 'all')\
             or (order['side'] == side):
                 if self.close_position(order):
                     del_orders.append(order)
@@ -437,7 +438,9 @@ class SimulatedTrader():
         return del_orders
 
     def cancel_all_orders(self, ex, side='all'):
-        """
+        """ NOTE: Need to be called before `close_all_positions` or margin orders
+                  queued to self.orders will be canceled.
+
             Param
                 ex: str, which ex's orders to cancel
                 side: 'buy'/'sell' (optional), which side of orders to cancel
@@ -446,7 +449,7 @@ class SimulatedTrader():
         orders = deepcopy(self.orders[ex])
 
         for id, order in orders.items():
-            if (side is 'all')\
+            if (side == 'all')\
             or (order['side'] == side):
                 if self.cancel_order(order):
                     del_orders.append(order)
@@ -460,8 +463,8 @@ class SimulatedTrader():
         """
         def execute_open_position(order):
             order['active'] = True
-            self.positions[ex][order['#']] = order
             del self.orders[ex][order['#']]
+            self.positions[ex][order['#']] = order
 
         def execute_close_position(order):
             ex = order['ex']
@@ -632,13 +635,13 @@ class SimulatedTrader():
             # opening a margin position
             if not self.is_position_open(order):
                 P = order['open_price']
-                F = self.config['margin_fee']
+                F = self.config['fee']
                 MF = self.config['margin_fee']
                 MR = self.config['margin_rate']
 
                 order['cost'] = order['amount'] / MR * P
-                order['amount'] = order['cost'] / (P + MR * (1 + F) - MF) * MR
-                order['margin_fund'] = order['amount'] * (MR - 1) * P
+                order['amount'] = order['cost'] / (1 + F + (MR-1) * MF) / P * MR
+                order['margin_fund'] = order['amount'] / MR * (MR - 1) * P
                 order['margin_fee'] = order['margin_fund'] * MF
                 order['fee'] = P * order['amount'] * F
 
@@ -656,10 +659,16 @@ class SimulatedTrader():
         return pl
 
     def _calc_margin_return(self, order):
-        base_amount = order['amount'] / self.config['margin_rate']
+        price_diff = order['close_price'] - order['open_price']
+
+        if order['side'] == 'sell':
+            price_diff *= -1
+
         close_fee = order['close_price'] * order['amount'] * self.config['fee']
-        return_margin = order['open_price'] * (order['amount'] - base_amount)
-        return order['close_price'] * order['amount'] - close_fee - return_margin
+        result = order['open_price'] * order['amount'] / self.config['margin_rate'] \
+               + price_diff * order['amount'] - close_fee
+
+        return result
 
     def get_hist_margin_orders(self, ex, market):
         margin_orders = []
@@ -777,10 +786,11 @@ class FastTrader(SimulatedTrader):
         while cur_time < end:
 
             self._execute_orders()
+
             executed_ops = []
             for op in ops:
                 dt = op['time']
-                if op is not None and dt <= cur_time:
+                if op and dt <= cur_time:
                     if op['name'] == 'open':
                         real_orders[op['order']['op_#']] = self.open(op['order'])
 
@@ -852,6 +862,7 @@ class FastTrader(SimulatedTrader):
     def op_close_position(self, order, now):
         if not order['margin']:
             raise ValueError(f"A normal order can't be closed.")
+
         op = {
             'name': 'close_position',
             'time': now,
@@ -944,12 +955,14 @@ class FastTrader(SimulatedTrader):
         elif op['name'] == 'close_all_positions':
             positions = deepcopy(self.op_positions[op['ex']])
             for id, order in positions.items():
-                self.op_close_position(order, now)
+                if op['side'] == 'all' or order['side'] == op['side']:
+                    self.op_close_position(order, now)
 
         elif op['name'] == 'cancel_all_orders':
             orders = deepcopy(self.op_orders[op['ex']])
             for id, order in orders.items():
-                self.op_cancel_order(order, now)
+                if op['side'] == 'all' or order['side'] == op['side']:
+                    self.op_cancel_order(order, now)
 
     def op_execute_open_order(self, order, price):
         cost, earn = self.op_calc_cost_earn(order, price)

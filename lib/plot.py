@@ -9,6 +9,8 @@ import math
 from trader import SimulatedTrader
 from utils import set_options, config, format_value
 
+from ipdb import set_trace as trace
+
 logger = logging.getLogger()
 
 
@@ -102,6 +104,10 @@ class Plot():
         ## TODO: use hover to display order's information
 
         for order in orders:
+
+            if order['canceled']:
+                continue
+
             if order['margin']:
                 # Annotate margin open
                 side = order['side']

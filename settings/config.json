@@ -44,10 +44,10 @@
       "bitfinex": {
         "_comment_markets": "markets to trade",
         "markets": [
-          "ETH/USD"
+          "BTC/USD"
         ],
         "markets_not_used": [
-          "BTC/USD",
+          "ETH/USD",
           "BCH/USD",
           "DASH/USD",
           "ETC/USD",

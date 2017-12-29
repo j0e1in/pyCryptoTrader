@@ -30,6 +30,7 @@ async def test_pattern_strategy(mongo):
     }
     backtest = await Backtest(mongo).init(**options)
     report = backtest.run()
+
     pprint(backtest.trader.order_history)
 
     print('\n-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n')

@@ -136,7 +136,7 @@ class Backtest():
 
         for ex, orders in self.trader.order_history.items():
             for _, order in orders.items():
-                if order['margin']:
+                if order['margin'] and not order['canceled']:
                     self.report['margin_PLs'].append(order['PL'])
 
                     # Calculate number of profit/loss trades
