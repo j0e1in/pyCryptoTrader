@@ -777,6 +777,7 @@ class FastTrader(SimulatedTrader):
         self.ops = ops
 
         if len(ops) == 0:
+            self.update_timer(self.timer, end)
             return
 
         real_orders = {}
