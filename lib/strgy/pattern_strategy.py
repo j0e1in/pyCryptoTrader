@@ -22,12 +22,21 @@ class PatternStrategy(SingleExchangeStrategy):
     def init_vars(self):
         self.params = {
             'rsi_tf': '1h',
+            'rsi_conf': 40,
             'rsi_period': 14,
             'rsi_upper_bound': 70,
             'rsi_lower_bound': 30,
-            'rsi_conf': 40,
+
             'wvf_tf': '1h',
             'wvf_conf': 50,
+            'wvf_lbsdh': 22,
+            'wvf_bbl': 20,
+            'wvf_bbsd': 2.0,
+            'wvf_lbph': 50,
+            'wvf_ph': .85,
+            'wvf_ltLB':40,
+            'wvf_mtLB':14,
+            'wvf_strg':3 ,
         }
         self.p = self.params
         self.trade_portion = 0.5
@@ -43,9 +52,6 @@ class PatternStrategy(SingleExchangeStrategy):
             # sig = self.rsi_signal(indicators['rsi'][market][self.p['rsi_tf']])
             sig = wvf_sig
             sig = sig.dropna()
-
-            if not config['matplot']['enable']:
-                indicators['rsi'][market][self.p['rsi_tf']].plot()
 
             for dt, ss in sig.items():
 
@@ -201,16 +207,16 @@ class PatternStrategy(SingleExchangeStrategy):
 
     def william_vix_fix_v3(self, ohlcv):
         # Inputs Tab Criteria.
-        lbsdh = 22      # LookBack Period Standard Deviation High
-        bbl = 20        # Bolinger Band Length
-        bbsd = 2.0      # Bollinger Band Standard Devaition Up (1.0-5.0)
-        lbph = 50       # Look Back Period Percentile High
-        ph = .85        # Highest Percentile - 0.90=90%, 0.95=95%, 0.99=99%
+        lbsdh = self.p['wvf_lbsdh']     # LookBack Period Standard Deviation High
+        bbl = self.p['wvf_bbl']         # Bolinger Band Length
+        bbsd = self.p['wvf_bbsd']       # Bollinger Band Standard Devaition Up (1.0-5.0)
+        lbph = self.p['wvf_lbph']       # Look Back Period Percentile High
+        ph = self.p['wvf_ph']           # Highest Percentile - 0.90=90%, 0.95=95%, 0.99=99%
 
         # Criteria for Down Trend Definition for Filtered Pivots and Aggressive Filtered Pivots
-        ltLB = 40       # Long-Term Look Back Current Bar Has To Close Below This Value OR Medium Term--Default=40 (25-99)
-        mtLB = 14       # Medium-Term Look Back Current Bar Has To Close Below This Value OR Long Term--Default=14 (10-20)
-        str = 3         # Entry Price Action Strength--Close > X Bars Back---Default=3 (1-9)
+        ltLB = self.p['wvf_ltLB']       # Long-Term Look Back Current Bar Has To Close Below This Value OR Medium Term--Default=40 (25-99)
+        mtLB = self.p['wvf_mtLB']       # Medium-Term Look Back Current Bar Has To Close Below This Value OR Long Term--Default=14 (10-20)
+        strg = self.p['wvf_strg']         # Entry Price Action Strength--Close > X Bars Back---Default=3 (1-9)
 
 
         def highest(ss, n):
@@ -259,39 +265,27 @@ class PatternStrategy(SingleExchangeStrategy):
         filtered_aggr = ( (wvf_s >= upperBand_s) | (wvf_s >= rangeHigh_s) ) \
                     & ( ~( (wvf < upperBand) & (wvf < rangeHigh) ) )
 
-
         ## Signals
         wvf_sig = (wvf >= upperBand) | (wvf >= rangeHigh) # True: dropping, False: rising
 
-        # When wvf turns from True to False
-        rise_sig = ( (wvf_s >= upperBand_s) | (wvf_s >= rangeHigh_s) ) \
-                   & ( (wvf < upperBand) & (wvf < rangeHigh) )
+        # When wvf turns from True to False (original version, first N signals are False)
+        # rise_sig = ( (wvf_s >= upperBand_s) | (wvf_s >= rangeHigh_s) ) \
+        #          & ( (wvf < upperBand) & (wvf < rangeHigh) )
 
-        rise_sig2 = (wvf_sig.shift(1) | wvf_sig) & wvf_sig.shift(1) & ~wvf_sig
-        drop_sig2 = (wvf_sig.shift(1) | wvf_sig) & (~wvf_sig).shift(1) & wvf_sig
-
-        # Filtered entry
-        filtered_entry = upRange & (close > close[str]) & ( (close < close[ltLB]) | (close < close[mtLB]) ) & filtered
-
-        # Aggressive filtered entry
-        filtered_entry_aggr = upRange_Aggr & (close > close[str]) & ( (close < close[ltLB]) | (close < close[mtLB]) ) & filtered_aggr
+        rise_sig = (wvf_sig.shift(1) | wvf_sig) & wvf_sig.shift(1) & ~wvf_sig
+        drop_sig = (wvf_sig.shift(1) | wvf_sig) & (~wvf_sig).shift(1) & wvf_sig
 
         conf = pd.Series(index=ohlcv.index)
-        conf[ rise_sig2.index[rise_sig2 == True] ] = BUY * self.p['wvf_conf']
-        conf[ drop_sig2.index[drop_sig2 == True] ] = SELL * self.p['wvf_conf']
+        conf[ rise_sig.index[rise_sig == True] ] = BUY * self.p['wvf_conf']
+        conf[ drop_sig.index[drop_sig == True] ] = SELL * self.p['wvf_conf']
+
+        # Filtered entry
+        filtered_entry = upRange & (close > close[strg]) & ( (close < close[ltLB]) | (close < close[mtLB]) ) & filtered
+
+        # Aggressive filtered entry
+        filtered_entry_aggr = upRange_Aggr & (close > close[strg]) & ( (close < close[ltLB]) | (close < close[mtLB]) ) & filtered_aggr
 
         return conf
-
-        # wvf_sig.astype(int).plot()
-        # rise_sig2.astype(int).plot()
-        # drop_sig2.astype(int).plot()
-
-        ## Plots for Williams Vix Fix Histogram and Alerts
-        # plot(swvf and wvf ? wvf * -1 : na, title="Williams Vix Fix", style=columns, linewidth = 4, color=col)
-        # plot(sa1 and alert1 ? alert1 : 0, title="Alert If WVF = True", style=line, linewidth=2, color=lime)
-        # plot(sa2 and alert2 ? alert2 : 0, title="Alert If WVF Was True Now False", style=line, linewidth=2, color=aqua)
-        # plot(sa3 and alert3 ? alert3 : 0, title="Alert Filtered Entry", style=line, linewidth=2, color=fuchsia)
-        # plot(sa4 and alert4 ? alert4 : 0, title="Alert Aggressive Filtered Entry", style=line, linewidth=2, color=orange)
 
 
 def is_dropping(x):

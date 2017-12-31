@@ -196,6 +196,8 @@ class Backtest():
                 orders = self.get_order_history_by_market(ex, market)
                 self.plot.plot_order_annotation(orders, ohlc)
 
+        self.plot.show()
+
     def get_order_history_by_market(self, ex, market):
         orders = []
         for ord in list(self.trader.order_history[ex].values()):
