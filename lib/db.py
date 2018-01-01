@@ -124,7 +124,7 @@ class EXMongo():
 
     async def get_trades(self, ex, symbol, start, end, fields_condition={}, compress=False):
         """ Read ohlcv of 'one' symbol from mongodb into DataFrame. """
-        db = self.self._config['dbname_exchange']
+        db = self.config['dbname_exchange']
         condition = self.cond_timestamp_range(start, end)
         fields_condition = {**fields_condition, **{'_id': 0}}
 

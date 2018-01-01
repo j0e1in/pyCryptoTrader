@@ -10,7 +10,8 @@ from utils import sec_ms, ms_sec,\
                   timeframe_timedelta,\
                   ms_dt,\
                   dt_ms,\
-                  timeframe_to_freq
+                  timeframe_to_freq,\
+                  config
 
 from db import EXMongo
 
