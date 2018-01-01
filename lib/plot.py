@@ -16,12 +16,13 @@ logger = logging.getLogger()
 
 class Plot():
 
-    def __init__(self, custom_config=None, size=(), subplot_opts={}):
+    def __init__(self, size=(), subplot_opts={}, custom_config=None):
+        _config = custom_config if custom_config else config
+        self.config = custom_config['matplot']
+        self._config = _config
+
         # Create subplots, to access subplots use indexing,
         # eg. ax[0][1] for upper right subplot
-        custom_config = custom_config if custom_config else config
-        self.config = custom_config['matplot']
-
         self.fig, self.axs = plt.subplots(**subplot_opts)
         self.set_active_subplot()  # set to first subplot automatically
 
@@ -122,7 +123,7 @@ class Plot():
                 side = 'buy' if order['side'] == 'sell' else 'sell'
                 time = order['close_time']
                 price = format_value(order['close_price'])
-                earn = format_value(order['close_price'] * order['amount'] * (1-config['trader']['fee']))
+                earn = format_value(order['close_price'] * order['amount'] * (1-self._config['trader']['fee']))
                 # text = f"#{order['#']}\nmargin\nclose\nP: {price}\nV: {earn}"
                 text = f"#{order['#']}"
                 self._ohllc_order_annotate(ohlc, side, time, text)
