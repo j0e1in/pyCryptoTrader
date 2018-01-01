@@ -18,8 +18,8 @@ from strategy import PatternStrategy
 ################################
 
 async def test_pattern_strategy(mongo):
-    start = datetime(2017, 6, 1)
-    end = datetime(2017, 6, 15)
+    start = datetime(2017, 10, 10)
+    end = datetime(2017, 10, 30)
     exchange = 'bitfinex'
     strategy = PatternStrategy(exchange)
 
