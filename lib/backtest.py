@@ -6,10 +6,11 @@ from trader import SimulatedTrader, FastTrader
 from plot import Plot
 
 
+# TODO: reuse data for multiple tests, don't read data everytime
+
 class Backtest():
 
     def __init__(self, mongo):
-        self.config = config['backtest']
         self.mongo = mongo
 
     async def init(self, **options):
@@ -34,6 +35,11 @@ class Backtest():
         self.strategy.init(self.trader)
 
     def _set_init_options(self, **options):
+        if 'custom_config' in options:
+            _config = options['custom_config']
+        else:
+            _config = config
+
         self.strategy = options['strategy']
         self.start = options['start']
         self.end = options['end']
@@ -43,24 +49,16 @@ class Backtest():
         else:
             self.enable_trade_feed = False
 
-        # Set backtest config file
-        if 'custom_config' not in options:
-            custom_config = None
-            self.config = config['backtest']
-            self.plot = Plot()
-        else:
-            custom_config = options['custom_config']
-            self.config = custom_config['backtest']
-            self.plot = Plot(custom_config=custom_config)
-
+        self.config = _config['backtest']
+        self.plot = Plot(custom_config=_config)
         self.timer = Timer(self.start, self.config['base_timeframe'])
 
         if self.config['fast_mode']:
-            self.trader = FastTrader(self.timer, self.strategy, custom_config)
+            self.trader = FastTrader(self.timer, self.strategy, _config)
             self.trader.fast_mode = True
             self.strategy.fast_mode = True
         else:
-            self.trader = SimulatedTrader(self.timer, self.strategy, custom_config)
+            self.trader = SimulatedTrader(self.timer, self.strategy, _config)
 
         self.markets = self.trader.markets
         self.timeframes = self.trader.timeframes

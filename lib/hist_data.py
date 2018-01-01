@@ -6,13 +6,12 @@ import logging
 import time
 import pandas as pd
 
-from utils import config,\
-                  sec_ms, ms_sec,\
+from utils import sec_ms, ms_sec,\
                   timeframe_timedelta,\
                   ms_dt,\
                   dt_ms,\
-                  timeframe_to_freq,\
-                  INF
+                  timeframe_to_freq
+
 from db import EXMongo
 
 ## TODO: build ohlcvs from trades and check they matches ohlcvs downloaded from exchange

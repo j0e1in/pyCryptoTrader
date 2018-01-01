@@ -25,7 +25,6 @@ from utils import not_implemented,\
 # TODO: Add different order types
 
 logger = logging.getLogger()
-_config = config
 
 
 class SimulatedTrader():
@@ -69,11 +68,9 @@ class SimulatedTrader():
 
     def __init__(self, timer, strategy=None, custom_config=None):
         # If custom_config is not specified, use default config
-        if custom_config:
-            self.config = custom_config['trader']
-            _config = custom_config  # change global config to custom_config
-        else:
-            self.config = config['trader']
+        _config = custom_config if custom_config else config
+        self.config = _config['trader']
+        self._config = _config
 
         self.strategy = strategy
         self.timer = timer  # synchronization timer for backtesting
@@ -263,7 +260,7 @@ class SimulatedTrader():
 
     def tick(self, last=False):
         """ Execute pending orders. """
-        if _config['mode'] == 'debug':
+        if self._config['mode'] == 'debug':
             self._check_data_feed_time()
 
         self._execute_orders()

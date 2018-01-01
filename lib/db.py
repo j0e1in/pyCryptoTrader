@@ -16,13 +16,17 @@ logger = logging.getLogger()
 
 class EXMongo():
 
-    def __init__(self, *, host='localhost', port=27017, uri=None):
+    def __init__(self, *, host='localhost', port=27017, uri=None, custom_config=None):
         if uri:
             logger.info(f"Connecting mongo client to {uri}")
             self.client = motor.AsyncIOMotorClient(uri)
         else:
             logger.info(f"Connecting mongo client to {host}:{port}")
             self.client = motor.AsyncIOMotorClient(host, port)
+
+        _config = custom_config if custom_config else config
+        self.config = _config['database']
+        self._config = _config
 
     async def load_exchanges_info(self):
         """
@@ -63,15 +67,15 @@ class EXMongo():
         # there's no reason to use this method.
         #
         # cursor = coll.find(condition, fields_condition)
-        # doc_size = config['mongo_to_list_length']
-        # doc = await cursor.to_list(length=doc_size)
+        # LEN_MAX = 1000
+        # doc = await cursor.to_list(length=LEN_MAX)
         # df = pd.DataFrame(data=doc, **df_options)
 
-        # doc = await cursor.to_list(length=doc_size)
+        # doc = await cursor.to_list(length=LEN_MAX)
         # while len(doc) > 0:
         #     tmp = pd.DataFrame(data=doc, index=np.arange(len(doc)).tolist(), columns=df.columns, **df_options)
         #     df = pd.concat([df, tmp], ignore_index=True)
-        #     doc = await cursor.to_list(length=doc_size)
+        #     doc = await cursor.to_list(length=LEN_MAX)
 
         if len(df) == 0:
             df = await self.create_empty_df_coll(coll)
@@ -99,7 +103,7 @@ class EXMongo():
                 fields_conditions: select/filter some columns (eg. remove 'close' column: {'close': 0})
         """
 
-        db = config['database']['dbname_exchange']
+        db = self.config['dbname_exchange']
         condition = self.cond_timestamp_range(start, end)
 
         ex = ex_name(ex)
@@ -120,7 +124,7 @@ class EXMongo():
 
     async def get_trades(self, ex, symbol, start, end, fields_condition={}, compress=False):
         """ Read ohlcv of 'one' symbol from mongodb into DataFrame. """
-        db = config['database']['dbname_exchange']
+        db = self.self._config['dbname_exchange']
         condition = self.cond_timestamp_range(start, end)
         fields_condition = {**fields_condition, **{'_id': 0}}
 
@@ -170,14 +174,14 @@ class EXMongo():
                 }
         """
         trades = {}
-        timeframes = config['trader']['exchanges'][ex_name(ex)]['timeframes']
+        timeframes = self._config['trader']['exchanges'][ex_name(ex)]['timeframes']
         for sym in symbols:
             trades[sym] = await self.get_trades(ex, sym, start, end, fields_condition, compress)
         return trades
 
     async def insert_ohlcv(self, ohlcv_df, ex, symbol, timeframe, *, coll_prefix=''):
         """ Insert ohlcv dateframe to mongodb. """
-        db = config['database']['dbname_exchange']
+        db = self.config['dbname_exchange']
         ex = ex_name(ex)
         collection = f"{coll_prefix}{ex}_ohlcv_{self.sym(symbol)}_{timeframe}"
         coll = self.client.get_database(db).get_collection(collection)

@@ -8,7 +8,8 @@
   "backtest":{
     "fast_mode": true,
     "_comment_base_timeframe": "in second",
-    "base_timeframe": 60
+    "base_timeframe": 60,
+    "margin": true
   },
 
   "matplot": {
@@ -109,5 +110,28 @@
         ]
       }
     }
+  },
+
+  "params": {
+      "trade_portion": 0.5,
+
+      "rsi_tf": "1h",
+      "rsi_conf": 40,
+      "rsi_period": 14,
+      "rsi_upper_bound": 70,
+      "rsi_lower_bound": 30,
+
+      "wvf_tf": "1h",
+      "wvf_conf": 50,
+      "wvf_lbsdh": 22,
+      "wvf_bbl": 20,
+      "wvf_bbsd": 2.0,
+      "wvf_lbph": 50,
+      "wvf_ph": 0.85,
+      "wvf_ltLB": 40,
+      "wvf_mtLB": 14,
+      "wvf_strg": 3
   }
 }
+
+

@@ -1,4 +1,4 @@
-from utils import not_implemented
+from utils import config
 
 
 class SingleExchangeStrategy():
@@ -19,7 +19,11 @@ class SingleExchangeStrategy():
             - calc_market_amount
     """
 
-    def __init__(self, ex):
+    def __init__(self, ex, custom_config=None):
+        _config = custom_config if custom_config else config
+        self.p = _config['params']
+        self._config = _config
+
         self.ex = ex
         self.fast_mode = False
 
