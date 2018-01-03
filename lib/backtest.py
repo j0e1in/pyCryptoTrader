@@ -1,10 +1,20 @@
-import copy
+from collections import OrderedDict
 from datetime import timedelta
+import copy
+import random
+import logging
+import pandas as pd
 
 from utils import config, Timer, roundup_dt, timeframe_timedelta
 from trader import SimulatedTrader, FastTrader
 from plot import Plot
+from db import EXMongo
 
+from pprint import pprint
+from ipdb import set_trace as trace
+
+
+logger = logging.getLogger()
 
 # TODO: reuse data for multiple tests, don't read data everytime
 
@@ -50,7 +60,6 @@ class Backtest():
             self.enable_trade_feed = False
 
         self.config = _config['backtest']
-        self.plot = Plot(custom_config=_config)
         self.timer = Timer(self.start, self.config['base_timeframe'])
 
         if self.config['fast_mode']:
@@ -59,6 +68,14 @@ class Backtest():
             self.strategy.fast_mode = True
         else:
             self.trader = SimulatedTrader(self.timer, self.strategy, _config)
+
+        if 'enable_plot' in options:
+            self.enable_plot = options['enable_plot']
+        else:
+            self.enable_plot = _config['matplot']['enable']
+
+        if self.enable_plot:
+            self.plot = Plot(custom_config=_config)
 
         self.markets = self.trader.markets
         self.timeframes = self.trader.timeframes
@@ -86,7 +103,7 @@ class Backtest():
 
         self._analyze_orders()
 
-        if self.plot.config['enable']:
+        if self.enable_plot:
             self.plot_result()
 
         return self.report
@@ -118,8 +135,10 @@ class Backtest():
             "initial_value": self._calc_total_value(self.timer.now()),
             "final_fund": None,
             "final_value": 0,
+            "days": (self.end - self.start).days,
             "PL": 0,
             "PL(%)": 0,
+            "PL_Eff": 0,
             "margin_PLs": [],
             "#_profit_trades": 0,
             "#_loss_trades": 0,
@@ -131,6 +150,9 @@ class Backtest():
         self.report['final_value'] = self._calc_total_value(self.timer.now())
         self.report['PL'] = self.report['final_value'] - self.report['initial_value']
         self.report['PL(%)'] = self.report['PL'] / self.report['initial_value'] * 100
+
+        # PL_Eff = 1 means 100% return in 30 days
+        self.report['PL_Eff'] = self.report['PL(%)'] / (self.end - self.start).days * 0.3
 
         for ex, orders in self.trader.order_history.items():
             for _, order in orders.items():
@@ -161,6 +183,10 @@ class Backtest():
                 else:
                     market = '/'.join([curr, 'USD'])
                     ohlcv = self.ohlcvs[ex][market][min_tf]
+
+                    if len(ohlcv) is 0:
+                        raise RuntimeError(f"ohlcv is empty for period \"{self.start}\" to \"{self.end}\"")
+
                     dt = ohlcv.index[-1] if dt > ohlcv.index[-1] else dt
 
                     if len(ohlcv[:dt]) == 0:
@@ -205,8 +231,130 @@ class Backtest():
 
 
 
+class BacktestRunner():
+    """
+        Fixed test period: [(start, end), (start, end), ...]
+        Randomize test: window size range, number of tests
+        Fixed windows size with shift by step: window size, shift step
 
+    """
 
+    def __init__(self, strategy):
+        self.mongo = EXMongo()
+        self.strategy = strategy
 
+    async def run_fixed_periods(self, periods):
+        """
+            Param
+                periods: array, [(start, end), (start, end), ...]
+        """
+        reports = OrderedDict()
+
+        for prd in periods:
+            reports[(prd[0], prd[1])] = await self._run_period(prd[0], prd[1])
+
+        summary = self._analyze_reports(reports)
+        return summary
+
+    async def run_random_periods(self, start, end, period_size_range, num_test):
+        """ Run N tests with randomized start and period size.
+            Param
+                start: datetime
+                end: datetime
+                period_size_range: (int, int), period sizes (in days) to randomize eg. (15, 60)
+                    This value should < (end - start) / 2
+                num_test: int, number of tests to run
+        """
+        if period_size_range[0] > period_size_range[1]:
+            raise ValueError("period_size_range's first number should >= the second one")
+
+        if (end - start).days / 2 < period_size_range[1]:
+            raise ValueError(f"{period_size_range[1]} days period size is too large "
+                             f"for {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}, "
+                             f"try size <= {int((end - start).days / 2)}")
+
+        reports = OrderedDict()
+
+        i = 0
+        while i < num_test:
+            d = random.randint(period_size_range[0], period_size_range[1])
+            period_size = timedelta(days=d)
+
+            days_diff = (end - start).days - period_size.days
+
+            if days_diff < 1:
+                continue
+
+            _start = start + timedelta(days=random.randint(1, days_diff))
+            _end = _start + period_size
+
+            # Restart if the period has been tested
+            if (_start, _end) in reports:
+                continue
+
+            reports[(_start, _end)] = await self._run_period(_start, _end)
+            i += 1
+
+        summary = self._analyze_reports(reports)
+        return summary
+
+    async def run_period_with_shift_step(self, start, end, period_size, shift_step):
+        """
+            Param
+                start: datetime
+                end: datatime
+                period_size: int, days
+                shift_step: int, days
+        """
+        reports = OrderedDict()
+
+        period_size_td = timedelta(days=period_size)
+        shift_step_td = timedelta(days=shift_step)
+
+        cur_start = start
+        cur_end = cur_start + period_size_td
+
+        while cur_end <= end:
+
+            reports[(cur_start, cur_end)] = await self._run_period(cur_start, cur_end)
+
+            cur_start += shift_step_td
+            cur_end += shift_step_td
+
+        summary = self._analyze_reports(reports)
+        return summary
+
+    async def _run_period(self, start, end):
+        opts = {
+            'strategy': self.strategy,
+            'start': start,
+            'end': end,
+            'enable_plot': False
+        }
+
+        logger.info(f"Backtesting {opts['start']} / {opts['end']}")
+
+        backtest = await Backtest(self.mongo).init(**opts)
+        report = backtest.run()
+        del backtest
+        return report
+
+    def _analyze_reports(self, reports):
+        summary = pd.DataFrame(columns=['start', 'end', 'days',
+                                        '#P', '#L', 'PL(%)', 'PL_Eff'])
+
+        for dts, report in reports.items():
+            summ = {
+                'start': dts[0],
+                'end': dts[1],
+                'days': report['days'],
+                '#P': report['#_profit_trades'],
+                '#L': report['#_loss_trades'],
+                'PL(%)': report['PL(%)'],
+                'PL_Eff': report['PL_Eff'], # PL_Eff = 1 means 100% return / 30days
+            }
+            summary = summary.append(summ, ignore_index=True)
+
+        return summary
 
 
