@@ -1,14 +1,19 @@
 from setup import run, setup
 setup()
 
-from pprint import pprint
+from copy import deepcopy
 from datetime import datetime
+from pprint import pprint
+import logging
 
+from backtest import Backtest
 from db import EXMongo
 from trader import SimulatedTrader
 from utils import Timer, config, init_ccxt_exchange, ex_name, ms_dt
 
-timer_interval = config['backtest']['base_timeframe']
+logger = logging.getLogger()
+
+MARKET = config['trader']['exchanges']['bitfinex']['markets'][0]
 
 exchange = init_ccxt_exchange('bitfinex2')
 symbols = config['trader']['exchanges']['bitfinex']['markets']
@@ -35,8 +40,8 @@ async def test_feed_ohlcv_trades(trader, mongo):
     await _feed_ohlcv(trader, mongo)
     await _feed_trades(trader, mongo)
 
-    pprint(trader.ohlcvs['bitfinex']['BTC/USD']['1m'])
-    pprint(trader.trades['bitfinex']['BTC/USD'])
+    pprint(trader.ohlcvs['bitfinex'])
+    pprint(trader.trades['bitfinex'])
 
 
 async def test_normarl_order_execution(order_type, trader, mongo):
@@ -62,7 +67,7 @@ async def test_normarl_order_execution(order_type, trader, mongo):
 
         if not bought and cur_time >= buy_time:
             ex = 'bitfinex'
-            market = 'BTC/USD'
+            market = MARKET
             side = 'buy'
             if order_type == 'limit':
                 order_type = 'limit'
@@ -114,7 +119,7 @@ async def test_margin_order_execution(order_type, trader, mongo):
 
         if not bought and cur_time >= buy_time:
             ex = 'bitfinex'
-            market = 'BTC/USD'
+            market = MARKET
             side = 'buy'
             if order_type == 'limit':
                 order_type = 'limit'
@@ -139,7 +144,60 @@ async def test_margin_order_execution(order_type, trader, mongo):
     pprint(trader.order_records)
 
 
+# def verify_trading_algorithm():
+#     start = datetime(2017, 10, 10)
+#     end = datetime(2017, 10, 30)
+#     exchange = 'bitfinex'
+#     strategy = PatternStrategy(exchange)
+
+#     options = {
+#         'strategy': strategy,
+#         'start': start,
+#         'end': end
+#     }
+#     backtest = await Backtest(mongo).init(**options)
+#     report = backtest.run()
+
+#     wallet = deepcopy(report['initial_wallet'])
+
+#     cur = start
+#     while cur <= end:
+
+#     for order in backtest.order_history.values():
+#         if order['margin']:
+#             curr = order['curr']
+
+#             if wallet[order['ex']][curr] < order['cost']:
+#                 logger.warn(f"Cost exceeds current balance. \n=> {wallet}\n=> {order}")
+
+#             wallet[order['ex']][curr] -= order['cost']
+
+
+#         else:
+#             if order['side'] == 'buy':
+#                 curr = order['curr']
+#                 opp_curr = backtest.trader.opposite_currency(order, curr)
+
+#                 if wallet[order['ex']][curr] < order['cost']:
+#                     logger.warn(f"Cost exceeds current balance. \n=> {wallet}\n=> {order}")
+
+#                 wallet[order['ex']][curr] -= order['cost']
+#                 wallet[order['ex']][opp_curr] += order['amount']
+#             else:
+#                 curr = order['curr']
+#                 opp_curr = backtest.trader.opposite_currency(order, curr)
+
+#                 if wallet[order['ex']][curr] < order['cost']:
+#                     logger.warn(f"Cost exceeds current balance. \n=> {wallet}\n=> {order}")
+
+#                 wallet[order['ex']][curr] -= order['cost']
+#                 wallet[order['ex']][opp_curr] += order['amount'] * order['open_price']
+
+
+
 async def main():
+    timer_interval = config['backtest']['base_timeframe']
+
     mongo = EXMongo()
     timer = Timer(start, timer_interval)
     trader = SimulatedTrader(timer)
