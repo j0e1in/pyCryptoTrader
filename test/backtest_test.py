@@ -26,10 +26,10 @@ async def test_run(backtest):
 
 
 async def test_backtest_runner_run_fix_periods():
-    periods = [
-        (datetime(2017, 1, 2), datetime(2017, 1, 7)),
-        (datetime(2017, 1, 2), datetime(2017, 1, 9))
-    ]
+    periods = []
+
+    for i in range(10):
+        periods.append((datetime(2017, 3, i+1), datetime(2017, 4, i+1)))
 
     strategy = PatternStrategy('bitfinex')
     bt_runner = BacktestRunner(strategy)
@@ -41,27 +41,26 @@ async def test_backtest_runner_run_fix_periods():
 async def test_backtest_runner_run_random_periods():
     start = datetime(2017, 1, 1)
     end = datetime(2017, 3, 1)
-    period_size_range = (20, 29)
+    period_size_range = (15, 29)
 
     strategy = PatternStrategy('bitfinex')
     bt_runner = BacktestRunner(strategy)
 
-    summary = await bt_runner.run_random_periods(start, end, period_size_range, 5)
+    summary = await bt_runner.run_random_periods(start, end, period_size_range, 15)
     pprint(summary)
 
 
 async def test_backtest_runner_run_period_with_shift_step():
-    start = datetime(2017, 1, 1)
-    end = datetime(2017, 3, 1)
-    period_size = 15
-    shift_step = 10
+    start = datetime(2017, 3, 1)
+    end = datetime(2017, 5, 31)
+    period_size = 30
+    shift_step = 5
 
     strategy = PatternStrategy('bitfinex')
     bt_runner = BacktestRunner(strategy)
 
     summary = await bt_runner.run_period_with_shift_step(start, end, period_size, shift_step)
     pprint(summary)
-
 
 
 async def main():

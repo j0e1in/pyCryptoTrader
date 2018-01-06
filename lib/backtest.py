@@ -1,9 +1,11 @@
 from collections import OrderedDict
 from datetime import timedelta
+from multiprocess import Process, Queue, cpu_count
 import copy
 import random
 import logging
 import pandas as pd
+import queue
 
 from utils import config, Timer, roundup_dt, timeframe_timedelta
 from trader import SimulatedTrader, FastTrader
@@ -13,10 +15,14 @@ from db import EXMongo
 from pprint import pprint
 from ipdb import set_trace as trace
 
-
 logger = logging.getLogger()
 
+# import multiprocessing, logging
+# logger = multiprocessing.log_to_stderr()
+# logger.setLevel(multiprocessing.SUBDEBUG)
+
 # TODO: reuse data for multiple tests, don't read data everytime
+
 
 class Backtest():
 
@@ -125,7 +131,7 @@ class Backtest():
             cur_time = self.timer.now()
             next_time = self.timer.next()
             self.trader.feed_data(next_time, self.ohlcvs)
-            self.trader.tick() # execute orders
+            self.trader.tick()  # execute orders
 
         self.trader.liquidate()
 
@@ -230,7 +236,6 @@ class Backtest():
         return orders
 
 
-
 class BacktestRunner():
     """
         Fixed test period: [(start, end), (start, end), ...]
@@ -239,20 +244,19 @@ class BacktestRunner():
 
     """
 
-    def __init__(self, strategy):
+    def __init__(self, strategy, custom_config=None):
         self.mongo = EXMongo()
         self.strategy = strategy
+
+        _config = custom_config if custom_config is not None else config
+        self._config = _config
 
     async def run_fixed_periods(self, periods):
         """
             Param
                 periods: array, [(start, end), (start, end), ...]
         """
-        reports = OrderedDict()
-
-        for prd in periods:
-            reports[(prd[0], prd[1])] = await self._run_period(prd[0], prd[1])
-
+        reports = await self._run_all_periods(periods)
         summary = self._analyze_reports(reports)
         return summary
 
@@ -273,7 +277,7 @@ class BacktestRunner():
                              f"for {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}, "
                              f"try size <= {int((end - start).days / 2)}")
 
-        reports = OrderedDict()
+        periods = []
 
         i = 0
         while i < num_test:
@@ -289,13 +293,13 @@ class BacktestRunner():
             _end = _start + period_size
 
             # Restart if the period has been tested
-            if (_start, _end) in reports:
+            if (_start, _end) in periods:
                 continue
 
-            reports[(_start, _end)] = await self._run_period(_start, _end)
+            periods.append((_start, _end))
             i += 1
 
-        summary = self._analyze_reports(reports)
+        summary = await self.run_fixed_periods(periods)
         return summary
 
     async def run_period_with_shift_step(self, start, end, period_size, shift_step):
@@ -306,7 +310,7 @@ class BacktestRunner():
                 period_size: int, days
                 shift_step: int, days
         """
-        reports = OrderedDict()
+        periods = []
 
         period_size_td = timedelta(days=period_size)
         shift_step_td = timedelta(days=shift_step)
@@ -315,46 +319,87 @@ class BacktestRunner():
         cur_end = cur_start + period_size_td
 
         while cur_end <= end:
-
-            reports[(cur_start, cur_end)] = await self._run_period(cur_start, cur_end)
-
+            periods.append((cur_start, cur_end))
             cur_start += shift_step_td
             cur_end += shift_step_td
 
-        summary = self._analyze_reports(reports)
+        summary = await self.run_fixed_periods(periods)
         return summary
 
-    async def _run_period(self, start, end):
-        opts = {
-            'strategy': self.strategy,
-            'start': start,
-            'end': end,
-            'enable_plot': False
-        }
+    async def _run_all_periods(self, periods):
 
-        logger.info(f"Backtesting {opts['start']} / {opts['end']}")
+        rep = []
+        reports = Queue(self._config['max_processes'])
+        ps = queue.Queue(self._config['max_processes'])
+        n_reports_left = len(periods)
 
-        backtest = await Backtest(self.mongo).init(**opts)
-        report = backtest.run()
-        del backtest
-        return report
+        def run_backtest(backtest):
+            days = (opts['end'] - opts['start']).days
+            logger.info(f"Backtesting {opts['start']} / {opts['end']} ({days} days)")
+            rep = backtest.run()
+            reports.put({
+                'period': (backtest.start, backtest.end),
+                'report': rep
+            })
+            del backtest
+
+        for start, end in periods:
+            opts = {
+                'strategy': self.strategy,
+                'start': start,
+                'end': end,
+                'enable_plot': False
+            }
+
+            backtest = await Backtest(self.mongo).init(**opts)
+
+            if not self._config['use_multicore']:
+                if reports.full():
+                    rep.append(reports.get())
+                    n_reports_left -= 1
+
+                run_backtest(backtest)
+
+            else:
+                p = Process(target=run_backtest, args=(backtest,))
+
+                if ps.full():
+                    rep.append(reports.get())
+                    ps.get().join()
+                    n_reports_left -= 1
+
+                p.start()
+                ps.put(p)
+
+        # Results queued by processes must be cleared from the queue,
+        # or some processes will not terminate.
+        for i in range(n_reports_left):
+            rep.append(reports.get())
+
+        # Wait for all processes to terminate
+        # (should be unecessary here because getting reports already blocks)
+        if not self._config['use_multicore']:
+            while ps.qsize() > 0:
+                ps.get().join()
+
+        return rep
 
     def _analyze_reports(self, reports):
         summary = pd.DataFrame(columns=['start', 'end', 'days',
                                         '#P', '#L', 'PL(%)', 'PL_Eff'])
+        for rep in reports:
+            dt = rep['period']
+            report = rep['report']
 
-        for dts, report in reports.items():
             summ = {
-                'start': dts[0],
-                'end': dts[1],
+                'start': dt[0],
+                'end': dt[1],
                 'days': report['days'],
                 '#P': report['#_profit_trades'],
                 '#L': report['#_loss_trades'],
                 'PL(%)': report['PL(%)'],
-                'PL_Eff': report['PL_Eff'], # PL_Eff = 1 means 100% return / 30days
+                'PL_Eff': report['PL_Eff'],  # PL_Eff = 1 means 100% return / 30days
             }
             summary = summary.append(summ, ignore_index=True)
 
         return summary
-
-
