@@ -1,5 +1,5 @@
 from datetime import datetime
-import motor.motor_asyncio as motor
+import motor.motor_asyncio
 import logging
 import numpy as np
 import pandas as pd
@@ -19,10 +19,10 @@ class EXMongo():
     def __init__(self, *, host='localhost', port=27017, uri=None, custom_config=None):
         if uri:
             logger.info(f"Connecting mongo client to {uri}")
-            self.client = motor.AsyncIOMotorClient(uri)
+            self.client = motor.motor_asyncio.AsyncIOMotorClient(uri)
         else:
             logger.info(f"Connecting mongo client to {host}:{port}")
-            self.client = motor.AsyncIOMotorClient(host, port)
+            self.client = motor.motor_asyncio.AsyncIOMotorClient(host, port)
 
         _config = custom_config if custom_config else config
         self.config = _config['database']
