@@ -1,7 +1,7 @@
 {
   "mode": "debug",
   "use_multicore": true,
-  "max_processes": 8,
+  "max_processes": 16,
 
   "constants": {
     "wait": 45,
