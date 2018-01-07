@@ -652,7 +652,8 @@ class SimulatedTrader():
         if order['side'] == 'sell':
             price_diff *= -1
 
-        pl = price_diff * order['amount'] - order['fee'] - order['margin_fee']
+        close_fee = order['close_price'] * order['amount'] * self.config['fee']
+        pl = price_diff * order['amount'] - close_fee
         return pl
 
     def _calc_margin_return(self, order):

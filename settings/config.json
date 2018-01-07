@@ -1,5 +1,8 @@
 {
   "mode": "debug",
+  "use_multicore": true,
+  "max_processes": 16,
+
   "constants": {
     "wait": 45,
     "rate_limit": 2500

@@ -18,20 +18,17 @@ from strategy import PatternStrategy
 ################################
 
 async def test_pattern_strategy(mongo):
-    start = datetime(2017, 10, 10)
-    end = datetime(2017, 10, 30)
-    exchange = 'bitfinex'
-    strategy = PatternStrategy(exchange)
-
     options = {
-        'strategy': strategy,
-        'start': start,
-        'end': end
+        'strategy': PatternStrategy('bitfinex'),
+        'start': datetime(2017, 1, 2),
+        'end': datetime(2017, 1, 17)
     }
+
     backtest = await Backtest(mongo).init(**options)
     report = backtest.run()
 
-    pprint(backtest.trader.order_history)
+    # pprint(backtest.trader.order_history)
+    backtest.plot.show()
 
     print('\n-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n')
     pprint(report)
