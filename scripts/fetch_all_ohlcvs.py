@@ -49,7 +49,7 @@ async def fetch_ohlcv_to_mongo(coll, exchange, symbol, timeframe):
         ops.append(ensure_future(coll.insert_many(processed_ohlcv, ordered=False)))
 
         # insert 1000 ohlcv per op, clear up task stack periodically
-        if len(ops) > 50:
+        if len(ops) > 100:
             await asyncio.gather(*ops)
             ops = []
 

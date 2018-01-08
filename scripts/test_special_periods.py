@@ -9,9 +9,12 @@ from backtest import Backtest, BacktestRunner
 from db import EXMongo
 from strategy import PatternStrategy
 
+from ipdb import set_trace as trace
+
 
 async def test_single_period(mongo):
-    dt = (datetime(2017, 3, 17), datetime(2017, 3, 19))
+    dt = (datetime(2017, 1, 1), datetime(2018, 1, 1))
+    dt = (datetime(2017, 11, 1), datetime(2018, 1, 1))
 
     options = {
         'strategy': PatternStrategy('bitfinex'),
@@ -20,8 +23,15 @@ async def test_single_period(mongo):
     }
 
     backtest = await Backtest(mongo).init(**options)
+
+    sp = backtest.ohlcvs['bitfinex'][backtest.markets['bitfinex'][0]]['1m'].iloc[0].open
+    ep = backtest.ohlcvs['bitfinex'][backtest.markets['bitfinex'][0]]['1m'].iloc[-1].close
+    ch = ep / sp if ep >= sp else -(ep / sp)
+    print(f"# Starting price: {sp}\n"
+          f"# Ending price:   {ep}\n"
+          f"# Change(%):      {ch * 100}")
+
     report = backtest.run()
-    backtest.plot.show()
 
     print('\n-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n')
     pprint(report)
@@ -71,8 +81,8 @@ async def main():
     mongo = EXMongo()
 
     await test_single_period(mongo)
-    await test_special_periods(mongo)
-    await test_random_periods(mongo)
+    # await test_special_periods(mongo)
+    # await test_random_periods(mongo)
 
 
 if __name__ == '__main__':
