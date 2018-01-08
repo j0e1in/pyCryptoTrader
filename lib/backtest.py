@@ -45,7 +45,10 @@ class Backtest():
         """
         self._set_init_options(**options)
         self.strategy.init(self.trader)
+
         await self._get_all_data()
+        self.start, self.end = self.get_real_start_end()
+
         return self
 
     # def reset(self):
@@ -139,6 +142,7 @@ class Backtest():
         self.trader.liquidate()
 
     def _init_report(self):
+        self.margin_PLs = []
         return {
             "initial_fund": copy.deepcopy(self.trader.wallet),
             "initial_value": self._calc_total_value(self.timer.now()),
@@ -148,7 +152,6 @@ class Backtest():
             "PL": 0,
             "PL(%)": 0,
             "PL_Eff": 0,
-            "margin_PLs": [],
             "#_profit_trades": 0,
             "#_loss_trades": 0,
         }
@@ -166,7 +169,7 @@ class Backtest():
         for ex, orders in self.trader.order_history.items():
             for _, order in orders.items():
                 if order['margin'] and not order['canceled']:
-                    self.report['margin_PLs'].append(order['PL'])
+                    self.margin_PLs.append(order['PL'])
 
                     # Calculate number of profit/loss trades
                     if order['PL'] >= 0:
@@ -238,6 +241,22 @@ class Backtest():
                 orders.append(ord)
         return orders
 
+    def get_real_start_end(self):
+        start = self.end
+        end = self.start
+
+        for ex, markets in self.markets.items():
+            for market in markets:
+                dt = self.ohlcvs[ex][market]['1m'].index[0]
+                if dt < start:
+                    start = dt
+
+                dt = self.ohlcvs[ex][market]['1m'].index[-1]
+                if dt > end:
+                    end = dt
+
+        return start, end
+
 
 class BacktestRunner():
     """
@@ -273,6 +292,7 @@ class BacktestRunner():
             })
             del backtest
 
+        count = len(periods)
         for start, end in periods:
             opts = {
                 'strategy': self.strategy,
@@ -294,12 +314,17 @@ class BacktestRunner():
                 p.start()
                 ps.put(p)
 
-            else: # use single core
+            else:  # use single core
                 if reports_q.full():
                     reports.append(reports_q.get())
                     n_reports_left -= 1
 
                 run_backtest(backtest)
+
+            if count % 50 == 0:
+                logger.info(f"{count} tests left...")
+
+            count -= 1
 
         # Results queued by processes must be cleared from the queue,
         # or some processes will not terminate.
@@ -350,10 +375,10 @@ class BacktestRunner():
         if period_size_range[0] > period_size_range[1]:
             raise ValueError("period_size_range's first number should >= the second one")
 
-        if (end - start).days / 2 < period_size_range[1]:
+        if (end - start).days / 1.5 < period_size_range[1]:
             raise ValueError(f"{period_size_range[1]} days period size is too large "
                              f"for {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}, "
-                             f"try size <= {int((end - start).days / 2)}")
+                             f"try size <= {int((end - start).days / 1.5)}")
 
         periods = []
 
@@ -407,7 +432,7 @@ class BacktestRunner():
 class ParamOptimizer():
     """ Try every parameters combinations in config['params'] to find best ones. """
 
-    ## TODO: Change optimizer to run all params in one period to reuse data and enable multicore
+    # TODO: Change optimizer to run all params in one period to reuse data and enable multicore
 
     def __init__(self, mongo, strategy, periods, custom_config=None):
         self._config = custom_config if custom_config else config
@@ -486,13 +511,15 @@ class ParamOptimizer():
                 tmp_df = params_df.append(params, ignore_index=True)
 
                 for i in range(len(summary)-1):
-                    tmp_df = tmp_df.append(tmp_df.copy(), ignore_index=True)
+                    tmp_df = tmp_df.append(tmp_df.iloc[0].copy(), ignore_index=True)
 
                 tmp_df = pd.concat([tmp_df, summary], axis=1)
                 df = df.append(tmp_df, ignore_index=True)
 
             df.sort_values(by='PL_Eff', ascending=False, inplace=True)
             return df
+
+        # TODO: use multi-core for testing multiple params
 
 
 def gen_combinations(arrays, columns=None, types=None):

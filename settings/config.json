@@ -16,7 +16,7 @@
   },
 
   "matplot": {
-    "enable": true,
+    "enable": false,
     "plot_indicators": true,
     "window_size": [15, 9],
     "plot_timeframes": {
@@ -51,6 +51,7 @@
         "markets_not_used": [
           "BTC/USD",
           "BCH/USD",
+          "ETH/USD",
           "ETC/USD",
           "DASH/USD",
           "LTC/USD",

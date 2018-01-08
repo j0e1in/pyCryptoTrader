@@ -5,7 +5,25 @@ coll = db.getCollectionNames()
 // Create unique timestamp index for ohlcvs
 for (i = 0; i < coll.length; i++) {
   if(coll[i].includes('_ohlcv_')) {
-    db.getCollection(coll[i]).createIndex({'timestamp':1}, {'unique': true})
+    collection = db.getCollection(coll[i])
+
+    // Find duplicates
+    collection.aggregate([
+        { "$group": {
+            "_id": { "timestamp": "$timestamp" },
+            "dups": { "$push": "$_id" },
+            "count": { "$sum": 1 }
+        }},
+        { "$match": { "count": { "$gt": 1 } }}
+
+    // Remove duplicates
+    ]).forEach(function(doc) {
+        doc.dups.shift();
+        collection.remove({ "_id": {"$in": doc.dups }});
+    })
+
+    // Create unique index
+    collection.createIndex({"timestamp": 1},{unique:true})
   }
 }
 

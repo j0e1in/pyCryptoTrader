@@ -22,6 +22,9 @@ logger = logging.getLogger()
 
 async def fetch_ohlcv(exchange, symbol, start, end, timeframe='1m'):
     """ Fetch all ohlcv ohlcv since 'start_timestamp' and use generator to stream results. """
+    if start >= end:
+        raise ValueError(f"start {start} should < end {end}.")
+
     start = dt_ms(start)
     end = dt_ms(end)
 

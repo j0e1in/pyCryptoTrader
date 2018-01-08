@@ -66,4 +66,5 @@ async def main():
         logger.info(f"Finished fetching {symbol}.")
 
 
-run(main)
+if __name__ == '__main__':
+    run(main)

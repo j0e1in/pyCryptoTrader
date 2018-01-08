@@ -3,6 +3,8 @@ setup()
 
 from asyncio import ensure_future
 from datetime import datetime
+from pymongo.errors import BulkWriteError
+from pprint import pprint
 
 import asyncio
 import ccxt.async as ccxt
@@ -18,8 +20,8 @@ logger = logging.getLogger()
 
 async def fetch_all_ohlcv(exchange, symbol, timeframe):
 
-    start = datetime(2017, 1, 1)
-    end = datetime(2017, 11, 1)
+    start = datetime(2017, 11, 1)
+    end = datetime(2018, 1, 1)
 
     res = fetch_ohlcv(exchange, symbol, start, end, timeframe)
     async for ohlcv in res:
@@ -44,10 +46,10 @@ async def fetch_ohlcv_to_mongo(coll, exchange, symbol, timeframe):
                 'volume':    oh[5]
             })
 
-        ops.append(ensure_future(coll.insert_many(processed_ohlcv)))
+        ops.append(ensure_future(coll.insert_many(processed_ohlcv, ordered=False)))
 
         # insert 1000 ohlcv per op, clear up task stack periodically
-        if len(ops) > 50:
+        if len(ops) > 100:
             await asyncio.gather(*ops)
             ops = []
 
@@ -64,14 +66,16 @@ async def main():
 
     mongo = motor.AsyncIOMotorClient('localhost', 27017)
     symbols = [
-        'BCH/USD',
-        'XRP/USD',
-        'XMR/USD',
-        'NEO/USD',
-        'ZEC/USD',
-        'DASH/USD',
-        'ETC/USD',
-        'LTC/USD'
+        "BTC/USD",
+        "BCH/USD",
+        "ETH/USD",
+        "ETC/USD",
+        "DASH/USD",
+        "LTC/USD",
+        "NEO/USD",
+        "XMR/USD",
+        "XRP/USD",
+        "ZEC/USD",
     ]
 
     for sym in symbols:
@@ -92,8 +96,20 @@ async def main():
         for symbol, timeframe in ohlcv_pairs:
             _symbol = ''.join(symbol.split('/')) # remove '/'
             coll = getattr(mongo.exchange, coll_tamplate.format(ex, _symbol, timeframe))
-            await fetch_ohlcv_to_mongo(coll, exchange, symbol, timeframe)
+
+            try:
+                await fetch_ohlcv_to_mongo(coll, exchange, symbol, timeframe)
+            except BulkWriteError as err:
+                for msg in err.details['writeErrors']:
+                    if 'duplicate' in msg['errmsg']:
+                        continue
+                    else:
+                        pprint(err.details)
+                        raise BulkWriteError(err)
+
             logger.info(f"Finished fetching {symbol} {timeframe}.")
 
 
-run(main)
+if __name__ == '__main__':
+    run(main)
+
