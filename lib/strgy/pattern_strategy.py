@@ -24,11 +24,8 @@ class PatternStrategy(SingleExchangeStrategy):
     def fast_strategy(self):
 
         for market in self.markets:
-            rsi_sig = self.ind.rsi(self.ohlcvs[market][self.p['rsi_tf']])
-            wvf_sig = self.ind.william_vix_fix_v3(self.ohlcvs[market][self.p['wvf_tf']])
 
-            sig = wvf_sig
-            # sig = rsi_sig
+            sig = self.wvf(market)
             sig = sig.dropna()
 
             for dt, ss in sig.items():
@@ -51,3 +48,9 @@ class PatternStrategy(SingleExchangeStrategy):
 
                     cost = ss / 100 * self.trader.op_wallet[self.ex][curr] * self.p['trade_portion']
                     self.op_sell(dt, market, cost, margin=self.margin)
+
+    def rsi(self, market):
+        return self.ind.rsi(self.ohlcvs[market][self.p['rsi_tf']])
+
+    def wvf(self, market):
+        return self.ind.william_vix_fix_v3(self.ohlcvs[market][self.p['wvf_tf']])
