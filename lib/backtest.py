@@ -45,7 +45,10 @@ class Backtest():
         """
         self._set_init_options(**options)
         self.strategy.init(self.trader)
+
         await self._get_all_data()
+        self.start, self.end = self.get_real_start_end()
+
         return self
 
     # def reset(self):
@@ -139,6 +142,7 @@ class Backtest():
         self.trader.liquidate()
 
     def _init_report(self):
+        self.margin_PLs = []
         return {
             "initial_fund": copy.deepcopy(self.trader.wallet),
             "initial_value": self._calc_total_value(self.timer.now()),
@@ -148,7 +152,6 @@ class Backtest():
             "PL": 0,
             "PL(%)": 0,
             "PL_Eff": 0,
-            "margin_PLs": [],
             "#_profit_trades": 0,
             "#_loss_trades": 0,
         }
@@ -166,7 +169,7 @@ class Backtest():
         for ex, orders in self.trader.order_history.items():
             for _, order in orders.items():
                 if order['margin'] and not order['canceled']:
-                    self.report['margin_PLs'].append(order['PL'])
+                    self.margin_PLs.append(order['PL'])
 
                     # Calculate number of profit/loss trades
                     if order['PL'] >= 0:
@@ -237,6 +240,22 @@ class Backtest():
             if ord['market'] == market:
                 orders.append(ord)
         return orders
+
+    def get_real_start_end(self):
+        start = self.end
+        end = self.start
+
+        for ex, markets in self.markets.items():
+            for market in markets:
+                dt = self.ohlcvs[ex][market]['1m'].index[0]
+                if dt < start:
+                    start = dt
+
+                dt = self.ohlcvs[ex][market]['1m'].index[-1]
+                if dt > end:
+                    end = dt
+
+        return start, end
 
 
 class BacktestRunner():
