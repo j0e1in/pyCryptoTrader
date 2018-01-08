@@ -7,6 +7,7 @@ for (i = 0; i < coll.length; i++) {
   if(coll[i].includes('_ohlcv_')) {
     collection = db.getCollection(coll[i])
 
+    // Find duplicates
     collection.aggregate([
         { "$group": {
             "_id": { "timestamp": "$timestamp" },
@@ -15,11 +16,13 @@ for (i = 0; i < coll.length; i++) {
         }},
         { "$match": { "count": { "$gt": 1 } }}
 
+    // Remove duplicates
     ]).forEach(function(doc) {
         doc.dups.shift();
         collection.remove({ "_id": {"$in": doc.dups }});
     })
 
+    // Create unique index
     collection.createIndex({"timestamp": 1},{unique:true})
   }
 }
