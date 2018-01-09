@@ -195,7 +195,13 @@ class EXMongo():
         try:
             await coll.insert_many(records)
         except pymongo.errors.BulkWriteError as error:
-            logger.warn(f"Mongodb BulkWriteError: {error}")
+            for msg in err.details['writeErrors']:
+                if 'duplicate' in msg['errmsg']:
+                    continue
+                else:
+                    pprint("Mongo BulkWriteError:\n", err.details)
+                    raise BulkWriteError(err)
+
 
     @staticmethod
     async def check_columns(collection, columns):
