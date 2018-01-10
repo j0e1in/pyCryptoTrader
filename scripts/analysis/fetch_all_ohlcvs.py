@@ -46,10 +46,25 @@ async def fetch_ohlcv_to_mongo(coll, exchange, symbol, timeframe):
 
         # insert 1000 ohlcv per op, clear up task stack periodically
         if len(ops) > 100:
-            await asyncio.gather(*ops)
+            try:
+                await asyncio.gather(*ops)
+            except BulkWriteError as err:
+                for msg in err.details['writeErrors']:
+                    if 'duplicate' in msg['errmsg']:
+                        continue
+                    else:
+                        pprint(err.details)
+                        raise BulkWriteError(err)
             ops = []
-
-    await asyncio.gather(*ops)
+    try:
+        await asyncio.gather(*ops)
+    except BulkWriteError as err:
+        for msg in err.details['writeErrors']:
+            if 'duplicate' in msg['errmsg']:
+                continue
+            else:
+                pprint(err.details)
+                raise BulkWriteError(err)
 
 
 async def main():
@@ -93,15 +108,8 @@ async def main():
             _symbol = ''.join(symbol.split('/'))  # remove '/'
             coll = getattr(mongo.exchange, coll_tamplate.format(ex, _symbol, timeframe))
 
-            try:
-                await fetch_ohlcv_to_mongo(coll, exchange, symbol, timeframe)
-            except BulkWriteError as err:
-                for msg in err.details['writeErrors']:
-                    if 'duplicate' in msg['errmsg']:
-                        continue
-                    else:
-                        pprint(err.details)
-                        raise BulkWriteError(err)
+            await fetch_ohlcv_to_mongo(coll, exchange, symbol, timeframe)
+
 
             logger.info(f"Finished fetching {symbol} {timeframe}.")
 

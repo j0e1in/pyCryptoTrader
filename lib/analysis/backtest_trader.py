@@ -16,7 +16,6 @@ from utils import not_implemented,\
     ms_dt,\
     select_time,\
     roundup_dt,\
-    pdts_dt,\
     dt_max,\
     Timer,\
     to_ordered_dict
