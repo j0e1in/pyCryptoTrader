@@ -10,6 +10,7 @@ def setup():
 
     file_dir = os.path.dirname(os.path.abspath(__file__))
     file_dir = os.path.dirname(file_dir)
+    file_dir = os.path.dirname(file_dir)
 
     os.chdir(file_dir + '/lib')
     sys.path.append('.')
