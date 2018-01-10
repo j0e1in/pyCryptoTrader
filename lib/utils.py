@@ -99,7 +99,7 @@ def timeframe_timedelta(timeframe):
 def init_ccxt_exchange(exchange_id):
     """ Return an initialized ccxt API instance. """
     options = combine({
-        'rateLimit': config['constants']['rate_limit'],
+        'rateLimit': config['ccxt']['rate_limit'],
         'enableRateLimit': True
     }, get_keys()[exchange_id])
 

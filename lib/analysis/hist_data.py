@@ -29,7 +29,7 @@ async def fetch_ohlcv(exchange, symbol, start, end, timeframe='1m'):
     end = dt_ms(end)
 
     now = sec_ms(time.time())
-    wait = config['constants']['wait']
+    wait = config['ccxt']['wait']
     params = {
         'end': end,
         'limit': 1000,
@@ -77,7 +77,7 @@ async def fetch_trades(exchange, symbol, start, end):
     end = dt_ms(end)
 
     now = sec_ms(time.time())
-    wait = config['constants']['wait']
+    wait = config['ccxt']['wait']
     params = {
         'start': start,
         'end': end,

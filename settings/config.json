@@ -3,12 +3,13 @@
   "use_multicore": true,
   "max_processes": 16,
 
-  "constants": {
+  "ccxt": {
     "wait": 45,
-    "rate_limit": 2500
+    "rate_limit": 3000,
+    "max_retry": 5
   },
 
-  "backtest":{
+  "backtest": {
     "fast_mode": true,
     "_comment_base_timeframe": "in second",
     "base_timeframe": 60,
