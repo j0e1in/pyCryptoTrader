@@ -18,21 +18,17 @@ from utils import init_ccxt_exchange
 logger = logging.getLogger()
 
 
-async def fetch_all_ohlcv(exchange, symbol, timeframe):
-
-    start = datetime(2017, 11, 1)
-    end = datetime(2018, 1, 1)
-
-    res = fetch_ohlcv(exchange, symbol, start, end, timeframe)
-    async for ohlcv in res:
-        yield ohlcv
+start = datetime(2017, 11, 1)
+end = datetime(2018, 1, 1)
 
 
 async def fetch_ohlcv_to_mongo(coll, exchange, symbol, timeframe):
     ops = []
     count = 0
 
-    async for ohlcv in fetch_all_ohlcv(exchange, symbol, timeframe):
+    res = fetch_ohlcv(exchange, symbol, start, end, timeframe)
+
+    async for ohlcv in res:
         processed_ohlcv = []
 
         # [ MTS, OPEN, CLOSE, HIGH, LOW, VOLUME ]
@@ -91,10 +87,10 @@ async def main():
             (sym, '1d')
         ]
 
-        ohlcv_pairs = ohlcv_pairs[::-1] # reverse the order
+        ohlcv_pairs = ohlcv_pairs[::-1]  # reverse the order
 
         for symbol, timeframe in ohlcv_pairs:
-            _symbol = ''.join(symbol.split('/')) # remove '/'
+            _symbol = ''.join(symbol.split('/'))  # remove '/'
             coll = getattr(mongo.exchange, coll_tamplate.format(ex, _symbol, timeframe))
 
             try:
@@ -112,4 +108,3 @@ async def main():
 
 if __name__ == '__main__':
     run(main)
-
