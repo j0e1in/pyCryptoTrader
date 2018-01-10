@@ -193,7 +193,7 @@ class EXMongo():
         records = ohlcv_df.to_dict(orient='records')
 
         try:
-            await coll.insert_many(records)
+            await coll.insert_many(records, ordered=False)
         except pymongo.errors.BulkWriteError as error:
             for msg in err.details['writeErrors']:
                 if 'duplicate' in msg['errmsg']:
