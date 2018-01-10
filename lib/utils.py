@@ -34,11 +34,6 @@ def combine(a, b):
         return {**a, **b}
 
 
-def pdts_dt(ts):
-    """ Convert pandas.Timestamp to datetime.datetime """
-    return ts.to_pydatetime()
-
-
 def ms_dt(ms):
     return datetime.utcfromtimestamp(int(float(ms)/1000))
 
@@ -77,6 +72,12 @@ def to_local_timestamp(timestamp):
 def utc_ts(year, month, day, hour=0, min=0, sec=0):
     dt = datetime(year, month, day, hour, min, sec)
     return calendar.timegm(dt.utctimetuple()) * 1000
+
+
+def utc_now():
+    """ Return current utc datetime. """
+    tdelta = datetime.now() - datetime.utcnow()
+    return datetime.now() - tdelta
 
 
 def timeframe_timedelta(timeframe):
@@ -168,6 +169,11 @@ def gen_id():
     return uuid.uuid4()
 
 
+def rsym(symbol):
+    """ Convert BTC/USD -> BTCUSD """
+    return ''.join(symbol.split('/'))
+
+
 def select_time(df, start, end):
     """ Return rows with timestamp between start and end.
         `df` must use datetime object as index.
@@ -177,8 +183,8 @@ def select_time(df, start, end):
 
 def roundup_dt(dt, month=None, day=None, hour=None, min=None, sec=None):
     """ Round up datetime object to specified interval,
-        eg. min = 20, 10:03 => 10:20
-        eg. sec = 120, 10:00 => 10:02
+        eg. min = 20, 10:03 => 10:20 (roundup_dt(dt, min=20))
+        eg. sec = 120, 10:00 => 10:02 (roundup_dt(dt, sec=120))
     """
     if isinstance(dt, pd.Timestamp):
         dt = dt.to_pydatetime()
@@ -212,6 +218,45 @@ def roundup_dt(dt, month=None, day=None, hour=None, min=None, sec=None):
         raise ValueError("Invalid parameters in round_dt.")
 
     return dt + fill - rest
+
+
+def rounddown_dt(dt, month=None, day=None, hour=None, min=None, sec=None):
+    """ Round up datetime object to specified interval,
+        eg. min = 20, 10:03 => 10:20 (roundup_dt(dt, min=20))
+        eg. sec = 120, 10:00 => 10:02 (roundup_dt(dt, sec=120))
+    """
+    if isinstance(dt, pd.Timestamp):
+        dt = dt.to_pydatetime()
+
+    if month:
+        fill = timedelta(months=(dt.month % month))
+        rest = timedelta(days=dt.day,
+                         hours=dt.hour,
+                         minutes=dt.minute,
+                         seconds=dt.second,
+                         microseconds=dt.microsecond)
+    elif day:
+        fill = timedelta(days=(dt.day % day))
+        rest = timedelta(hours=dt.hour,
+                         minutes=dt.minute,
+                         seconds=dt.second,
+                         microseconds=dt.microsecond)
+    elif hour:
+        fill = timedelta(hours=(dt.hour % hour))
+        rest = timedelta(minutes=dt.minute,
+                         seconds=dt.second,
+                         microseconds=dt.microsecond)
+    elif min:
+        fill = timedelta(minutes=(dt.minute % min))
+        rest = timedelta(seconds=dt.second,
+                         microseconds=dt.microsecond)
+    elif sec:
+        fill = timedelta(seconds=(dt.second % sec))
+        rest = timedelta(microseconds=dt.microsecond)
+    else:
+        raise ValueError("Invalid parameters in round_dt.")
+
+    return dt - fill - rest
 
 
 def dt_max(d1, d2):
