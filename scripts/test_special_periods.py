@@ -5,9 +5,9 @@ import pickle
 from datetime import datetime
 from pprint import pprint
 
-from backtest import Backtest, BacktestRunner
+from analysis.backtest import Backtest, BacktestRunner
+from analysis.strategy import PatternStrategy
 from db import EXMongo
-from strategy import PatternStrategy
 
 from ipdb import set_trace as trace
 
@@ -81,8 +81,8 @@ async def main():
     mongo = EXMongo()
 
     await test_single_period(mongo)
-    # await test_special_periods(mongo)
-    # await test_random_periods(mongo)
+    await test_special_periods(mongo)
+    await test_random_periods(mongo)
 
 
 if __name__ == '__main__':

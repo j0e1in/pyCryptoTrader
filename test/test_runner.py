@@ -4,12 +4,12 @@ import sys
 
 
 cmds = [
-    ['python', 'hist_data_test.py'],
+    ["python", "analysis/hist_data_test.py"],
     ["python", "db_test.py"],
-    ["python", "trader_test.py"],
-    ["python", "backtest_test.py"],
-    ["python", "plot_test.py"],
-    ["python", "strategy_test.py"]
+    ["python", "analysis/backtest_trader_test.py"],
+    ["python", "analysis/backtest_test.py"],
+    ["python", "analysis/plot_test.py"],
+    ["python", "analysis/strategy_test.py"]
 ]
 
 

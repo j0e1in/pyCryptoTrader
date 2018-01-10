@@ -4,9 +4,9 @@ setup()
 from datetime import datetime
 from pprint import pprint
 
-from backtest import ParamOptimizer
+from analysis.backtest import ParamOptimizer
+from analysis.strategy import PatternStrategy
 from db import EXMongo
-from strategy import PatternStrategy
 
 
 def print_num_tests(optimizer):

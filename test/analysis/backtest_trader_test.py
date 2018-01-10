@@ -6,15 +6,16 @@ from datetime import datetime
 from pprint import pprint
 import logging
 
-from backtest import Backtest
+from analysis.backtest import Backtest
+from analysis.backtest_trader import SimulatedTrader
 from db import EXMongo
-from trader import SimulatedTrader
 from utils import Timer, config, init_ccxt_exchange, ex_name, ms_dt
 
 logger = logging.getLogger()
 
 MARKET = config['trader']['exchanges']['bitfinex']['markets'][0]
 
+timer_interval = config['backtest']['base_timeframe']
 exchange = init_ccxt_exchange('bitfinex2')
 symbols = config['trader']['exchanges']['bitfinex']['markets']
 timeframes = config['trader']['exchanges']['bitfinex']['timeframes']
@@ -89,7 +90,9 @@ async def test_normarl_order_execution(order_type, trader, mongo):
                 price = trader.cur_price(ex, market)
             else:
                 price = None
-            amount = trader.wallet[ex]['BTC']
+
+            curr = config['trader']['exchanges']['bitfinex']['markets'][0].split('/')[0]
+            amount = trader.wallet[ex][curr]
             order = trader.generate_order(ex, market, side, order_type, amount, price)
             pprint(order)
             trader.open(order)
@@ -144,6 +147,7 @@ async def test_margin_order_execution(order_type, trader, mongo):
     pprint(trader.order_records)
 
 
+# TODO: Finish verify trader's trading algorithm
 # def verify_trading_algorithm():
 #     start = datetime(2017, 10, 10)
 #     end = datetime(2017, 10, 30)
@@ -196,8 +200,6 @@ async def test_margin_order_execution(order_type, trader, mongo):
 
 
 async def main():
-    timer_interval = config['backtest']['base_timeframe']
-
     mongo = EXMongo()
     timer = Timer(start, timer_interval)
     trader = SimulatedTrader(timer)

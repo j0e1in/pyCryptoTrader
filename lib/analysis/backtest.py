@@ -10,8 +10,8 @@ import pandas as pd
 import numpy as np
 
 from utils import config, Timer, roundup_dt, timeframe_timedelta, INF
-from trader import SimulatedTrader, FastTrader
-from plot import Plot
+from analysis.backtest_trader import SimulatedTrader, FastTrader
+from analysis.plot import Plot
 from db import EXMongo
 
 from pprint import pprint

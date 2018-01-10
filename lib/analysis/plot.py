@@ -6,7 +6,7 @@ import numpy as np
 import logging
 import math
 
-from trader import SimulatedTrader
+from analysis.backtest_trader import SimulatedTrader
 from utils import set_options, config, format_value
 
 from ipdb import set_trace as trace
@@ -18,7 +18,7 @@ class Plot():
 
     def __init__(self, size=(), subplot_opts={}, custom_config=None):
         _config = custom_config if custom_config else config
-        self.config = custom_config['matplot']
+        self.config = _config['matplot']
         self._config = _config
 
         # Create subplots, to access subplots use indexing,

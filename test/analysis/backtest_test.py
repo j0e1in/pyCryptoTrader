@@ -4,9 +4,9 @@ setup()
 from datetime import datetime
 from pprint import pprint
 
-from backtest import Backtest, BacktestRunner, ParamOptimizer
+from analysis.backtest import Backtest, BacktestRunner, ParamOptimizer
+from analysis.strategy import SingleExchangeStrategy, PatternStrategy
 from db import EXMongo
-from strategy import SingleExchangeStrategy, PatternStrategy
 
 
 async def test_run(backtest):

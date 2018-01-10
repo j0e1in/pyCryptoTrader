@@ -6,9 +6,9 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 from pprint import pprint
 
-from backtest import Backtest
+from analysis.backtest import Backtest
+from analysis.strategy import PatternStrategy
 from db import EXMongo
-from strategy import PatternStrategy
 
 
 
@@ -26,7 +26,6 @@ async def test_pattern_strategy(mongo):
 
     backtest = await Backtest(mongo).init(**options)
     report = backtest.run()
-    backtest.plot.show()
 
     print('\n-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n')
     pprint(report)

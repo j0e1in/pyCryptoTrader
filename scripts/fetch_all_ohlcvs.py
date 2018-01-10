@@ -11,7 +11,7 @@ import ccxt.async as ccxt
 import motor.motor_asyncio as motor
 import logging
 
-from hist_data import fetch_ohlcv
+from analysis.hist_data import fetch_ohlcv
 from utils import init_ccxt_exchange
 
 

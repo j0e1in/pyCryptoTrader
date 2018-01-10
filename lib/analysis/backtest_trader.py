@@ -187,7 +187,8 @@ class SimulatedTrader():
                         tmp = ohlcv[:end]
                         self.ohlcvs[ex][sym][tf] = tmp
 
-                        if last is None or tmp.index[-1] > last.name:
+                        if len(tmp) > 0 \
+                        and (last is None or tmp.index[-1] > last.name):
                             last = tmp.iloc[-1]
 
         if self.last_ohlcv is None or last.name > self.last_ohlcv.name:
@@ -217,7 +218,8 @@ class SimulatedTrader():
                     tmp = trade[:end]
                     self.trades[ex][sym] = tmp
 
-                    if last is None or tmp.index[-1] > last.name:
+                    if len(tmp) > 0 \
+                    and (last is None or tmp.index[-1] > last.name):
                         last = tmp.iloc[-1]
 
         if self.last_trade is None or last.name > self.last_trade.name:
@@ -238,10 +240,10 @@ class SimulatedTrader():
         last_ohlcv = None
         last_trade = None
 
-        if ex_ohlcvs is not None:
+        if ex_ohlcvs is not None and len(ex_ohlcvs) > 0:
             last_ohlcv = self.feed_ohlcv(ex_ohlcvs, end)
 
-        if ex_trades is not None:
+        if ex_trades is not None and len(ex_trades) > 0:
             last_trade = self.feed_trade(ex_trades, end)
 
         dt_ohlcv = last_ohlcv.name if last_ohlcv is not None else None

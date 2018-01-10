@@ -7,9 +7,9 @@ import math
 
 from ipdb import set_trace as trace
 
-from strgy.base_strategy import SingleExchangeStrategy
+from analysis.indicators import Indicator
+from analysis.strgy.base_strategy import SingleExchangeStrategy
 from utils import config
-from indicators import Indicator
 
 
 class PatternStrategy(SingleExchangeStrategy):

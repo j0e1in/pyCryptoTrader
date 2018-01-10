@@ -5,9 +5,9 @@ from datetime import datetime
 
 import motor.motor_asyncio as motor
 
+from analysis.hist_data import fill_missing_ohlcv
 from db import EXMongo
 from utils import init_ccxt_exchange
-from hist_data import fill_missing_ohlcv
 
 from pprint import pprint as pp
 

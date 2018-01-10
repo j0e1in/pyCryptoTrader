@@ -4,16 +4,16 @@ setup()
 from datetime import datetime
 import pandas as pd
 
-from plot import Plot
+from analysis.plot import Plot
+from analysis.backtest_trader import SimulatedTrader
 from db import EXMongo
-from trader import SimulatedTrader
 from utils import config, Timer
-from trader_test import test_normarl_order_execution,\
-                        test_margin_order_execution,\
-                        start, end, timer_interval
+from backtest_trader_test import test_normarl_order_execution,\
+                                 test_margin_order_execution,\
+                                 start, end, timer_interval
 
 exchange = 'bitfinex'
-symbol = 'BTC/USD'
+symbol = config['trader']['exchanges']['bitfinex']['markets'][0]
 timeframe = '30m'
 
 

@@ -9,8 +9,8 @@ import ccxt.async as ccxt
 import motor.motor_asyncio as motor
 import logging
 
+from analysis.hist_data import fetch_trades
 from utils import ms_sec, init_ccxt_exchange, ms_dt
-from hist_data import fetch_trades
 
 
 logger = logging.getLogger()

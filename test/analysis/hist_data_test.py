@@ -7,10 +7,10 @@ import pandas as pd
 
 from db import EXMongo
 from utils import ms_sec, init_ccxt_exchange, ms_dt
-from hist_data import fetch_ohlcv, \
-                      fetch_trades, \
-                      find_missing_ohlcv, \
-                      fill_missing_ohlcv
+from analysis.hist_data import fetch_ohlcv, \
+                               fetch_trades, \
+                               find_missing_ohlcv, \
+                               fill_missing_ohlcv
 
 
 async def test_fetch_ohlcv():
