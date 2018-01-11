@@ -82,7 +82,8 @@ async def test_special_periods(mongo):
 
 
 async def test_random_periods(mongo):
-    filename = 'DASH_random_1'
+    coin = config['trader']['exchanges']['bitfinex']['markets'][0].split('/')[0]
+    filename = f"{coin}_random_1"
 
     start = datetime(2017, 3, 5)
     end = datetime(2017, 11, 1)
