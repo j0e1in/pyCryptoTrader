@@ -14,7 +14,7 @@ from analysis.hist_data import fetch_ohlcv, \
 
 
 async def test_fetch_ohlcv():
-    exchange = init_ccxt_exchange('bitfinex2')
+    exchange = init_ccxt_exchange('bitfinex')
 
     start = datetime(2017, 10, 1)
     end = datetime(2017, 10, 2)
@@ -25,7 +25,7 @@ async def test_fetch_ohlcv():
 
 
 async def test_fetch_trades():
-    exchange = init_ccxt_exchange('bitfinex2')
+    exchange = init_ccxt_exchange('bitfinex')
 
     start = datetime(2017, 10, 1)
     end = datetime(2017, 10, 1, 1)
@@ -56,7 +56,7 @@ async def test_find_missing_ohlcv():
 
 async def test_fill_ohlcv_missing_timestamp():
     mongo = EXMongo()
-    exchange = init_ccxt_exchange('bitfinex2')
+    exchange = init_ccxt_exchange('bitfinex')
     symbol = 'ETH/USD'
     timeframe = '15m'
 
@@ -74,7 +74,7 @@ async def main():
     print('-----------------------------')
     await test_fetch_ohlcv()
     print('-----------------------------')
-    await test_fetch_trades()
+    # await test_fetch_trades()
     print('-----------------------------')
     await test_find_missing_ohlcv()
     print('-----------------------------')

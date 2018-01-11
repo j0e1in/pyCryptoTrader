@@ -16,7 +16,7 @@ logger = logging.getLogger()
 MARKET = config['trader']['exchanges']['bitfinex']['markets'][0]
 
 timer_interval = config['backtest']['base_timeframe']
-exchange = init_ccxt_exchange('bitfinex2')
+exchange = init_ccxt_exchange('bitfinex')
 symbols = config['trader']['exchanges']['bitfinex']['markets']
 timeframes = config['trader']['exchanges']['bitfinex']['timeframes']
 margin_rate = config['trader']['margin_rate']
