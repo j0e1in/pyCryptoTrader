@@ -1,13 +1,17 @@
 from datetime import datetime
+from pymongo.errors import BulkWriteError
 import motor.motor_asyncio
 import logging
 import numpy as np
 import pandas as pd
 import pymongo
 
-from utils import INF, ms_dt, dt_ms, sec_ms, ex_name, config
+from utils import INF, ms_dt, dt_ms, sec_ms, ex_name, config, rsym
+
+from ipdb import set_trace as trace
 
 pd.options.mode.chained_assignment = None
+
 
 logger = logging.getLogger()
 
@@ -28,69 +32,51 @@ class EXMongo():
         self.config = _config['database']
         self._config = _config
 
-    async def load_exchanges_info(self):
-        """
-            exchanges: {
-                symbols
-                timeframes
-                start,
-                end
-            }
-        """
+    async def get_exchanges_info(self):
+        self.update_exchanges_info()
+        coll_names = await self.client.get_database(self.config['dbname_exchange']).collection_names()
+
+    async def update_exchanges_info(self):
+        pass
+
+    async def build_exchanges_info():
         pass
 
     async def export_to_csv(self, db, collection, path):
         await self._dump_to_file(db, collection, path, 'csv')
 
     async def _dump_to_file(self, db, collection, path, format):
-        df = await self.read_to_dataframe(db, collection)
+        df = await self._read_to_dataframe(db, collection)
         if format == 'csv':
             df.to_csv(path, index=False)
 
-    async def read_to_dataframe(self, db, collection, condition={}, *,
-                                fields_condition={},
-                                index_col=None,
-                                date_col=None,
-                                date_parser=None,
-                                df_options={}):
-        """ If date_col is provided, date_parser must be as well. """
-        fields_condition = {**fields_condition, **{'_id': 0}}
+    async def get_ohlcv_start(self, ex, sym, tf):
+        """ Get datetime of first ohlcv in a collection. """
+        collname = f"{ex}_ohlcv_{rsym(sym)}_{tf}"
+        coll = self.get_collection(self.config['dbname_exchange'], collname)
+        res = await coll.find_one({})
+        return ms_dt(res['timestamp'])
 
-        coll = self.client.get_database(db).get_collection(collection)
+    async def get_ohlcv_end(self, ex, sym, tf):
+        """ Get datetime of last ohlcv in a collection. """
+        collname = f"{ex}_ohlcv_{rsym(sym)}_{tf}"
+        coll = self.get_collection(self.config['dbname_exchange'], collname)
+        res = await coll.find({}).sort([('_id', -1)]).limit(1).to_list(length=INF)
+        return ms_dt(res[0]['timestamp'])
 
-        # Process result at once
-        docs = await coll.find(condition, fields_condition).to_list(length=INF)
-        df = pd.DataFrame(data=docs, **df_options)
+    async def get_trades_start(self, ex, sym):
+        """ Get datetime of first trades in a collection. """
+        collname = f"{ex}_trades_{rsym(sym)}"
+        coll = self.get_collection(self.config['dbname_exchange'], collname)
+        res = await coll.find_one({})
+        return ms_dt(res['timestamp'])
 
-        # Use limited length to process result block by block
-        # Since uncompressed df will endup using same amount of memory as processing result at once,
-        # there's no reason to use this method.
-        #
-        # cursor = coll.find(condition, fields_condition)
-        # LEN_MAX = 1000
-        # doc = await cursor.to_list(length=LEN_MAX)
-        # df = pd.DataFrame(data=doc, **df_options)
-
-        # doc = await cursor.to_list(length=LEN_MAX)
-        # while len(doc) > 0:
-        #     tmp = pd.DataFrame(data=doc, index=np.arange(len(doc)).tolist(), columns=df.columns, **df_options)
-        #     df = pd.concat([df, tmp], ignore_index=True)
-        #     doc = await cursor.to_list(length=LEN_MAX)
-
-        if len(df) == 0:
-            df = await self.create_empty_df_coll(coll)
-
-        if date_parser and date_col:
-            df[date_col] = df[date_col].apply(date_parser)
-        elif date_parser and not date_col:
-            raise ValueError('date_parser is provided but date_col is not.')
-        elif date_col and not date_parser:
-            raise ValueError('date_col is provided but date_parser is not.')
-
-        if index_col:
-            df.set_index(index_col, inplace=True)
-
-        return df
+    async def get_trades_end(self, ex, sym):
+        """ Get datetime of last trades in a collection. """
+        collname = f"{ex}_trades_{rsym(sym)}"
+        coll = self.get_collection(self.config['dbname_exchange'], collname)
+        res = await coll.find({}).sort([('_id', -1)]).limit(1).to_list(length=INF)
+        return ms_dt(res[0]['timestamp'])
 
     async def get_ohlcv(self, ex, symbol, timeframe, start, end, fields_condition={}, compress=False):
         """ Read ohlcv of 'one' symbol and 'one' timeframe from mongodb into DataFrame,
@@ -107,9 +93,9 @@ class EXMongo():
         condition = self.cond_timestamp_range(start, end)
 
         ex = ex_name(ex)
-        collection = f"{ex}_ohlcv_{self.sym(symbol)}_{timeframe}"
+        collection = f"{ex}_ohlcv_{rsym(symbol)}_{timeframe}"
 
-        ohlcv = await self.read_to_dataframe(db, collection, condition,
+        ohlcv = await self._read_to_dataframe(db, collection, condition,
                                              index_col='timestamp',
                                              date_col='timestamp',
                                              date_parser=ms_dt)
@@ -129,9 +115,9 @@ class EXMongo():
         fields_condition = {**fields_condition, **{'_id': 0}}
 
         ex = ex_name(ex)
-        collection = f"{ex}_trades_{self.sym(symbol)}"
+        collection = f"{ex}_trades_{rsym(symbol)}"
 
-        trade = await self.read_to_dataframe(db, collection, condition,
+        trade = await self._read_to_dataframe(db, collection, condition,
                                              fields_condition=fields_condition,
                                              index_col='timestamp',
                                              date_col='timestamp',
@@ -183,7 +169,7 @@ class EXMongo():
         """ Insert ohlcv dateframe to mongodb. """
         db = self.config['dbname_exchange']
         ex = ex_name(ex)
-        collection = f"{coll_prefix}{ex}_ohlcv_{self.sym(symbol)}_{timeframe}"
+        collection = f"{coll_prefix}{ex}_ohlcv_{rsym(symbol)}_{timeframe}"
         coll = self.client.get_database(db).get_collection(collection)
 
         # put 'timestamp' index to first column
@@ -194,7 +180,7 @@ class EXMongo():
 
         try:
             await coll.insert_many(records, ordered=False)
-        except pymongo.errors.BulkWriteError as error:
+        except BulkWriteError as error:
             for msg in err.details['writeErrors']:
                 if 'duplicate' in msg['errmsg']:
                     continue
@@ -202,6 +188,67 @@ class EXMongo():
                     pprint("Mongo BulkWriteError:\n", err.details)
                     raise BulkWriteError(err)
 
+    async def _read_to_dataframe(self, db, collection, condition={}, *,
+                                fields_condition={},
+                                index_col=None,
+                                date_col=None,
+                                date_parser=None,
+                                df_options={}):
+        """ If date_col is provided, date_parser must be as well. """
+        fields_condition = {**fields_condition, **{'_id': 0}}
+
+        coll = self.client.get_database(db).get_collection(collection)
+
+        # Process result at once
+        docs = await coll.find(condition, fields_condition).to_list(length=INF)
+        df = pd.DataFrame(data=docs, **df_options)
+
+        # Use limited length to process result block by block
+        # Since uncompressed df will endup using same amount of memory as processing result at once,
+        # there's no reason to use this method.
+        #
+        # cursor = coll.find(condition, fields_condition)
+        # LEN_MAX = 1000
+        # doc = await cursor.to_list(length=LEN_MAX)
+        # df = pd.DataFrame(data=doc, **df_options)
+
+        # doc = await cursor.to_list(length=LEN_MAX)
+        # while len(doc) > 0:
+        #     tmp = pd.DataFrame(data=doc, index=np.arange(len(doc)).tolist(), columns=df.columns, **df_options)
+        #     df = pd.concat([df, tmp], ignore_index=True)
+        #     doc = await cursor.to_list(length=LEN_MAX)
+
+        if len(df) == 0:
+            df = await self.create_empty_df_coll(coll)
+
+        if date_parser and date_col:
+            df[date_col] = df[date_col].apply(date_parser)
+        elif date_parser and not date_col:
+            raise ValueError('date_parser is provided but date_col is not.')
+        elif date_col and not date_parser:
+            raise ValueError('date_col is provided but date_parser is not.')
+
+        if index_col:
+            df.set_index(index_col, inplace=True)
+
+        return df
+
+    def get_database(self, dbname):
+        if dbname == 'exchange':
+            return self.client.get_database(self.config['dbname_exchange'])
+
+    def get_collection(self, dbname, collname):
+        db = self.get_database(dbname)
+
+        if db is None:
+            raise RuntimeError(f"Database `{dbname}` doesn't exist.")
+
+        coll = db.get_collection(collname)
+
+        if coll is None:
+            raise RuntimeError(f"Collection `{collname}` doesn't exist.")
+
+        return coll
 
     @staticmethod
     async def check_columns(collection, columns):
@@ -216,11 +263,6 @@ class EXMongo():
                 return False
 
         return True
-
-    @staticmethod
-    def sym(symbol):
-        """ Convert BTC/USD -> BTCUSD """
-        return ''.join(symbol.split('/'))
 
     @staticmethod
     def cond_timestamp_range(start, end):
