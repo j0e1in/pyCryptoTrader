@@ -9,7 +9,7 @@ import queue
 import pandas as pd
 import numpy as np
 
-from utils import config, Timer, roundup_dt, timeframe_timedelta, INF
+from utils import config, Timer, roundup_dt, timeframe_timedelta, check_periods, INF
 from analysis.backtest_trader import SimulatedTrader, FastTrader
 from analysis.plot import Plot
 from db import EXMongo
@@ -65,6 +65,9 @@ class Backtest():
         self.strategy = options['strategy']
         self.start = options['start']
         self.end = options['end']
+
+        if self.start >= self.end:
+            raise ValueError(f"backtest start datetime must > end")
 
         if 'enable_trade_feed' in options:
             self.enable_trade_feed = options['enable_trade_feed']
@@ -442,20 +445,23 @@ class ParamOptimizer():
         self.strategy = strategy
         self.periods = periods
 
+        if not check_periods(periods):
+            raise ValueError("Periods is invalid.")
+
         self._init_param_queue()
 
     def _init_param_queue(self):
         """ Use default values to create a param queue
             in case some params' range or selections are not set by user.
         """
-        self.param_q = OrderedDict()
+        self.param_d = OrderedDict()
         for k, v in self.params.items():
-            self.param_q[k] = [v]
+            self.param_d[k] = [v]
 
     def optimize_range(self, param_name, start, end, step):
         """ Set optimization range for an param. """
         if param_name in self.params:
-            self.param_q[param_name] = np.arange(start, end+step/INF, step)
+            self.param_d[param_name] = np.arange(start, end+step/INF, step)
         else:
             raise ValueError(f"{param_name} is not in config['parmas']")
 
@@ -465,15 +471,15 @@ class ParamOptimizer():
             raise TypeError("selections should be a list")
 
         if param_name in self.params:
-            self.param_q[param_name] = selections
+            self.param_d[param_name] = selections
         else:
             raise ValueError(f"{param_name} is not in config['parmas']")
 
     async def run(self):
         config = copy.deepcopy(self._config)
-        combs = gen_combinations(self.param_q.values(),
-                                 columns=self.param_q.keys(),
-                                 types=get_types(self.param_q))
+        combs = gen_combinations(self.param_d.values(),
+                                 columns=self.param_d.keys(),
+                                 types=get_types(self.param_d))
 
         num_tests = len(combs) * len(self.periods)
         logger.info(f"Running optimization with << {num_tests} >> tests.")
@@ -483,6 +489,8 @@ class ParamOptimizer():
         for i in range(len(combs)):
             params = OrderedDict(combs.iloc[i].to_dict())
             config['params'] = params
+
+            self.strategy.set_config(config)
 
             bt_runner = BacktestRunner(self.mongo, self.strategy, custom_config=config)
             summaries.append({
