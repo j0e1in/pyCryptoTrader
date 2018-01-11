@@ -38,21 +38,21 @@ async def fetch_ohlcv(exchange, symbol, start, end, timeframe='1m'):
 
     while start < end:
         try:
-            logger.info(f'Fetching {symbol}_{timeframe} ohlcv starting from {ms_dt(start)}')
+            logger.info(f'Fetching {symbol}_{timeframe} ohlcv from {ms_dt(start)} to {ms_dt(end)}')
             ohlcvs = await exchange.fetch_ohlcv(symbol, timeframe=timeframe, since=start, params=params)
-            start = ohlcvs[-1][0] + 1000
+
+            if len(ohlcvs) is 0 or ohlcvs[-1][0] == start: # no ohlcv in the period
+                start = end
+            else:
+                start = ohlcvs[-1][0] + 1000
+
             yield ohlcvs
 
-        except (ccxt.AuthenticationError,
-                ccxt.ExchangeNotAvailable,
-                ccxt.RequestTimeout,
-                ccxt.ExchangeError,
+        except (ccxt.RequestTimeout,
                 ccxt.DDoSProtection) as error:
 
             if is_empty_response(error): # finished fetching all ohlcv
                 break
-            elif isinstance(error, ccxt.ExchangeError):
-                raise error
 
             logger.info(f'|{type(error).__name__}| retrying in {wait} seconds...')
             await asyncio.sleep(wait)
@@ -104,10 +104,7 @@ async def fetch_trades(exchange, symbol, start, end):
             params['start'] = start
             yield trades
 
-        except (ccxt.AuthenticationError,
-                ccxt.ExchangeNotAvailable,
-                ccxt.RequestTimeout,
-                ccxt.ExchangeError,
+        except (ccxt.RequestTimeout,
                 ccxt.DDoSProtection) as error:
 
             if is_empty_response(error): # finished fetching all trades
