@@ -4,9 +4,10 @@
   "max_processes": 16,
 
   "ccxt": {
-    "wait": 45,
+    "wait": 30,
     "rate_limit": 3000,
-    "max_retry": 5
+    "max_retry": 5,
+    "data_delay_tolerence": 60
   },
 
   "backtest": {
@@ -30,6 +31,19 @@
 
   "database":{
     "dbname_exchange": "exchange"
+  },
+
+  "trading": {
+    "bitfinex": {
+      "markets": [
+        "BTC/USD"
+      ],
+      "timeframes": [
+          "1m",
+          "30m",
+          "1h"
+      ]
+    }
   },
 
   "trader": {
