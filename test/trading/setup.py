@@ -3,7 +3,6 @@ import chromalog
 import logging
 import time
 
-
 def setup():
     import os
     import sys

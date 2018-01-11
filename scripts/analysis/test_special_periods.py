@@ -1,25 +1,32 @@
 from setup import run, setup
 setup()
 
-import pickle
 from datetime import datetime
 from pprint import pprint
+import copy
+import pickle
 
 from analysis.backtest import Backtest, BacktestRunner
 from analysis.strategy import PatternStrategy
 from db import EXMongo
+from utils import config
 
 from ipdb import set_trace as trace
 
 
-async def test_single_period(mongo):
+async def test_single_period(mongo, market):
     dt = (datetime(2017, 1, 1), datetime(2018, 1, 1))
+
     dt = (datetime(2017, 11, 1), datetime(2018, 1, 1))
+
+    _config = copy.deepcopy(config)
+    _config['trader']['exchanges']['bitfinex']['markets'] = [market]
 
     options = {
         'strategy': PatternStrategy('bitfinex'),
         'start': dt[0],
-        'end': dt[1]
+        'end': dt[1],
+        'custom_config': _config,
     }
 
     backtest = await Backtest(mongo).init(**options)
@@ -33,10 +40,28 @@ async def test_single_period(mongo):
 
     report = backtest.run()
 
-    print('\n-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n')
+    print('-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n')
     pprint(report)
     print('\n-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n')
 
+
+async def test_special_periods_of_markets(mongo):
+
+    markets = [
+        "BTC/USD",
+        "BCH/USD",
+        "ETH/USD",
+        "ETC/USD",
+        "DASH/USD",
+        "LTC/USD",
+        "NEO/USD",
+        "XMR/USD",
+        "XRP/USD",
+        "ZEC/USD",
+    ]
+
+    for market in markets:
+        await test_single_period(mongo, market)
 
 async def test_special_periods(mongo):
     periods = [
@@ -80,9 +105,9 @@ async def test_random_periods(mongo):
 async def main():
     mongo = EXMongo()
 
-    await test_single_period(mongo)
-    await test_special_periods(mongo)
-    await test_random_periods(mongo)
+    await test_special_periods_of_markets(mongo)
+    # await test_special_periods(mongo)
+    # await test_random_periods(mongo)
 
 
 if __name__ == '__main__':
