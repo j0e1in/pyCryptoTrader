@@ -19,7 +19,7 @@ def load_config(file):
     with open(file) as f:
         return json.load(f)
 
-## TODO: Add set_config and get_config method to let classes set and get global config
+# TODO: Add set_config and get_config method to let classes set and get global config
 config = load_config('../settings/config.json')
 
 
@@ -273,11 +273,11 @@ def dt_max(d1, d2):
 
 
 def pd_mem_usage(pandas_obj):
-    if isinstance(pandas_obj,pd.DataFrame):
+    if isinstance(pandas_obj, pd.DataFrame):
         usage_b = pandas_obj.memory_usage(deep=True).sum()
-    else: # we assume if not a df it's a series
+    else:  # we assume if not a df it's a series
         usage_b = pandas_obj.memory_usage(deep=True)
-    usage_mb = usage_b / 1024 ** 2 # convert bytes to megabytes
+    usage_mb = usage_b / 1024 ** 2  # convert bytes to megabytes
     return "{:03.2f} MB".format(usage_mb)
 
 
@@ -330,6 +330,13 @@ def format_value(n, digits=5):
     except ValueError:
         raise ValueError(f"Invalid value for log: {n}")
     return round(n, digits-math.ceil(l))
+
+
+def check_periods(periods):
+    for p in periods:
+        if p[0] >= p[1]:
+            return False
+    return True
 
 
 class Timer():
