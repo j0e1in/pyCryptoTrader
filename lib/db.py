@@ -160,7 +160,7 @@ class EXMongo():
                 }
         """
         trades = {}
-        timeframes = self._config['trader']['exchanges'][ex_name(ex)]['timeframes']
+        timeframes = self._config['analysis']['exchanges'][ex_name(ex)]['timeframes']
         for sym in symbols:
             trades[sym] = await self.get_trades(ex, sym, start, end, fields_condition, compress)
         return trades

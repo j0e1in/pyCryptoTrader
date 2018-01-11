@@ -20,7 +20,7 @@ async def test_single_period(mongo, market):
     dt = (datetime(2017, 11, 1), datetime(2018, 1, 1))
 
     _config = copy.deepcopy(config)
-    _config['trader']['exchanges']['bitfinex']['markets'] = [market]
+    _config['analysis']['exchanges']['bitfinex']['markets'] = [market]
 
     options = {
         'strategy': PatternStrategy('bitfinex'),
@@ -82,7 +82,7 @@ async def test_special_periods(mongo):
 
 
 async def test_random_periods(mongo):
-    coin = config['trader']['exchanges']['bitfinex']['markets'][0].split('/')[0]
+    coin = config['analysis']['exchanges']['bitfinex']['markets'][0].split('/')[0]
     filename = f"{coin}_random_1"
 
     start = datetime(2017, 3, 5)

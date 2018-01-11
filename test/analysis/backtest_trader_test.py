@@ -13,13 +13,13 @@ from utils import Timer, config, init_ccxt_exchange, ex_name, ms_dt
 
 logger = logging.getLogger()
 
-MARKET = config['trader']['exchanges']['bitfinex']['markets'][0]
+MARKET = config['analysis']['exchanges']['bitfinex']['markets'][0]
 
 timer_interval = config['backtest']['base_timeframe']
 exchange = init_ccxt_exchange('bitfinex')
-symbols = config['trader']['exchanges']['bitfinex']['markets']
-timeframes = config['trader']['exchanges']['bitfinex']['timeframes']
-margin_rate = config['trader']['margin_rate']
+symbols = config['analysis']['exchanges']['bitfinex']['markets']
+timeframes = config['analysis']['exchanges']['bitfinex']['timeframes']
+margin_rate = config['analysis']['margin_rate']
 
 start = datetime(2017, 1, 1)
 end = datetime(2017, 1, 5)
@@ -91,7 +91,7 @@ async def test_normarl_order_execution(order_type, trader, mongo):
             else:
                 price = None
 
-            curr = config['trader']['exchanges']['bitfinex']['markets'][0].split('/')[0]
+            curr = config['analysis']['exchanges']['bitfinex']['markets'][0].split('/')[0]
             amount = trader.wallet[ex][curr]
             order = trader.generate_order(ex, market, side, order_type, amount, price)
             pprint(order)

@@ -46,7 +46,7 @@
     }
   },
 
-  "trader": {
+  "analysis": {
     "fee": 0.002,
     "margin_fee": 0.001,
     "margin_rate": 3,

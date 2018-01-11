@@ -10,7 +10,7 @@ from db import EXMongo
 
 
 async def test_run(backtest):
-    # Add `"BTC": 1` to config['trader']['funds'] to test thoroughly.
+    # Add `"BTC": 1` to config['analysis']['funds'] to test thoroughly.
 
     strategy = SingleExchangeStrategy('bitfinex')
     start = datetime(2017, 1, 1)

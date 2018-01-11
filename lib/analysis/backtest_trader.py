@@ -68,7 +68,7 @@ class SimulatedTrader():
     def __init__(self, timer, strategy=None, custom_config=None):
         # If custom_config is not specified, use default config
         _config = custom_config if custom_config else config
-        self.config = _config['trader']
+        self.config = _config['analysis']
         self._config = _config
 
         self.strategy = strategy

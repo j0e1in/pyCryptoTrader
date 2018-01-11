@@ -52,7 +52,7 @@ async def fetch_trades_to_mongo(coll, exchange, symbol):
 
 
 async def main():
-    exchange = init_ccxt_exchange('bitfinex2')
+    exchange = init_ccxt_exchange('bitfinex')
 
     coll_tamplate = 'bitfinex_trades_{}'
 

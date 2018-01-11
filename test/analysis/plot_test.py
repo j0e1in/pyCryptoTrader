@@ -13,7 +13,7 @@ from backtest_trader_test import test_normarl_order_execution,\
                                  start, end, timer_interval
 
 exchange = 'bitfinex'
-symbol = config['trader']['exchanges']['bitfinex']['markets'][0]
+symbol = config['analysis']['exchanges']['bitfinex']['markets'][0]
 timeframe = '30m'
 
 

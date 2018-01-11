@@ -123,7 +123,7 @@ class Plot():
                 side = 'buy' if order['side'] == 'sell' else 'sell'
                 time = order['close_time']
                 price = format_value(order['close_price'])
-                earn = format_value(order['close_price'] * order['amount'] * (1-self._config['trader']['fee']))
+                earn = format_value(order['close_price'] * order['amount'] * (1-self._config['analysis']['fee']))
                 # text = f"#{order['#']}\nmargin\nclose\nP: {price}\nV: {earn}"
                 text = f"#{order['#']}"
                 self._ohllc_order_annotate(ohlc, side, time, text)
