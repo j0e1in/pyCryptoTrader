@@ -81,6 +81,7 @@ def utc_now():
 
 
 def timeframe_timedelta(timeframe):
+    """ Convert timeframe to timedelta. """
     if 'M' == timeframe[-1]:
         period = int(timeframe.split('M')[0])
         return timedelta(months=period)
@@ -181,7 +182,7 @@ def select_time(df, start, end):
     return df.loc[(df.index >= start) & (df.index < end)]
 
 
-def roundup_dt(dt, month=None, day=None, hour=None, min=None, sec=None):
+def roundup_dt(dt, day=0, hour=0, min=0, sec=0):
     """ Round up datetime object to specified interval,
         eg. min = 20, 10:03 => 10:20 (roundup_dt(dt, min=20))
         eg. sec = 120, 10:00 => 10:02 (roundup_dt(dt, sec=120))
@@ -189,14 +190,14 @@ def roundup_dt(dt, month=None, day=None, hour=None, min=None, sec=None):
     if isinstance(dt, pd.Timestamp):
         dt = dt.to_pydatetime()
 
-    if month:
-        fill = timedelta(months=month - (dt.month % month))
-        rest = timedelta(days=dt.day,
-                         hours=dt.hour,
-                         minutes=dt.minute,
-                         seconds=dt.second,
-                         microseconds=dt.microsecond)
-    elif day:
+    td = timedelta(days=day, hours=hour, minutes=min, seconds=sec)
+
+    day = td.days
+    hour = int(td.seconds/60/60)
+    min = int(td.seconds/60)
+    sec = td.seconds
+
+    if day:
         fill = timedelta(days=day - (dt.day % day))
         rest = timedelta(hours=dt.hour,
                          minutes=dt.minute,
@@ -215,12 +216,12 @@ def roundup_dt(dt, month=None, day=None, hour=None, min=None, sec=None):
         fill = timedelta(seconds=sec - (dt.second % sec))
         rest = timedelta(microseconds=dt.microsecond)
     else:
-        raise ValueError("Invalid parameters in round_dt.")
+        raise ValueError("Invalid parameters in roundup_dt.")
 
     return dt + fill - rest
 
 
-def rounddown_dt(dt, month=None, day=None, hour=None, min=None, sec=None):
+def rounddown_dt(dt, day=0, hour=0, min=0, sec=0):
     """ Round up datetime object to specified interval,
         eg. min = 20, 10:03 => 10:20 (roundup_dt(dt, min=20))
         eg. sec = 120, 10:00 => 10:02 (roundup_dt(dt, sec=120))
@@ -228,14 +229,14 @@ def rounddown_dt(dt, month=None, day=None, hour=None, min=None, sec=None):
     if isinstance(dt, pd.Timestamp):
         dt = dt.to_pydatetime()
 
-    if month:
-        fill = timedelta(months=(dt.month % month))
-        rest = timedelta(days=dt.day,
-                         hours=dt.hour,
-                         minutes=dt.minute,
-                         seconds=dt.second,
-                         microseconds=dt.microsecond)
-    elif day:
+    td = timedelta(days=day, hours=hour, minutes=min, seconds=sec)
+
+    day = td.days
+    hour = int(td.seconds/60/60)
+    min = int(td.seconds/60)
+    sec = td.seconds
+
+    if day:
         fill = timedelta(days=(dt.day % day))
         rest = timedelta(hours=dt.hour,
                          minutes=dt.minute,
@@ -254,7 +255,7 @@ def rounddown_dt(dt, month=None, day=None, hour=None, min=None, sec=None):
         fill = timedelta(seconds=(dt.second % sec))
         rest = timedelta(microseconds=dt.microsecond)
     else:
-        raise ValueError("Invalid parameters in round_dt.")
+        raise ValueError("Invalid parameters in rounddown_dt.")
 
     return dt - fill - rest
 
