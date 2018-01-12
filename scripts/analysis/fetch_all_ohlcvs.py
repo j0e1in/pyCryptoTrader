@@ -18,8 +18,8 @@ from utils import init_ccxt_exchange
 logger = logging.getLogger()
 
 
-start = datetime(2017, 11, 1)
-end = datetime(2018, 1, 1)
+start = datetime(2018, 1, 1)
+end = datetime(2018, 1, 10)
 
 
 async def fetch_ohlcv_to_mongo(coll, exchange, symbol, timeframe):
@@ -30,6 +30,9 @@ async def fetch_ohlcv_to_mongo(coll, exchange, symbol, timeframe):
 
     async for ohlcv in res:
         processed_ohlcv = []
+
+        if len(ohlcv) is 0:
+            break
 
         # [ MTS, OPEN, CLOSE, HIGH, LOW, VOLUME ]
         for oh in ohlcv:
@@ -69,11 +72,9 @@ async def fetch_ohlcv_to_mongo(coll, exchange, symbol, timeframe):
 
 async def main():
     ex = 'bitfinex'
-    # ex_id = ex
-    ex_id = ex+'2'
     coll_tamplate = '{}_ohlcv_{}_{}'
 
-    exchange = init_ccxt_exchange(ex_id)
+    exchange = init_ccxt_exchange(ex)
 
     mongo = motor.AsyncIOMotorClient('localhost', 27017)
     symbols = [
