@@ -11,6 +11,11 @@ from trading import exchange
 loop = asyncio.get_event_loop()
 
 
+def test_update_wallet(mongo, ex):
+    res = loop.run_until_complete(ex.update_wallet())
+    pprint(res)
+
+
 def test_ex_start(mongo, ex):
 
     async def wait_for_ex_ready(ex):
@@ -34,17 +39,12 @@ def test_data_streams(ex):
     ]))
 
 
-def test_update_wallet(mongo, ex):
-    res = loop.run_until_complete(ex.update_wallet())
-    pprint(res)
-
-
 def main():
     mongo = EXMongo()
     ex = exchange.bitfinex(mongo)
 
-    # test_ex_start(mongo, ex)
     # test_update_wallet(mongo, ex)
+    # test_ex_start(mongo, ex)
     test_data_streams(ex)
 
 
