@@ -41,6 +41,7 @@ class EXBase():
         self.timeframes = self._config['trading'][self.exname]['timeframes']
 
         self.streams_ready = {}
+        self.tickers = {}
         self.wallet = self.init_wallet()
 
     @staticmethod
@@ -75,10 +76,6 @@ class EXBase():
         if 'trade' in data_streams:
             streams.append(self._start_trade_stream(log))
             self.streams_ready['trade'] = False
-
-        if 'ticker' in data_streams:
-            streams.append(self._start_ticker_stream(log))
-            self.streams_ready['ticker'] = False
 
         if 'orderbook' in data_streams:
             streams.append(self._start_orderbook_stream(log))
@@ -164,11 +161,7 @@ class EXBase():
                 await asyncio.sleep(self.config['ohlcv_delay']/8)
 
     async def _start_trade_stream(self, log=False):
-        ## TODO
-        pass
-
-    async def _start_ticker_stream(self, log=False):
-        ## TODO
+        # TODO
         pass
 
     async def _start_orderbook_stream(self, log=False, params={}):
@@ -195,6 +188,44 @@ class EXBase():
 
             await asyncio.sleep(self.config['orderbook_delay'])
 
+    async def update_ticker(self, log=False):
+        """
+            ccxt response:
+            {'AVT/BTC':
+                {'ask': 0.0004183,
+                 'average': 0.00041231,
+                 'baseVolume': 69254.65426089,
+                 'bid': 0.00040632,
+                 'change': None,
+                 'close': None,
+                 'datetime': '2018-01-12T10:54:20.785Z',
+                 'first': None,
+                 'high': 0.00043988,
+                 'info': {'ask': '0.0004183',
+                          'bid': '0.00040632',
+                          'high': '0.00043988',
+                          'last_price': '0.00041',
+                          'low': '0.0003452',
+                          'mid': '0.00041231',
+                          'pair': 'AVTBTC',
+                          'timestamp': '1515754459.785556691',
+                          'volume': '69254.65426089'},
+                 'last': 0.00041,
+                 'low': 0.0003452,
+                 'open': None,
+                 'percentage': None,
+                 'quoteVolume': None,
+                 'symbol': 'AVT/BTC',
+                 'timestamp': 1515754459785.557,
+                 'vwap': None},
+                ...
+            }
+        """
+        res = await self._send_ccxt_request(self.ex.fetch_tickers)
+        for market in self.markets:
+            if market in res:
+                self.tickers[market] = res[market]
+        return self.tickers
 
     @staticmethod
     async def _exec_mongo_op(func, *args, **kwargs):
@@ -328,7 +359,6 @@ class bitfinex(EXBase):
             self.wallet[sym][curr['type']] = curr['available']
 
         return self.wallet
-
 
     async def _start_orderbook_stream(self, log=False):
         params = {

@@ -16,6 +16,11 @@ def test_update_wallet(mongo, ex):
     pprint(res)
 
 
+def test_update_ticker(mongo, ex):
+    res = loop.run_until_complete(ex.update_ticker())
+    pprint(res)
+
+
 def test_ex_start(mongo, ex):
 
     async def wait_for_ex_ready(ex):
@@ -44,8 +49,9 @@ def main():
     ex = exchange.bitfinex(mongo)
 
     # test_update_wallet(mongo, ex)
+    # test_update_ticker(mongo, ex)
     # test_ex_start(mongo, ex)
-    test_data_streams(ex)
+    # test_data_streams(ex)
 
 
 if __name__ == '__main__':
