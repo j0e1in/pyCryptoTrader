@@ -2,6 +2,7 @@ from pprint import pprint
 from asyncio import ensure_future
 from pymongo.errors import BulkWriteError
 import asyncio
+import copy
 import ccxt.async as ccxt
 import logging
 
@@ -13,7 +14,8 @@ from utils import combine, \
     ex_name, \
     get_keys, \
     timeframe_timedelta, \
-    rsym
+    rsym, \
+    ms_dt
 
 from ipdb import set_trace as trace
 
@@ -21,7 +23,7 @@ from ipdb import set_trace as trace
 logger = logging.getLogger()
 
 
-class EX():
+class EXBase():
     """ Unifiied exchange interface for trader. """
 
     def __init__(self, mongo, ex_id, apikey=None, secret=None, custom_config=None):
@@ -29,6 +31,7 @@ class EX():
         self.exname = ex_name(ex_id)
         self.apikey = apikey
         self.secret = secret
+
         self.ex = self.init_ccxt_exchange(ex_id, self.apikey, self.secret)
 
         self._config = custom_config if custom_config else config
@@ -38,9 +41,7 @@ class EX():
         self.timeframes = self._config['trading'][self.exname]['timeframes']
 
         self.streams_ready = {}
-
-    def isauth(self):
-        return True if self.apikey and self.secret else False
+        self.wallet = self.init_wallet()
 
     @staticmethod
     def init_ccxt_exchange(ex_id, apikey=None, secret=None):
@@ -62,30 +63,32 @@ class EX():
                 return False
         return True
 
-    async def start(self, data_streams=['ohlcv']):
+    async def start(self, data_streams=['ohlcv'], log=False):
         """ Start data streams and load account data.
             Trader can only use EX instance if it's started and ready.
         """
         streams = []
         if 'ohlcv' in data_streams:
-            streams.append(ensure_future(self._start_ohlcv_stream()))
+            streams.append(ensure_future(self._start_ohlcv_stream(log)))
             self.streams_ready['ohlcv'] = False
 
         if 'trade' in data_streams:
-            streams.append(self._start_trade_stream())
+            streams.append(self._start_trade_stream(log))
             self.streams_ready['trade'] = False
 
         if 'ticker' in data_streams:
-            streams.append(self._start_ticker_stream())
+            streams.append(self._start_ticker_stream(log))
             self.streams_ready['ticker'] = False
 
         if 'orderbook' in data_streams:
-            streams.append(self._start_orderbook_stream())
+            streams.append(self._start_orderbook_stream(log))
             self.streams_ready['orderbook'] = False
 
         await asyncio.gather(*streams)
 
-    async def _start_ohlcv_stream(self):
+        await self.update_wallet()
+
+    async def _start_ohlcv_stream(self, log=False):
 
         async def fetch_ohlcv_to_mongo(symbol, start, end, timeframe):
             ops = []
@@ -93,12 +96,10 @@ class EX():
 
             collname = f"{self.exname}_ohlcv_{rsym(symbol)}_{timeframe}"
             coll = self.mongo.get_collection('exchange', collname)
-            res = fetch_ohlcv(self.ex, symbol, start, end, timeframe)
+            res = fetch_ohlcv(self.ex, symbol, start, end, timeframe, log=log)
 
             async for ohlcv in res:
                 processed_ohlcv = []
-
-                logger.debug(f'Fetched {len(ohlcv)} ohlcvs')
 
                 if len(ohlcv) is 0:
                     break
@@ -160,16 +161,40 @@ class EX():
 
             if await is_uptodate(self.ohlcv_start_end):
                 self.streams_ready['ohlcv'] = True
-                await asyncio.sleep(self.config['data_delay_tolerence']/8)
+                await asyncio.sleep(self.config['ohlcv_delay']/8)
 
-    async def _start_trade_stream(self):
+    async def _start_trade_stream(self, log=False):
+        ## TODO
         pass
 
-    async def _start_ticker_stream(self):
+    async def _start_ticker_stream(self, log=False):
+        ## TODO
         pass
 
-    async def _start_orderbook_stream(self):
-        pass
+    async def _start_orderbook_stream(self, log=False, params={}):
+        """
+            ccxt response:
+            {'asks': [[117.54, 8.39429112],
+                      [117.55, 16.78858223],
+                       ...],
+             'bids': [[117.19, 1.02399284],
+                       [116.0, 0.5415143]
+                       ...],
+             'datetime': '2018-01-12T09:30:20.636Z',
+             'timestamp': 1515749419636}
+        """
+        self.orderbooks = {}
+
+        while True:
+            for market in self.markets:
+                if log:
+                    logger.info(f"Fetching {market} orderbook")
+
+                self.orderbooks[market] = await self._send_ccxt_request(self.ex.fetch_order_book, market, params=params)
+                self.orderbooks[market]['datetime'] = ms_dt(self.orderbooks[market]['timestamp'])
+
+            await asyncio.sleep(self.config['orderbook_delay'])
+
 
     @staticmethod
     async def _exec_mongo_op(func, *args, **kwargs):
@@ -180,7 +205,9 @@ class EX():
                 if 'duplicate' in msg['errmsg']:
                     continue
                 else:
-                    pprint(err.details)
+                    if self._config['mode'] == 'debug':
+                        pprint("Mongodb BulkWriteError:")
+                        pprint(err.details)
                     raise BulkWriteError(err)
 
     async def update_ohlcv_start_end(self):
@@ -198,13 +225,54 @@ class EX():
     # AUTHENTICATED API #
     #####################
 
+    def init_wallet(self):
+        wallet = {}
+        wallet['USD'] = 0
+        for market in self._config['trading'][self.exname]['markets']:
+            wallet[market.split('/')[0]] = 0
+        return wallet
+
+    async def update_wallet(self):
+        """
+            ccxt response: (bitfinex)
+            {'BCH': {'free': 0.00441364, 'total': 0.00441364, 'used': 0.0},
+             'BTC': {'free': 0.0051689, 'total': 0.0051689, 'used': 0.0},
+             'USD': {'free': 0.0, 'total': 0.0, 'used': 0.0},
+             'free': {'BCH': 0.00441364, 'BTC': 0.0051689, 'USD': 0.0},
+             'info': [{'amount': '0.00441364',
+                       'available': '0.00441364',
+                       'currency': 'bch',
+                       'type': 'exchange'},
+                      {'amount': '0.0051689',
+                       'available': '0.0051689',
+                       'currency': 'btc',
+                       'type': 'exchange'},
+                      {'amount': '0.0',
+                       'available': '0.0',
+                       'currency': 'usd',
+                       'type': 'exchange'}],
+             'total': {'BCH': 0.00441364, 'BTC': 0.0051689, 'USD': 0.0},
+             'used': {'BCH': 0.0, 'BTC': 0.0, 'USD': 0.0}}
+        """
+        res = await self._send_ccxt_request(self.ex.fetch_balance)
+
+        for curr, amount in res['free'].items():
+            self.wallet[curr] = amount
+
+        return self.wallet
+
     async def _send_ccxt_request(self, func, *args, **kwargs):
+
+        def is_empty_response(err):
+            return True if 'empty response' in str(err) else False
+
+        wait = config['ccxt']['wait']
         succ = False
         count = 0
 
         while not succ:
             if count > self.config['max_retry']:
-                logger.error(f"{func} exceeds max retries")
+                logger.error(f"{func} exceeds max retry times")
                 return None
 
             count += 1
@@ -212,14 +280,15 @@ class EX():
                 res = await func(*args, **kwargs)
 
             except (ccxt.RequestTimeout,
-                    ccxt.DDoSProtection) as error:
+                    ccxt.DDoSProtection,
+                    ccxt.ExchangeNotAvailable) as error:
 
                 if is_empty_response(error):  # finished fetching all ohlcv
                     break
                 elif isinstance(error, ccxt.ExchangeError):
                     raise error
 
-                logger.info(f'|{type(error).__name__}| retrying in {wait} seconds...')
+                logger.info(f'# {type(error).__name__} # retrying in {wait} seconds...')
                 await asyncio.sleep(wait)
 
             else:
@@ -227,6 +296,44 @@ class EX():
 
         return res
 
+    def isauth(self):
+        return True if self.apikey and self.secret else False
 
-def is_empty_response(err):
-    return True if 'empty response' in str(err) else False
+
+class bitfinex(EXBase):
+
+    def __init__(self, mongo, apikey=None, secret=None, custom_config=None):
+        super().__init__(mongo, 'bitfinex', apikey, secret, custom_config)
+
+    def init_wallet(self):
+        tmp = {'exchange': 0, 'margin': 0, 'funding': 0}
+
+        wallet = {}
+        wallet['USD'] = copy.deepcopy(tmp)
+
+        for market in self._config['trading'][self.exname]['markets']:
+            wallet[market.split('/')[0]] = copy.deepcopy(tmp)
+
+        return wallet
+
+    async def update_wallet(self):
+        res = await self._send_ccxt_request(self.ex.fetch_balance)
+
+        for curr in res['info']:
+            sym = str.upper(curr['currency'])
+
+            if sym not in self.wallet:
+                self.wallet[sym] = {'exchange': 0, 'margin': 0, 'funding': 0}
+
+            self.wallet[sym][curr['type']] = curr['available']
+
+        return self.wallet
+
+
+    async def _start_orderbook_stream(self, log=False):
+        params = {
+            'limit_bids': self.config['orderbook_size'],
+            'limit_asks': self.config['orderbook_size'],
+            'group': 1,
+        }
+        await super()._start_orderbook_stream(log=log, params=params)

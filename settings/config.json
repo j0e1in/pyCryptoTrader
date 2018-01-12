@@ -7,7 +7,9 @@
     "wait": 30,
     "rate_limit": 3000,
     "max_retry": 5,
-    "data_delay_tolerence": 60
+    "ohlcv_delay": 60,
+    "orderbook_delay": 15,
+    "orderbook_size": 300
   },
 
   "backtest": {
