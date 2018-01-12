@@ -20,7 +20,7 @@ from db import EXMongo
 logger = logging.getLogger()
 
 
-async def fetch_ohlcv(exchange, symbol, start, end, timeframe='1m'):
+async def fetch_ohlcv(exchange, symbol, start, end, timeframe='1m', log=True):
     """ Fetch all ohlcv ohlcv since 'start_timestamp' and use generator to stream results. """
     if start >= end:
         raise ValueError(f"start {start} should < end {end}.")
@@ -37,8 +37,10 @@ async def fetch_ohlcv(exchange, symbol, start, end, timeframe='1m'):
     }
 
     while start < end:
-        try:
+        if log:
             logger.info(f'Fetching {symbol}_{timeframe} ohlcv from {ms_dt(start)} to {ms_dt(end)}')
+
+        try:
             ohlcvs = await exchange.fetch_ohlcv(symbol, timeframe=timeframe, since=start, params=params)
 
             if len(ohlcvs) is 0 or ohlcvs[-1][0] == start: # no ohlcv in the period
@@ -54,7 +56,7 @@ async def fetch_ohlcv(exchange, symbol, start, end, timeframe='1m'):
             if is_empty_response(error): # finished fetching all ohlcv
                 break
 
-            logger.info(f'|{type(error).__name__}| retrying in {wait} seconds...')
+            logger.info(f'# {type(error).__name__} # retrying in {wait} seconds...')
             await asyncio.sleep(wait)
 
 
@@ -112,7 +114,7 @@ async def fetch_trades(exchange, symbol, start, end):
             elif isinstance(error, ccxt.ExchangeError):
                 raise error
 
-            logger.info(f'|{type(error).__name__}| retrying in {wait} seconds...')
+            logger.info(f'# {type(error).__name__} # retrying in {wait} seconds...')
             await asyncio.sleep(wait)
 
 
