@@ -21,6 +21,11 @@ def test_update_ticker(mongo, ex):
     pprint(res)
 
 
+def test_update_markets_info(mongo, ex):
+    res = loop.run_until_complete(ex.update_markets_info())
+    pprint(res)
+
+
 def test_ex_start(mongo, ex):
 
     async def wait_for_ex_ready(ex):
@@ -50,6 +55,7 @@ def main():
 
     # test_update_wallet(mongo, ex)
     # test_update_ticker(mongo, ex)
+    # test_update_markets_info(mongo, ex)
     # test_ex_start(mongo, ex)
     # test_data_streams(ex)
 

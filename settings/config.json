@@ -8,7 +8,7 @@
     "rate_limit": 3000,
     "max_retry": 5,
     "ohlcv_delay": 60,
-    "orderbook_delay": 15,
+    "orderbook_delay": 20,
     "orderbook_size": 300
   },
 

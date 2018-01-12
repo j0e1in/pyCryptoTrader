@@ -15,7 +15,8 @@ from utils import combine, \
     get_keys, \
     timeframe_timedelta, \
     rsym, \
-    ms_dt
+    ms_dt, \
+    not_implemented
 
 from ipdb import set_trace as trace
 
@@ -40,8 +41,9 @@ class EXBase():
         self.markets = self._config['trading'][self.exname]['markets']
         self.timeframes = self._config['trading'][self.exname]['timeframes']
 
-        self.streams_ready = {}
         self.tickers = {}
+        self.markets_info = {}
+        self.streams_ready = {}
         self.wallet = self.init_wallet()
 
     @staticmethod
@@ -56,6 +58,13 @@ class EXBase():
 
         ex = getattr(ccxt, ex_id)(options)
         return ex
+
+    def init_wallet(self):
+        wallet = {}
+        wallet['USD'] = 0
+        for market in self._config['trading'][self.exname]['markets']:
+            wallet[market.split('/')[0]] = 0
+        return wallet
 
     def is_ready(self):
         """ Return True if data streams are up-to-date. """
@@ -83,6 +92,7 @@ class EXBase():
 
         await asyncio.gather(*streams)
 
+        await self.update_markets()
         await self.update_wallet()
 
     async def _start_ohlcv_stream(self, log=False):
@@ -138,7 +148,6 @@ class EXBase():
 
         self.ohlcv_start_end = {}
         ready = True
-        tasks = []
 
         while True:
             await self.update_ohlcv_start_end()
@@ -152,9 +161,7 @@ class EXBase():
 
                     if end < cur_time:
                         ready = False
-                        tasks.append(ensure_future(fetch_ohlcv_to_mongo(market, end, cur_time, tf)))
-
-            await asyncio.gather(*tasks)
+                        await fetch_ohlcv_to_mongo(market, end, cur_time, tf)
 
             if await is_uptodate(self.ohlcv_start_end):
                 self.streams_ready['ohlcv'] = True
@@ -227,41 +234,12 @@ class EXBase():
                 self.tickers[market] = res[market]
         return self.tickers
 
-    @staticmethod
-    async def _exec_mongo_op(func, *args, **kwargs):
-        try:
-            await func(*args, **kwargs)
-        except BulkWriteError as err:
-            for msg in err.details['writeErrors']:
-                if 'duplicate' in msg['errmsg']:
-                    continue
-                else:
-                    if self._config['mode'] == 'debug':
-                        pprint("Mongodb BulkWriteError:")
-                        pprint(err.details)
-                    raise BulkWriteError(err)
-
-    async def update_ohlcv_start_end(self):
-        # Get available ohlcv start / end datetime in db
-        self.ohlcv_start_end = {}
-        for market in self.markets:
-            self.ohlcv_start_end[market] = {}
-
-            for tf in self.timeframes:
-                start = await self.mongo.get_ohlcv_start(self.exname, market, tf)
-                end = await self.mongo.get_ohlcv_end(self.exname, market, tf)
-                self.ohlcv_start_end[market][tf] = (start, end)
+    def update_markets(self):
+        not_implemented()
 
     #####################
     # AUTHENTICATED API #
     #####################
-
-    def init_wallet(self):
-        wallet = {}
-        wallet['USD'] = 0
-        for market in self._config['trading'][self.exname]['markets']:
-            wallet[market.split('/')[0]] = 0
-        return wallet
 
     async def update_wallet(self):
         """
@@ -285,6 +263,9 @@ class EXBase():
              'total': {'BCH': 0.00441364, 'BTC': 0.0051689, 'USD': 0.0},
              'used': {'BCH': 0.0, 'BTC': 0.0, 'USD': 0.0}}
         """
+        if not self.isauth():
+            raise ValueError(f"API key and secret are required")
+
         res = await self._send_ccxt_request(self.ex.fetch_balance)
 
         for curr, amount in res['free'].items():
@@ -330,6 +311,31 @@ class EXBase():
     def isauth(self):
         return True if self.apikey and self.secret else False
 
+    async def update_ohlcv_start_end(self):
+        # Get available ohlcv start / end datetime in db
+        self.ohlcv_start_end = {}
+        for market in self.markets:
+            self.ohlcv_start_end[market] = {}
+
+            for tf in self.timeframes:
+                start = await self.mongo.get_ohlcv_start(self.exname, market, tf)
+                end = await self.mongo.get_ohlcv_end(self.exname, market, tf)
+                self.ohlcv_start_end[market][tf] = (start, end)
+
+    @staticmethod
+    async def _exec_mongo_op(func, *args, **kwargs):
+        try:
+            await func(*args, **kwargs)
+        except BulkWriteError as err:
+            for msg in err.details['writeErrors']:
+                if 'duplicate' in msg['errmsg']:
+                    continue
+                else:
+                    if self._config['mode'] == 'debug':
+                        pprint("Mongodb BulkWriteError:")
+                        pprint(err.details)
+                    raise BulkWriteError(err)
+
 
 class bitfinex(EXBase):
 
@@ -367,3 +373,60 @@ class bitfinex(EXBase):
             'group': 1,
         }
         await super()._start_orderbook_stream(log=log, params=params)
+
+    async def update_markets_info(self):
+        """
+            ccxt response:
+            [{'active': True,
+              'base': 'BTC',
+              'baseId': 'BTC',
+              'id': 'BTCUSD',
+              'info': {'expiration': 'NA',
+                       'initial_margin': '30.0',
+                       'maximum_order_size': '2000.0',
+                       'minimum_margin': '15.0',
+                       'minimum_order_size': '0.002',
+                       'pair': 'btcusd',
+                       'price_precision': 5},
+              'limits': {'amount': {'max': 2000.0, 'min': 0.002},
+                         'cost': {'max': None, 'min': None},
+                         'price': {'max': 100000.0, 'min': 1e-05}},
+              'maker': 0.001,
+              'percentage': True,
+              'precision': {'amount': 5, 'price': 5},
+              'quote': 'USD',
+              'quoteId': 'USD',
+              'symbol': 'BTC/USD',
+              'taker': 0.002,
+              'tierBased': True,
+              'tiers': {'maker': [[0, 0.001],
+                                  [500000, 0.0008],
+                                  [1000000, 0.0006],
+                                  [2500000, 0.0004],
+                                  [5000000, 0.0002],
+                                  [7500000, 0],
+                                  [10000000, 0],
+                                  [15000000, 0],
+                                  [20000000, 0],
+                                  [25000000, 0],
+                                  [30000000, 0]],
+                        'taker': [[0, 0.002],
+                                  [500000, 0.002],
+                                  [1000000, 0.002],
+                                  [2500000, 0.002],
+                                  [5000000, 0.002],
+                                  [7500000, 0.002],
+                                  [10000000, 0.0018],
+                                  [15000000, 0.0016],
+                                  [20000000, 0.0014000000000000002],
+                                  [25000000, 0.0012],
+                                  [30000000, 0.001]]}}
+                ...
+            ]
+        """
+        res = await self._send_ccxt_request(self.ex.fetch_markets)
+        for mark in res:
+            if mark['symbol'] in self.markets:
+                self.markets_info[mark['symbol']] = mark
+        return self.markets_info
+
