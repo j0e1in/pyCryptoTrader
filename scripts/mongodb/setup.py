@@ -3,7 +3,6 @@ import chromalog
 import logging
 import time
 
-
 def setup():
     import os
     import sys
@@ -17,21 +16,31 @@ def setup():
 
     chromalog.basicConfig(level=logging.DEBUG,
                           stream=sys.stdout,
-                          format='%(asctime)s | %(filename)s | %(funcName)15s | %(levelname)5s | %(message)s')
+                          format='%(asctime)s | %(filename)s | %(funcName)s | %(levelname)5s | %(message)s')
 
 
 def run(func, *args, **kwargs):
 
-    loop = asyncio.get_event_loop()
+    if asyncio.iscoroutinefunction(func):
+        loop = asyncio.get_event_loop()
 
-    s = time.time()
-    loop.run_until_complete(func(*args, **kwargs))
-    e = time.time()
+        s = time.time()
+        loop.run_until_complete(func(*args, **kwargs))
+        e = time.time()
 
-    print('========================')
-    print('time:', e-s)
-    print('========================')
+        print('========================')
+        print('time:', e-s)
+        print('========================')
 
-    loop.run_until_complete(asyncio.sleep(0.5))
+        loop.run_until_complete(asyncio.sleep(0.5))
+
+    else:
+        s = time.time()
+        func(*args, **kwargs)
+        e = time.time()
+
+        print('========================')
+        print('time:', e-s)
+        print('========================')
 
 

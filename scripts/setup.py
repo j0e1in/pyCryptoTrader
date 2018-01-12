@@ -15,7 +15,7 @@ def setup():
 
     chromalog.basicConfig(level=logging.DEBUG,
                           stream=sys.stdout,
-                          format='%(asctime)s | %(filename)s | %(funcName)15s | %(levelname)5s | %(message)s')
+                          format='%(asctime)s | %(filename)s | %(funcName)s | %(levelname)5s | %(message)s')
 
 
 def run(func, *args, **kwargs):
