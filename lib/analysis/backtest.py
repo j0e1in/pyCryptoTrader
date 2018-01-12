@@ -1,7 +1,8 @@
 from asyncio import ensure_future
 from collections import OrderedDict
 from datetime import timedelta
-from multiprocess import Process, Queue, cpu_count
+from multiprocess import Process, Queue
+import asyncio
 import copy
 import random
 import logging
@@ -250,6 +251,10 @@ class Backtest():
 
         for ex, markets in self.markets.items():
             for market in markets:
+
+                if len(self.ohlcvs[ex][market]['1m']) is 0:
+                    raise RuntimeError(f"No ohlcv in {ex} {market} '1m' from {start} to {end}")
+
                 dt = self.ohlcvs[ex][market]['1m'].index[0]
                 if dt < start:
                     start = dt
@@ -295,7 +300,7 @@ class BacktestRunner():
             })
             del backtest
 
-        count = len(periods)
+        backtests = []
         for start, end in periods:
             opts = {
                 'strategy': self.strategy,
@@ -323,11 +328,6 @@ class BacktestRunner():
                     n_reports_left -= 1
 
                 run_backtest(backtest)
-
-            if count % 50 == 0:
-                logger.info(f"{count} tests left...")
-
-            count -= 1
 
         # Results queued by processes must be cleared from the queue,
         # or some processes will not terminate.
@@ -437,16 +437,12 @@ class ParamOptimizer():
 
     # TODO: Change optimizer to run all params in one period to reuse data and enable multicore
 
-    def __init__(self, mongo, strategy, periods, custom_config=None):
+    def __init__(self, mongo, strategy, custom_config=None):
         self._config = custom_config if custom_config else config
         self.params = self._config['params']
 
         self.mongo = mongo
         self.strategy = strategy
-        self.periods = periods
-
-        if not check_periods(periods):
-            raise ValueError("Periods is invalid.")
 
         self._init_param_queue()
 
@@ -475,17 +471,23 @@ class ParamOptimizer():
         else:
             raise ValueError(f"{param_name} is not in config['parmas']")
 
-    async def run(self):
-        config = copy.deepcopy(self._config)
-        combs = gen_combinations(self.param_d.values(),
-                                 columns=self.param_d.keys(),
-                                 types=get_types(self.param_d))
+    def get_combinations(self):
+        return gen_combinations(self.param_d.values(),
+                                columns=self.param_d.keys(),
+                                types=get_types(self.param_d))
 
-        num_tests = len(combs) * len(self.periods)
+    async def run(self, combs, periods):
+        if not check_periods(periods):
+            raise ValueError("Periods is invalid.")
+
+        config = copy.deepcopy(self._config)
+
+        num_tests = len(combs) * len(periods)
         logger.info(f"Running optimization with << {num_tests} >> tests.")
 
         summaries = []
 
+        count = 0
         for i in range(len(combs)):
             params = OrderedDict(combs.iloc[i].to_dict())
             config['params'] = params
@@ -495,8 +497,14 @@ class ParamOptimizer():
             bt_runner = BacktestRunner(self.mongo, self.strategy, custom_config=config)
             summaries.append({
                 'params': params,
-                'summary': await bt_runner.run_periods(self.periods)
+                'summary': await bt_runner.run_periods(periods)
             })
+
+            num_tests -= len(periods)
+            count += len(periods)
+            if count >= 100: # periodically log number of remaining tests
+                count = 0
+                logger.info(f"{num_tests} tests left...")
 
         return summaries
 

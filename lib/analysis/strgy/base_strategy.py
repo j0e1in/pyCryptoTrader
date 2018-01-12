@@ -21,21 +21,26 @@ class SingleExchangeStrategy():
 
     def __init__(self, ex, custom_config=None):
         _config = custom_config if custom_config else config
-        self.p = _config['params']
         self._config = _config
+        self.p = _config['params']
 
         self.ex = ex
         self.fast_mode = False
+        self.prefeed_days = 1 # time period for pre-feed data,
+                              # default is 1, child class can set to different ones in `init_vars()`
+
+    def set_config(self, config):
+        self._config = config
+        self.p = config['params']
+        self.init_vars()
 
     def init(self, trader):
+        self.ops = []
         self.trader = trader
         self.markets = self.trader.markets[self.ex]
         self.timeframes = self.trader.timeframes[self.ex]
         self.ohlcvs = self.trader.ohlcvs[self.ex]
         self.trades = self.trader.trades[self.ex]
-        self.prefeed_days = 1 # time period for pre-feed data,
-                              # default is 1, child class can set to different ones in `init_vars()`
-        self.ops = []
         self.init_vars()
         return self
 
