@@ -6,7 +6,7 @@ import asyncio
 
 from db import EXMongo
 from trading import exchange
-
+from utils import get_project_root, load_keys
 
 loop = asyncio.get_event_loop()
 
@@ -51,9 +51,11 @@ def test_data_streams(ex):
 
 def main():
     mongo = EXMongo()
-    ex = exchange.bitfinex(mongo)
 
-    # test_update_wallet(mongo, ex)
+    key = load_keys(get_project_root() + '/private/keys.json')['bitfinex']
+    ex = exchange.bitfinex(mongo, key['apiKey'], key['secret'])
+
+    test_update_wallet(mongo, ex)
     # test_update_ticker(mongo, ex)
     # test_update_markets_info(mongo, ex)
     # test_ex_start(mongo, ex)

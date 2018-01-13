@@ -12,7 +12,6 @@ from utils import combine, \
     utc_now, \
     rounddown_dt, \
     ex_name, \
-    get_keys, \
     timeframe_timedelta, \
     rsym, \
     ms_dt, \
@@ -33,7 +32,7 @@ class EXBase():
         self.apikey = apikey
         self.secret = secret
 
-        self.ex = self.init_ccxt_exchange(ex_id, self.apikey, self.secret)
+        self.ex = self.init_ccxt_exchange(ex_id, apikey, secret)
 
         self._config = custom_config if custom_config else config
         self.config = self._config['ccxt']
@@ -49,12 +48,12 @@ class EXBase():
     @staticmethod
     def init_ccxt_exchange(ex_id, apikey=None, secret=None):
         """ Return an initialized ccxt API instance. """
-        options = combine({
+        options = {
             'enableRateLimit': True,
             'rateLimit': config['ccxt']['rate_limit'],
-            'apikey': apikey,
+            'apiKey': apikey,
             'secret': secret,
-        }, get_keys()[ex_id])
+        }
 
         ex = getattr(ccxt, ex_id)(options)
         return ex
@@ -354,15 +353,25 @@ class bitfinex(EXBase):
         return wallet
 
     async def update_wallet(self):
+        """
+            bitfinex response:
+                type: exchange / trading (margin) / deposit (funding)
+        """
         res = await self._send_ccxt_request(self.ex.fetch_balance)
-
         for curr in res['info']:
             sym = str.upper(curr['currency'])
 
             if sym not in self.wallet:
                 self.wallet[sym] = {'exchange': 0, 'margin': 0, 'funding': 0}
 
-            self.wallet[sym][curr['type']] = curr['available']
+            if curr['type'] == 'exchange':
+                self.wallet[sym]['exchange'] = curr['available']
+            elif curr['type'] == 'trading':
+                self.wallet[sym]['margin'] = curr['available']
+            elif curr['type'] == 'deposit':
+                self.wallet[sym]['funding'] = curr['available']
+            else:
+                self.wallet[sym][curr['type']] = curr['available']
 
         return self.wallet
 

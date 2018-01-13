@@ -9,22 +9,28 @@ import json
 import pandas as pd
 import uuid
 import math
+import os
 
 logger = logging.getLogger()
 
 INF = 9999999
 
+def get_project_root():
+    file_dir = os.path.dirname(os.path.abspath(__file__))
+    file_dir = os.path.dirname(file_dir)
+    return file_dir
 
 def load_config(file):
     with open(file) as f:
         return json.load(f)
 
+
 # TODO: Add set_config and get_config method to let classes set and get global config
 config = load_config('../settings/config.json')
 
 
-def get_keys():
-    with open('../settings/keys.json') as f:
+def load_keys(file):
+    with open(file) as f:
         return json.load(f)
 
 
@@ -98,12 +104,14 @@ def timeframe_timedelta(timeframe):
         raise ValueError(f'Invalid timeframe \'{timeframe}\'')
 
 
-def init_ccxt_exchange(exchange_id):
+def init_ccxt_exchange(exchange_id, apikey=None, secret=None):
     """ Return an initialized ccxt API instance. """
-    options = combine({
+    options = {
         'rateLimit': config['ccxt']['rate_limit'],
-        'enableRateLimit': True
-    }, get_keys()[exchange_id])
+        'enableRateLimit': True,
+        'apikey': apikey,
+        'secret': secret,
+    }
 
     exchange = getattr(ccxt, exchange_id)(options)
     return exchange
