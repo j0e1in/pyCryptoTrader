@@ -11,22 +11,22 @@ from utils import get_project_root, load_keys
 loop = asyncio.get_event_loop()
 
 
-def test_update_wallet(mongo, ex):
+def test_update_wallet(ex):
     res = loop.run_until_complete(ex.update_wallet())
     pprint(res)
 
 
-def test_update_ticker(mongo, ex):
+def test_update_ticker(ex):
     res = loop.run_until_complete(ex.update_ticker())
     pprint(res)
 
 
-def test_update_markets_info(mongo, ex):
+def test_update_markets_info(ex):
     res = loop.run_until_complete(ex.update_markets_info())
     pprint(res)
 
 
-def test_ex_start(mongo, ex):
+def test_ex_start(ex):
 
     async def wait_for_ex_ready(ex):
         while True:
@@ -49,17 +49,29 @@ def test_data_streams(ex):
     ]))
 
 
+def test_fetch_orders(ex):
+    res = loop.run_until_complete(ex.fetch_orders())
+    pprint(res)
+
+
+def test_fetch_order(ex):
+    res = loop.run_until_complete(ex.fetch_order('7126033276'))
+    pprint(res)
+
+
 def main():
     mongo = EXMongo()
 
     key = load_keys(get_project_root() + '/private/keys.json')['bitfinex']
     ex = exchange.bitfinex(mongo, key['apiKey'], key['secret'])
 
-    test_update_wallet(mongo, ex)
+    # test_update_wallet(mongo, ex)
     # test_update_ticker(mongo, ex)
     # test_update_markets_info(mongo, ex)
     # test_ex_start(mongo, ex)
     # test_data_streams(ex)
+    # test_fetch_orders(ex)
+    test_fetch_order(ex)
 
 
 if __name__ == '__main__':

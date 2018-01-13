@@ -29,7 +29,10 @@ def load_config(file):
 config = load_config('../settings/config.json')
 
 
-def load_keys(file):
+def load_keys(file=None):
+    if not file:
+        file = config['key_file']
+
     with open(file) as f:
         return json.load(f)
 
@@ -104,17 +107,17 @@ def timeframe_timedelta(timeframe):
         raise ValueError(f'Invalid timeframe \'{timeframe}\'')
 
 
-def init_ccxt_exchange(exchange_id, apikey=None, secret=None):
+def init_ccxt_exchange(ex_id, apikey=None, secret=None):
     """ Return an initialized ccxt API instance. """
     options = {
-        'rateLimit': config['ccxt']['rate_limit'],
         'enableRateLimit': True,
-        'apikey': apikey,
+        'rateLimit': config['ccxt']['rate_limit'],
+        'apiKey': apikey,
         'secret': secret,
     }
 
-    exchange = getattr(ccxt, exchange_id)(options)
-    return exchange
+    ex = getattr(ccxt, ex_id)(options)
+    return ex
 
 
 def not_implemented():

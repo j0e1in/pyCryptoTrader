@@ -15,7 +15,8 @@ from utils import combine, \
     timeframe_timedelta, \
     rsym, \
     ms_dt, \
-    not_implemented
+    not_implemented, \
+    init_ccxt_exchange
 
 from ipdb import set_trace as trace
 
@@ -32,7 +33,7 @@ class EXBase():
         self.apikey = apikey
         self.secret = secret
 
-        self.ex = self.init_ccxt_exchange(ex_id, apikey, secret)
+        self.ex = init_ccxt_exchange(ex_id, apikey, secret)
 
         self._config = custom_config if custom_config else config
         self.config = self._config['ccxt']
@@ -44,19 +45,6 @@ class EXBase():
         self.markets_info = {}
         self.streams_ready = {}
         self.wallet = self.init_wallet()
-
-    @staticmethod
-    def init_ccxt_exchange(ex_id, apikey=None, secret=None):
-        """ Return an initialized ccxt API instance. """
-        options = {
-            'enableRateLimit': True,
-            'rateLimit': config['ccxt']['rate_limit'],
-            'apiKey': apikey,
-            'secret': secret,
-        }
-
-        ex = getattr(ccxt, ex_id)(options)
-        return ex
 
     def init_wallet(self):
         wallet = {}
@@ -224,8 +212,7 @@ class EXBase():
                  'symbol': 'AVT/BTC',
                  'timestamp': 1515754459785.557,
                  'vwap': None},
-                ...
-            }
+            ...}
         """
         res = await self._send_ccxt_request(self.ex.fetch_tickers)
         for market in self.markets:
@@ -236,9 +223,11 @@ class EXBase():
     def update_markets(self):
         not_implemented()
 
+
     #####################
     # AUTHENTICATED API #
     #####################
+
 
     async def update_wallet(self):
         """
@@ -271,6 +260,19 @@ class EXBase():
             self.wallet[curr] = amount
 
         return self.wallet
+
+    async def fetch_orders(self):
+        not_implemented()
+
+    async def fetch_order(self, id):
+        """ Fetch a single order using order known id. """
+        not_implemented()
+
+
+    ##############################
+    # EXCHANGE UTILITY FUNCTIONS #
+    ##############################
+
 
     async def _send_ccxt_request(self, func, *args, **kwargs):
 
@@ -439,3 +441,73 @@ class bitfinex(EXBase):
                 self.markets_info[mark['symbol']] = mark
         return self.markets_info
 
+    async def fetch_orders(self):
+        """
+            ccxt response:
+            [{'amount': 0.002,
+              'average': 0.0,
+              'datetime': '2018-01-13T03:36:39.000Z',
+              'fee': None,
+              'filled': 0.0,
+              'id': '7125075906',
+              'price': 19999.0,
+              'remaining': 0.002,
+              'side': 'sell',
+              'status': 'open', (open / closed / canceled)
+              'symbol': 'BTC/USD',
+              'timestamp': 1515814599000,
+              'type': 'limit',
+              'info': {'avg_execution_price': '0.0',
+                       'cid': 12999037301,
+                       'cid_date': '2018-01-13',
+                       'exchange': None,
+                       'executed_amount': '0.0',
+                       'gid': None,
+                       'id': 7125075906,
+                       'is_cancelled': False,
+                       'is_hidden': False,
+                       'is_live': True,
+                       'oco_order': None,
+                       'original_amount': '0.002',
+                       'price': '19999.0',
+                       'remaining_amount': '0.002',
+                       'side': 'sell',
+                       'src': 'web',
+                       'symbol': 'btcusd',
+                       'timestamp': '1515814599.0',
+                       'type': 'exchange limit',
+                       'was_forced': False}}
+              ...]
+        """
+
+        res = await self._send_ccxt_request(self.ex.fetch_open_orders)
+
+        orders = []
+        for ord in res:
+            ord['margin'] = self.is_margin_order(ord)
+            ord['datetime'] = ms_dt(ord['timestamp'])
+
+            del ord['info']
+            orders.append(ord)
+
+        return orders
+
+    async def fetch_order(self, id, parse=True):
+        """ Fetch a single order using order known id.
+            Param
+                id: str, id of an order
+                parse: bool, if False, original ccxt response will be returned directly
+        """
+        ord = await self._send_ccxt_request(self.ex.fetch_order, id)
+
+        if not parse:
+            return ord
+
+        ord['margin'] = self.is_margin_order(ord)
+        ord['datetime'] = ms_dt(ord['timestamp'])
+        del ord['info']
+        return ord
+
+    @staticmethod
+    def is_margin_order(order):
+            return True if 'exchange' not in order['info']['type'] else False

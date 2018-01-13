@@ -3,6 +3,9 @@
   "use_multicore": true,
   "max_processes": 16,
 
+  "_comment_key_file": "file path to api keys, use relative path from utils.py",
+  "key_file": "../private/keys.json",
+
   "ccxt": {
     "wait": 30,
     "rate_limit": 3000,
