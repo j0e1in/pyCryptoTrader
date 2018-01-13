@@ -59,6 +59,11 @@ def test_fetch_order(ex):
     pprint(res)
 
 
+def test_fetch_my_trades(ex):
+    res = loop.run_until_complete(ex.fetch_my_trades('BTC/USD'))
+    pprint(res)
+
+
 def main():
     mongo = EXMongo()
 
@@ -71,7 +76,8 @@ def main():
     # test_ex_start(mongo, ex)
     # test_data_streams(ex)
     # test_fetch_orders(ex)
-    test_fetch_order(ex)
+    # test_fetch_order(ex)
+    test_fetch_my_trades(ex)
 
 
 if __name__ == '__main__':

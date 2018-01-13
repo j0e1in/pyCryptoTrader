@@ -268,6 +268,9 @@ class EXBase():
         """ Fetch a single order using order known id. """
         not_implemented()
 
+    async def fetch_my_trades(self):
+        not_implemented()
+
 
     ##############################
     # EXCHANGE UTILITY FUNCTIONS #
@@ -507,6 +510,46 @@ class bitfinex(EXBase):
         ord['datetime'] = ms_dt(ord['timestamp'])
         del ord['info']
         return ord
+
+    async def fetch_my_trades(self, symbol, start=None, end=None, limit=1000):
+        """
+            ccxt response:
+            {'amount': 0.52,
+             'cost': 5038.8,
+             'datetime': '2017-11-30T12:29:51.000Z',
+             'fee': None,
+             'id': '104858401',
+             'info': {'amount': '0.52',
+                      'fee_amount': '-10.0776',
+                      'fee_currency': 'USD',
+                      'order_id': 5607111792,
+                      'price': '9690.0',
+                      'tid': 104858401,
+                      'timestamp': '1512044991.0',
+                      'type': 'Buy'},
+             'order': '5607111792',
+             'price': 9690.0,
+             'side': 'buy',
+             'symbol': 'BTC/USD',
+             'timestamp': 1512044991000,
+             'type': None}]
+        """
+        params = {}
+        params['reverse'] = 1
+        if end:
+            params['until'] = end
+
+        res = await self._send_ccxt_request(self.ex.fetch_my_trades, symbol, start, limit, params)
+
+        trades = []
+        for trade in res:
+            trade['fee'] = abs(float(trade['info']['fee_amount']))
+            trade['fee_currency'] = trade['info']['fee_currency']
+            trade['datetime'] = ms_dt(trade['timestamp'])
+            del trade['info']
+            trades.append(trade)
+
+        return trades
 
     @staticmethod
     def is_margin_order(order):
