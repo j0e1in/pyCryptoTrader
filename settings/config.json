@@ -10,8 +10,8 @@
     "wait": 30,
     "rate_limit": 3000,
     "max_retry": 5,
-    "ohlcv_delay": 60,
-    "orderbook_delay": 20,
+    "ohlcv_delay": 7,
+    "orderbook_delay": 22,
     "orderbook_size": 300
   },
 
@@ -53,7 +53,7 @@
 
   "analysis": {
     "fee": 0.002,
-    "margin_fee": 0.001,
+    "margin_fee": 0.002,
     "margin_rate": 3,
     "_comment_min_order_value": "minimal USD value is allwed to open an order",
     "min_order_value": 10,

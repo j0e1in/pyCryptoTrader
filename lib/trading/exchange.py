@@ -152,7 +152,7 @@ class EXBase():
 
             if await is_uptodate(self.ohlcv_start_end):
                 self.streams_ready['ohlcv'] = True
-                await asyncio.sleep(self.config['ohlcv_delay']/8)
+                await asyncio.sleep(self.config['ohlcv_delay'])
 
     async def _start_trade_stream(self, log=False):
         # TODO
@@ -362,6 +362,27 @@ class EXBase():
 
 
 class bitfinex(EXBase):
+
+    ## ccxt.bitfinex APIs
+    ## bitfinex / bitfinex2 methods
+    # fetch_balance (O)
+    # fetch_order_book (O)
+    # fetch_tickers (O)
+    # fetch_ticker (O)
+    # fetch_trades
+    # fetch_ohlcv (O)
+
+    ## bitfinex methods
+    # fetch_markets (O)
+    # fetch_order (single order) (O)
+    # fetch_open_orders (O)
+    # fetch_my_trades (O)
+    # fetch_closed_orders (O)
+    # fetch_deposit_address (O)
+    # create_deposit_address (O)
+    # create_order
+    # cancel_order
+    # withdraw
 
     def __init__(self, mongo, apikey=None, secret=None, custom_config=None):
         super().__init__(mongo, 'bitfinex', apikey, secret, custom_config)
