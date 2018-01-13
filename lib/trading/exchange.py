@@ -691,7 +691,6 @@ class bitfinex(EXBase):
 
         # Overwrite ccxt function's `type`
         params['type'] = type
-        pprint(f'create_order({symbol}, {type}, {side}, {amount}, {price}, params={params})')
 
         try:
             res = await self._send_ccxt_request(self.ex.create_order,
@@ -709,8 +708,10 @@ class bitfinex(EXBase):
         order = self.parse_order(res)
         return order
 
-    async def cancel_order(self):
-        not_implemented()
+    async def cancel_order(self, id):
+        res = await self._send_ccxt_request(self.ex.cancel_order, id)
+        ccxt_parsed_order = self.ex.parse_order(res)
+        return self.parse_order(ccxt_parsed_order)
 
     @staticmethod
     def is_margin_order(order):

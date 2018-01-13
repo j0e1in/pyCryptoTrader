@@ -72,10 +72,20 @@ def test_get_deposit_address(ex):
     pprint(f"New {curr} address: {res}")
 
 
-def test_create_order(ex):
+def test_create_cancel_order(ex):
     res = loop.run_until_complete(
         ex.create_order('BTC/USD', 'limit', 'sell', amount=0.002, price=99999)
     )
+    print('Open order:')
+    pprint(res)
+
+    print('==================================')
+    loop.run_until_complete(asyncio.sleep(3))
+
+    res = loop.run_until_complete(
+        ex.cancel_order(res['id'])
+    )
+    print('Cancel order:')
     pprint(res)
 
 
@@ -94,7 +104,7 @@ def main():
     # test_fetch_order(ex)
     # test_fetch_my_trades(ex)
     # test_get_deposit_address(ex)
-    test_create_order(ex)
+    test_create_cancel_order(ex)
 
 
 if __name__ == '__main__':
