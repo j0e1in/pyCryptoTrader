@@ -261,7 +261,10 @@ class EXBase():
 
         return self.wallet
 
-    async def fetch_orders(self):
+    async def fetch_open_orders(self, symbol=None):
+        not_implemented()
+
+    async def fetch_closed_orders(self,  symbol=None):
         not_implemented()
 
     async def fetch_order(self, id):
@@ -270,6 +273,15 @@ class EXBase():
 
     async def fetch_my_trades(self):
         not_implemented()
+
+    async def get_deposit_address(self, currency):
+        """
+            Param:
+                currency: str, eg. 'USD', 'BTC', ... (only few are supported)
+                [Doc] https://docs.bitfinex.com/v1/reference#rest-auth-deposit
+        """
+        res = await self._send_ccxt_request(self.ex.fetch_deposit_address, currency)
+        return res['address']
 
 
     ##############################
@@ -444,7 +456,7 @@ class bitfinex(EXBase):
                 self.markets_info[mark['symbol']] = mark
         return self.markets_info
 
-    async def fetch_orders(self):
+    async def fetch_open_orders(self, symbol=None):
         """
             ccxt response:
             [{'amount': 0.002,
@@ -482,8 +494,7 @@ class bitfinex(EXBase):
                        'was_forced': False}}
               ...]
         """
-
-        res = await self._send_ccxt_request(self.ex.fetch_open_orders)
+        res = await self._send_ccxt_request(self.ex.fetch_open_orders, symbol)
 
         orders = []
         for ord in res:
@@ -494,6 +505,13 @@ class bitfinex(EXBase):
             orders.append(ord)
 
         return orders
+
+    async def fetch_closed_orders(self,  symbol=None):
+        # Bug: empty response
+        # res = await self._send_ccxt_request(self.ex.fetch_closed_orders, symbol)
+        # return res
+        not_implemented()
+
 
     async def fetch_order(self, id, parse=True):
         """ Fetch a single order using order known id.

@@ -49,8 +49,8 @@ def test_data_streams(ex):
     ]))
 
 
-def test_fetch_orders(ex):
-    res = loop.run_until_complete(ex.fetch_orders())
+def test_fetch_open_orders(ex):
+    res = loop.run_until_complete(ex.fetch_open_orders())
     pprint(res)
 
 
@@ -61,6 +61,11 @@ def test_fetch_order(ex):
 
 def test_fetch_my_trades(ex):
     res = loop.run_until_complete(ex.fetch_my_trades('BTC/USD'))
+    pprint(res)
+
+
+def test_get_deposit_address(ex):
+    res = loop.run_until_complete(ex.get_deposit_address('BTC'))
     pprint(res)
 
 
@@ -75,9 +80,10 @@ def main():
     # test_update_markets_info(mongo, ex)
     # test_ex_start(mongo, ex)
     # test_data_streams(ex)
-    # test_fetch_orders(ex)
+    # test_fetch_open_orders(ex)
     # test_fetch_order(ex)
-    test_fetch_my_trades(ex)
+    # test_fetch_my_trades(ex)
+    test_get_deposit_address(ex)
 
 
 if __name__ == '__main__':
