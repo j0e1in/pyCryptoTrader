@@ -72,6 +72,13 @@ def test_get_deposit_address(ex):
     pprint(f"New {curr} address: {res}")
 
 
+def test_create_order(ex):
+    res = loop.run_until_complete(
+        ex.create_order('BTC/USD', 'limit', 'sell', amount=0.002, price=99999)
+    )
+    pprint(res)
+
+
 def main():
     mongo = EXMongo()
 
@@ -86,7 +93,8 @@ def main():
     # test_fetch_open_orders(ex)
     # test_fetch_order(ex)
     # test_fetch_my_trades(ex)
-    test_get_deposit_address(ex)
+    # test_get_deposit_address(ex)
+    test_create_order(ex)
 
 
 if __name__ == '__main__':

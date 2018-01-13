@@ -223,11 +223,9 @@ class EXBase():
     def update_markets(self):
         not_implemented()
 
-
     #####################
     # AUTHENTICATED API #
     #####################
-
 
     async def update_wallet(self):
         """
@@ -261,6 +259,15 @@ class EXBase():
 
         return self.wallet
 
+    async def get_deposit_address(self, currency, type=None):
+        res = await self._send_ccxt_request(self.ex.fetch_deposit_address, currency)
+        return res['address']
+
+    async def get_new_deposit_address(self, currency, type=None):
+        """ Generate a new address despite an old one is already existed. """
+        res = await self._send_ccxt_request(self.ex.create_deposit_address, currency)
+        return res['address']
+
     async def fetch_open_orders(self, symbol=None):
         not_implemented()
 
@@ -274,19 +281,18 @@ class EXBase():
     async def fetch_my_trades(self):
         not_implemented()
 
-    async def get_deposit_address(self, currency, type=None):
-        res = await self._send_ccxt_request(self.ex.fetch_deposit_address, currency)
-        return res['address']
+    async def create_order(self):
+        not_implemented()
 
-    async def get_new_deposit_address(self, currency, type=None):
-        """ Generate a new address despite an old one is already existed. """
-        res = await self._send_ccxt_request(self.ex.create_deposit_address, currency)
-        return res['address']
+    async def cancel_order(self):
+        not_implemented()
+
+    async def withdraw(self):
+        not_implemented()
 
     ##############################
     # EXCHANGE UTILITY FUNCTIONS #
     ##############################
-
 
     async def _send_ccxt_request(self, func, *args, **kwargs):
 
@@ -308,14 +314,14 @@ class EXBase():
 
             except (ccxt.RequestTimeout,
                     ccxt.DDoSProtection,
-                    ccxt.ExchangeNotAvailable) as error:
+                    ccxt.ExchangeNotAvailable) as err:
 
-                if is_empty_response(error):  # finished fetching all ohlcv
+                if is_empty_response(err):  # finished fetching all ohlcv
                     break
-                elif isinstance(error, ccxt.ExchangeError):
-                    raise error
+                elif isinstance(err, ccxt.ExchangeError):
+                    raise err
 
-                logger.info(f'# {type(error).__name__} # retrying in {wait} seconds...')
+                logger.info(f'# {type(err).__name__} # retrying in {wait} seconds...')
                 await asyncio.sleep(wait)
 
             else:
@@ -350,6 +356,9 @@ class EXBase():
                         pprint("Mongodb BulkWriteError:")
                         pprint(err.details)
                     raise BulkWriteError(err)
+
+
+#####################################################################################
 
 
 class bitfinex(EXBase):
@@ -497,20 +506,16 @@ class bitfinex(EXBase):
 
         orders = []
         for ord in res:
-            ord['margin'] = self.is_margin_order(ord)
-            ord['datetime'] = ms_dt(ord['timestamp'])
-
-            del ord['info']
+            ord = self.parse_order(ord)
             orders.append(ord)
 
         return orders
 
     async def fetch_closed_orders(self,  symbol=None):
+        not_implemented()
         # Bug: empty response
         # res = await self._send_ccxt_request(self.ex.fetch_closed_orders, symbol)
         # return res
-        not_implemented()
-
 
     async def fetch_order(self, id, parse=True):
         """ Fetch a single order using order known id.
@@ -519,14 +524,7 @@ class bitfinex(EXBase):
                 parse: bool, if False, original ccxt response will be returned directly
         """
         ord = await self._send_ccxt_request(self.ex.fetch_order, id)
-
-        if not parse:
-            return ord
-
-        ord['margin'] = self.is_margin_order(ord)
-        ord['datetime'] = ms_dt(ord['timestamp'])
-        del ord['info']
-        return ord
+        return self.parse_order(ord) if parse is True else ord
 
     async def fetch_my_trades(self, symbol, start=None, end=None, limit=1000):
         """
@@ -598,16 +596,16 @@ class bitfinex(EXBase):
     async def get_new_deposit_address(self, currency, type='exchange'):
         """ Generate a new address despite an old one is already existed. """
         if type == 'exchange':
-            atype = 'exchange'
+            wallet_type = 'exchange'
         elif type == 'margin':
-            atype = 'trading'
+            wallet_type = 'trading'
         elif type == 'funding':
-            atype = 'deposit'
+            wallet_type = 'deposit'
         else:
             raise ValueError(f"Unsupported address type: {type}")
 
         params = {
-            'wallet_name': atype
+            'wallet_name': wallet_type
         }
 
         res = await self._send_ccxt_request(self.ex.create_deposit_address, currency, params)
@@ -617,6 +615,109 @@ class bitfinex(EXBase):
 
         return res['address']
 
+    async def create_order(self, symbol, type, side, amount, *, price=None, params={}):
+        """
+            Params
+                symbol: str, eg. 'BTC/USD', ...
+                type: str,
+                "market" / "limit" / "stop" / "trailing-stop" / "fill-or-kill" /
+                "exchange market" / "exchange limit" / "exchange stop" /
+                "exchange trailing-stop" / "exchange fill-or-kill"
+                (type starting by "exchange" are exchange orders, others are margin trading orders)
+
+                side: str, 'buy'/'sell'
+                amount: float
+                price: float
+                params: {
+                    is_hidden: bool, default False, if True, the order will not be listed in orderbook but
+                               always pay for taker fee
+                    is_postonly: bool, default False, if True, the order will be canceled if a matching
+                                order is already in the orderbook, this ensure to always pay for the maker fee
+                    use_all_available: bool, default False, if True, the order will use all the available balance
+                }
+            ccxt response:
+            {'amount': 0.002,
+             'average': 0.0,
+             'datetime': '2018-01-13T13:22:04.224Z',
+             'fee': None,
+             'filled': 0.0,
+             'id': '7139311308',
+             'info': {'avg_execution_price': '0.0',
+                      'cid': 48124202771,
+                      'cid_date': '2018-01-13',
+                      'exchange': 'bitfinex',
+                      'executed_amount': '0.0',
+                      'gid': None,
+                      'id': 7139311308,
+                      'is_cancelled': False,
+                      'is_hidden': False,
+                      'is_live': True,
+                      'oco_order': None,
+                      'order_id': 7139311308,
+                      'original_amount': '0.002',
+                      'price': '99999.0',
+                      'remaining_amount': '0.002',
+                      'side': 'sell',
+                      'src': 'api',
+                      'symbol': 'btcusd',
+                      'timestamp': '1515849724.224788405',
+                      'type': 'exchange limit',
+                      'was_forced': False},
+             'price': 99999.0,
+             'remaining': 0.002,
+             'side': 'sell',
+             'status': 'open',
+             'symbol': 'BTC/USD',
+             'timestamp': 1515849724224,
+             'type': 'limit'}
+        """
+        def is_valid_params(params):
+            valid = True
+            if 'is_hidden' in params and not isinstance(params['is_hidden'], bool):
+                valid = False
+            elif 'is_postonly' in params and not isinstance(params['is_hidden'], bool):
+                valid = False
+            elif 'use_all_available' in params and not isinstance(params['is_hidden'], bool):
+                valid = False
+            if not valid:
+                logger.warn(f"create_order params are invalid: {params}")
+            return valid
+
+        if not is_valid_params(params):
+            return {}
+
+        if 'use_all_available' in params:
+            params['use_all_available'] = 1 if params['use_all_available'] is True else 0
+
+        # Overwrite ccxt function's `type`
+        params['type'] = type
+        pprint(f'create_order({symbol}, {type}, {side}, {amount}, {price}, params={params})')
+
+        try:
+            res = await self._send_ccxt_request(self.ex.create_order,
+                                          symbol=symbol,
+                                          type=type,
+                                          side=side,
+                                          amount=amount,
+                                          price=price,
+                                          params=params)
+        except ccxt.InvalidOrder as err:
+            logger.warn(f"{str(err)}")
+            # TODO: pass invalid order msg to client: MessengerServer.handle_invalid_error(err, order)
+            return {}
+
+        order = self.parse_order(res)
+        return order
+
+    async def cancel_order(self):
+        not_implemented()
+
     @staticmethod
     def is_margin_order(order):
-            return True if 'exchange' not in order['info']['type'] else False
+        return True if 'exchange' not in order['info']['type'] else False
+
+    def parse_order(self, order):
+        order['margin'] = self.is_margin_order(order)
+        order['datetime'] = ms_dt(order['timestamp'])
+        del order['info']
+        return order
