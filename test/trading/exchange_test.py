@@ -65,8 +65,11 @@ def test_fetch_my_trades(ex):
 
 
 def test_get_deposit_address(ex):
-    res = loop.run_until_complete(ex.get_deposit_address('BTC'))
-    pprint(res)
+    curr = 'BTC'
+    res = loop.run_until_complete(ex.get_deposit_address(curr, 'margin'))
+    pprint(f"Old {curr} address: {res}")
+    res = loop.run_until_complete(ex.get_new_deposit_address(curr, 'margin'))
+    pprint(f"New {curr} address: {res}")
 
 
 def main():

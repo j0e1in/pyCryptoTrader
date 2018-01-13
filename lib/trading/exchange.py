@@ -274,15 +274,14 @@ class EXBase():
     async def fetch_my_trades(self):
         not_implemented()
 
-    async def get_deposit_address(self, currency):
-        """
-            Param:
-                currency: str, eg. 'USD', 'BTC', ... (only few are supported)
-                [Doc] https://docs.bitfinex.com/v1/reference#rest-auth-deposit
-        """
+    async def get_deposit_address(self, currency, type=None):
         res = await self._send_ccxt_request(self.ex.fetch_deposit_address, currency)
         return res['address']
 
+    async def get_new_deposit_address(self, currency, type=None):
+        """ Generate a new address despite an old one is already existed. """
+        res = await self._send_ccxt_request(self.ex.create_deposit_address, currency)
+        return res['address']
 
     ##############################
     # EXCHANGE UTILITY FUNCTIONS #
@@ -568,6 +567,55 @@ class bitfinex(EXBase):
             trades.append(trade)
 
         return trades
+
+    async def get_deposit_address(self, currency, type='exchange'):
+        """
+            Param:
+                currency: str, eg. 'USD', 'BTC', ... (only few are supported)
+                type: str, 'exchange' / 'margin' / 'funding'
+                [Doc] https://docs.bitfinex.com/v1/reference#rest-auth-deposit
+        """
+        if type == 'exchange':
+            atype = 'exchange'
+        elif type == 'margin':
+            atype = 'trading'
+        elif type == 'funding':
+            atype = 'deposit'
+        else:
+            raise ValueError(f"Unsupported address type: {type}")
+
+        params = {
+            'wallet_name': atype
+        }
+
+        res = await self._send_ccxt_request(self.ex.fetch_deposit_address, currency, params)
+
+        if res['info']['result'] == 'error':
+            logger.error(f"Failed to get {currency} {type} deposit address")
+
+        return res['address']
+
+    async def get_new_deposit_address(self, currency, type='exchange'):
+        """ Generate a new address despite an old one is already existed. """
+        if type == 'exchange':
+            atype = 'exchange'
+        elif type == 'margin':
+            atype = 'trading'
+        elif type == 'funding':
+            atype = 'deposit'
+        else:
+            raise ValueError(f"Unsupported address type: {type}")
+
+        params = {
+            'wallet_name': atype
+        }
+
+        res = await self._send_ccxt_request(self.ex.create_deposit_address, currency, params)
+
+        if res['info']['result'] == 'error':
+            logger.error(f"Failed to generate {currency} {type} deposit address")
+
+        return res['address']
 
     @staticmethod
     def is_margin_order(order):
