@@ -177,6 +177,7 @@ class EXBase():
 
             return True
 
+        logger.info("Starting ohlcv data stream...")
         self.ohlcv_start_end = {}
 
         while True:
@@ -218,6 +219,8 @@ class EXBase():
              'datetime': '2018-01-12T09:30:20.636Z',
              'timestamp': 1515749419636}
         """
+        logger.info("Starting orderbook data stream...")
+
         while True:
             for market in self.markets:
                 self.orderbook[market] = await self._fetch_orderbook(market, params=params, log=log)
