@@ -351,6 +351,12 @@ class EXBase():
     async def cancel_order(self):
         not_implemented()
 
+    async def cancel_order_multi(self, ids):
+        not_implemented()
+
+    async def cancel_order_all(self):
+        not_implemented()
+
     async def withdraw(self):
         not_implemented()
 
@@ -630,6 +636,7 @@ class Bitfinex(EXBase):
               'symbol': 'btcusd',
               'timestamp': '1515947276.0'}]
         """
+        self._check_auth()
         res = await self._send_ccxt_request(self.ex.private_post_positions)
         return res
 
@@ -825,9 +832,32 @@ class Bitfinex(EXBase):
 
     async def cancel_order(self, id):
         self._check_auth()
-        res = await self._send_ccxt_request(self.ex.cancel_order, id)
+
+        try:
+            res = await self._send_ccxt_request(self.ex.cancel_order, id)
+        except ccxt.OrderNotFound as err:
+            logger.warn(f"OrderNotFound: {str(err)}")
+            return {}
+
         ccxt_parsed_order = self.ex.parse_order(res)
         return self.parse_order(ccxt_parsed_order)
+
+    async def cancel_order_multi(self, ids):
+        self._check_auth()
+
+        if not isinstance(ids, list):
+            raise ValueError(f"Param `ids` must be a list of order ids")
+
+        params = {
+            'order_ids': ids
+        }
+        res = await self._send_ccxt_request(self.ex.private_post_order_cancel_multi, params=params)
+        return res
+
+    async def cancel_order_all(self):
+        self._check_auth()
+        res = await self._send_ccxt_request(self.ex.private_post_order_cancel_all)
+        return res
 
     @staticmethod
     def is_margin_order(order):
