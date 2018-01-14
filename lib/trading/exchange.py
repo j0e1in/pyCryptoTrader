@@ -18,7 +18,8 @@ from utils import combine, \
     ms_dt, \
     not_implemented, \
     init_ccxt_exchange, \
-    execute_mongo_ops
+    execute_mongo_ops, \
+    sec_ms
 
 from ipdb import set_trace as trace
 
@@ -624,7 +625,7 @@ class Bitfinex(EXBase):
         ord = await self._send_ccxt_request(self.ex.fetch_order, id)
         return self.parse_order(ord) if parse is True else ord
 
-    async def fetch_positions(self):
+    async def fetch_positions(self, symbol=None):
         """
             ccxt response
             [{'amount': '0.002',
@@ -636,9 +637,22 @@ class Bitfinex(EXBase):
               'symbol': 'btcusd',
               'timestamp': '1515947276.0'}]
         """
+        def parse_position(position):
+            pos['symbol'] = self.to_ccxt_symbol(pos['symbol'])
+            pos['timestamp'] = sec_ms(pos['timestamp'])
+            pos['datetime'] = ms_dt(pos['timestamp'])
+
         self._check_auth()
         res = await self._send_ccxt_request(self.ex.private_post_positions)
-        return res
+
+        positions = []
+        for pos in res:
+            if not symbol:
+                positions.append(parse_position(pos))
+            elif pos['symbol'] == symbol:
+                positions.append(parse_position(pos))
+
+        return positions
 
     async def fetch_my_trades(self, symbol, start=None, end=None, limit=1000):
         """
@@ -859,12 +873,22 @@ class Bitfinex(EXBase):
         res = await self._send_ccxt_request(self.ex.private_post_order_cancel_all)
         return res
 
-    @staticmethod
-    def is_margin_order(order):
-        return True if 'exchange' not in order['info']['type'] else False
-
     def parse_order(self, order):
         order['margin'] = self.is_margin_order(order)
         order['datetime'] = ms_dt(order['timestamp'])
         del order['info']
         return order
+
+    @staticmethod
+    def is_margin_order(order):
+        return True if 'exchange' not in order['info']['type'] else False
+
+    @staticmethod
+    def to_ccxt_symbol(self, symbol):
+        """ Convert bitinex raw response symbol to ccxt's format. """
+        # WARN: Potential bug -- if some symbols used by bitinex is not
+        # the same as ccxt may cause exception later on
+        qoute = symbol[-3:]
+        base = symbol.split(qoute)[0]
+        symbol = base.upper() + '/' + qoute.upper()
+        return symbol
