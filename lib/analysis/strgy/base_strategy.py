@@ -7,11 +7,6 @@ class SingleExchangeStrategy():
             - ex
             - markets
             - timeframes
-            - open
-            - close
-            - high
-            - low
-            - volume
             - trades
         Avaiable methods:
             - buy

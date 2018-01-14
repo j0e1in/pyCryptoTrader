@@ -339,6 +339,9 @@ class EXBase():
         """ Fetch a single order using order known id. """
         not_implemented()
 
+    async def fetch_positions(self):
+        not_implemented()
+
     async def fetch_my_trades(self):
         not_implemented()
 
@@ -614,6 +617,21 @@ class Bitfinex(EXBase):
         self._check_auth()
         ord = await self._send_ccxt_request(self.ex.fetch_order, id)
         return self.parse_order(ord) if parse is True else ord
+
+    async def fetch_positions(self):
+        """
+            ccxt response
+            [{'amount': '0.002',
+              'base': '13219.0',
+              'id': 134256839,
+              'pl': '-0.076828',
+              'status': 'ACTIVE',
+              'swap': '0.0',
+              'symbol': 'btcusd',
+              'timestamp': '1515947276.0'}]
+        """
+        res = await self._send_ccxt_request(self.ex.private_post_positions)
+        return res
 
     async def fetch_my_trades(self, symbol, start=None, end=None, limit=1000):
         """
