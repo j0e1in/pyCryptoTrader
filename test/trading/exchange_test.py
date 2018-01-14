@@ -105,7 +105,7 @@ def test_cancel_order(ex):
 
 def test_fetch_open_positions(ex):
     print('-- Fetch open positions --')
-    res = loop.run_until_complete(ex.fetch_positions('7178212463'))
+    res = loop.run_until_complete(ex.fetch_positions())
     pprint(res)
 
 
@@ -121,6 +121,12 @@ def test_cancel_order_all(ex):
     pprint(res)
 
 
+def test_get_market_price(ex):
+    print('-- Get market price --')
+    res = loop.run_until_complete(ex.get_market_price('BTC/USD'))
+    pprint(res)
+
+
 def main():
     mongo = EXMongo()
 
@@ -133,8 +139,10 @@ def main():
 
     # test_ex_start(ex)
     # test_data_streams(ex)
+
     # test_get_orderbook(ex)
     # test_get_deposit_address(ex)
+    test_get_market_price(ex)
 
     # test_fetch_open_orders(ex)
     # test_fetch_order(ex)
@@ -142,7 +150,7 @@ def main():
     # test_fetch_open_positions(ex)
 
     # test_create_order(ex)
-    test_cancel_order(ex)
+    # test_cancel_order(ex)
     # test_cancel_order_multi(ex)
     # test_cancel_order_all(ex)
 

@@ -209,17 +209,7 @@ class EXBase():
         pass
 
     async def _start_orderbook_stream(self, params={}, log=False):
-        """ Fetch orderbook passively. May not be needed if is using `_book`.
-            ccxt response:
-            {'asks': [[117.54, 8.39429112],
-                      [117.55, 16.78858223],
-                       ...],
-             'bids': [[117.19, 1.02399284],
-                       [116.0, 0.5415143]
-                       ...],
-             'datetime': '2018-01-12T09:30:20.636Z',
-             'timestamp': 1515749419636}
-        """
+        """ Fetch orderbook passively. May not be needed if using `get_orderbook`."""
         logger.info("Starting orderbook data stream...")
 
         while True:
@@ -230,9 +220,33 @@ class EXBase():
             await asyncio.sleep(self.config['orderbook_delay'])
 
     async def get_orderbook(self, symbol, params={}, log=False):
-        """ Fetch orderbook of a specific symbol on-demand. """
+        """ Fetch orderbook of a specific symbol on-demand.
+            ccxt response:
+            {'asks': [[13534.0, 1.2373243],
+                      [13535.0, 2.42267671],
+                      [13537.0, 0.11326825],
+                      [13549.0, 1.2337],
+                      [13550.0, 0.54822278],
+                       ... ],
+             'bids': [[13531.0, 0.00375997],
+                      [13530.0, 0.3],
+                      [13527.0, 0.011],
+                      [13522.0, 0.502],
+                      [13521.0, 0.0758],
+                       ... ],
+             'datetime': '2018-01-12T09:30:20.636Z',
+             'timestamp': 1515749419636}
+        """
         self.orderbook[symbol] = await self._fetch_orderbook(symbol, params=params, log=log)
         return self.orderbook[symbol]
+
+    async def get_market_price(self, symbol):
+        """ Get current price from orderbook. """
+        orderbook = await self.get_orderbook(symbol)
+        return {
+            'buy': orderbook['bids'][0][0],
+            'sell': orderbook['asks'][0][0],
+        }
 
     async def _fetch_orderbook(self, symbol, params={}, log=False):
         if log:
@@ -647,10 +661,12 @@ class Bitfinex(EXBase):
 
         positions = []
         for pos in res:
+            parse_position(pos)
+
             if not symbol:
-                positions.append(parse_position(pos))
+                positions.append(pos)
             elif pos['symbol'] == symbol:
-                positions.append(parse_position(pos))
+                positions.append(pos)
 
         return positions
 
@@ -884,7 +900,7 @@ class Bitfinex(EXBase):
         return True if 'exchange' not in order['info']['type'] else False
 
     @staticmethod
-    def to_ccxt_symbol(self, symbol):
+    def to_ccxt_symbol(symbol):
         """ Convert bitinex raw response symbol to ccxt's format. """
         # WARN: Potential bug -- if some symbols used by bitinex is not
         # the same as ccxt may cause exception later on
