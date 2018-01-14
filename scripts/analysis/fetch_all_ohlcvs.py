@@ -12,7 +12,7 @@ import motor.motor_asyncio as motor
 import logging
 
 from analysis.hist_data import fetch_ohlcv
-from utils import init_ccxt_exchange
+from utils import init_ccxt_exchange, execute_mongo_ops
 
 
 logger = logging.getLogger()
@@ -47,34 +47,18 @@ async def fetch_ohlcv_to_mongo(coll, exchange, symbol, timeframe):
 
         ops.append(ensure_future(coll.insert_many(processed_ohlcv, ordered=False)))
 
-        # insert 1000 ohlcv per op, clear up task stack periodically
-        if len(ops) > 100:
-            try:
-                await asyncio.gather(*ops)
-            except BulkWriteError as err:
-                for msg in err.details['writeErrors']:
-                    if 'duplicate' in msg['errmsg']:
-                        continue
-                    else:
-                        pprint(err.details)
-                        raise BulkWriteError(err)
+        # insert 1000 ohlcv per op, clean up task stack periodically
+        if len(ops) > 50:
+            await execute_mongo_ops(ops)
             ops = []
-    try:
-        await asyncio.gather(*ops)
-    except BulkWriteError as err:
-        for msg in err.details['writeErrors']:
-            if 'duplicate' in msg['errmsg']:
-                continue
-            else:
-                pprint(err.details)
-                raise BulkWriteError(err)
 
+    await execute_mongo_ops(ops)
 
 async def main():
     ex = 'bitfinex'
     coll_tamplate = '{}_ohlcv_{}_{}'
 
-    exchange = init_ccxt_exchange(ex)
+    exchange = init_ccxt_exchange(ex + '2')
 
     mongo = motor.AsyncIOMotorClient('localhost', 27017)
     symbols = [

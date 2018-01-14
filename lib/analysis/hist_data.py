@@ -60,7 +60,7 @@ async def fetch_ohlcv(exchange, symbol, start, end, timeframe='1m', log=True):
             await asyncio.sleep(wait)
 
 
-async def fetch_trades(exchange, symbol, start, end):
+async def fetch_trades(exchange, symbol, start, end, log=True):
 
     def remove_last_timestamp(records):
         _last_timestamp = records[-1]['timestamp']
@@ -89,20 +89,26 @@ async def fetch_trades(exchange, symbol, start, end):
 
     while start < end:
         try:
-            logger.info(f'Fetching {symbol} trades starting from {ms_dt(start)}')
+            if log:
+                logger.info(f'Fetching {symbol} trades starting from {ms_dt(start)}')
+
             trades = await exchange.fetch_trades(symbol, params=params)
-            if not trades:
+
+            if len(trades) is 0:
                 break
+
             if trades[0]['timestamp'] == trades[-1]['timestamp']:
                 # All 1000 trades have the same timestamp,
                 # (1000 transactions in 1 sec, which is unlikely to happen)
                 # just ignore the rest of trades that have same timestamp,
                 # no much we can do about it.
                 start += 1000
+
             if len(trades) < params['limit']:
                 start = trades[-1]['timestamp'] + 1000
             else:
                 start, trades = remove_last_timestamp(trades)
+
             params['start'] = start
             yield trades
 

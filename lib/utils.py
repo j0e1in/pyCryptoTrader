@@ -1,6 +1,7 @@
 from pprint import pprint
 from collections import OrderedDict
 from datetime import datetime, timezone, timedelta
+import asyncio
 import ccxt.async as ccxt
 import calendar
 import inspect
@@ -107,7 +108,7 @@ def timeframe_timedelta(timeframe):
         raise ValueError(f'Invalid timeframe \'{timeframe}\'')
 
 
-def init_ccxt_exchange(ex_id, apikey=None, secret=None):
+def init_ccxt_exchange(ex_id, apikey=None, secret=None, **kwargs):
     """ Return an initialized ccxt API instance. """
     options = {
         'enableRateLimit': True,
@@ -115,7 +116,7 @@ def init_ccxt_exchange(ex_id, apikey=None, secret=None):
         'apiKey': apikey,
         'secret': secret,
     }
-
+    options = combine(options, kwargs)
     ex = getattr(ccxt, ex_id)(options)
     return ex
 
@@ -349,6 +350,24 @@ def check_periods(periods):
             return False
     return True
 
+async def execute_mongo_ops(ops):
+    if not isinstance(ops, list):
+        ops = [ops]
+
+    if not isinstance(ops[0], asyncio.Future):
+        raise ValueError("ops must be asyncio.Future(s)")
+
+    try:
+        await asyncio.gather(*ops)
+    except BulkWriteError as err:
+        for msg in err.details['writeErrors']:
+            if 'duplicate' in msg['errmsg']:
+                continue
+            else:
+                pprint(err.details)
+                raise BulkWriteError(err)
+    else:
+        return True
 
 class Timer():
 
