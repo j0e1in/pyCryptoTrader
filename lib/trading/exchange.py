@@ -409,7 +409,7 @@ class EXBase():
 #####################################################################################
 
 
-class bitfinex(EXBase):
+class Bitfinex(EXBase):
 
     ## ccxt.bitfinex APIs
     ## bitfinex / bitfinex2 methods

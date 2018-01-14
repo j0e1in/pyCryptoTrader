@@ -5,7 +5,7 @@ from pprint import pprint
 import asyncio
 
 from db import EXMongo
-from trading import exchange
+from trading.exchange import Bitfinex
 from utils import get_project_root, load_keys
 
 loop = asyncio.get_event_loop()
@@ -100,7 +100,7 @@ def main():
     mongo = EXMongo()
 
     key = load_keys(get_project_root() + '/private/keys.json')['bitfinex']
-    ex = exchange.bitfinex(mongo, key['apiKey'], key['secret'], verbose=True)
+    ex = Bitfinex(mongo, key['apiKey'], key['secret'], verbose=True)
 
     # test_update_wallet(ex)
     # test_update_ticker(ex)
