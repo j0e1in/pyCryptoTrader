@@ -72,9 +72,9 @@ class EXBase():
         self.markets = self._config['trading'][self.exname]['markets']
         self.timeframes = self._config['trading'][self.exname]['timeframes']
 
-        self.tickers = {}
         self.markets_info = {}
         self.orderbook = {}
+        self.tickers = {}
         self.wallet = self.init_wallet()
         self.ready = {
           'ohlcv': False,
@@ -197,7 +197,7 @@ class EXBase():
 
             if await is_uptodate(self.ohlcv_start_end):
                 self.ready['ohlcv'] = True
-                countdown = roundup_dt(utc_now(), sec=60) - utc_now()
+                countdown = roundup_dt(utc_now(), min=1) - utc_now()
 
                 # Sleep will be slighly shorter than expected
                 # Add extra seconds because exchange server data preperation may delay
@@ -436,7 +436,7 @@ class Bitfinex(EXBase):
     # withdraw
 
     def __init__(self, mongo, apikey=None, secret=None, custom_config=None, verbose=False):
-        super().__init__(mongo, 'bitfinex', apikey, secret, custom_config)
+        super().__init__(mongo, 'bitfinex', apikey, secret, custom_config=custom_config, verbose=verbose)
 
     def init_wallet(self):
         tmp = {'exchange': 0, 'margin': 0, 'funding': 0}
@@ -667,16 +667,16 @@ class Bitfinex(EXBase):
         self._check_auth()
 
         if type == 'exchange':
-            atype = 'exchange'
+            address_type = 'exchange'
         elif type == 'margin':
-            atype = 'trading'
+            address_type = 'trading'
         elif type == 'funding':
-            atype = 'deposit'
+            address_type = 'deposit'
         else:
             raise ValueError(f"Unsupported address type: {type}")
 
         params = {
-            'wallet_name': atype
+            'wallet_name': address_type
         }
 
         res = await self._send_ccxt_request(self.ex.fetch_deposit_address, currency, params)
@@ -691,16 +691,16 @@ class Bitfinex(EXBase):
         self._check_auth()
 
         if type == 'exchange':
-            wallet_type = 'exchange'
+            address_type = 'exchange'
         elif type == 'margin':
-            wallet_type = 'trading'
+            address_type = 'trading'
         elif type == 'funding':
-            wallet_type = 'deposit'
+            address_type = 'deposit'
         else:
             raise ValueError(f"Unsupported address type: {type}")
 
         params = {
-            'wallet_name': wallet_type
+            'wallet_name': address_type
         }
 
         res = await self._send_ccxt_request(self.ex.create_deposit_address, currency, params)
