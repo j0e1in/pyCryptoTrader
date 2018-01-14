@@ -47,6 +47,9 @@
           "30m",
           "1h"
       ]
+    },
+    "strategy": {
+      "ohlcv_days": 30
     }
   },
 
