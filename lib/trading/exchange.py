@@ -16,7 +16,8 @@ from utils import combine, \
     rsym, \
     ms_dt, \
     not_implemented, \
-    init_ccxt_exchange
+    init_ccxt_exchange, \
+    execute_mongo_ops
 
 from ipdb import set_trace as trace
 
@@ -43,8 +44,13 @@ class EXBase():
 
         self.tickers = {}
         self.markets_info = {}
-        self.streams_ready = {}
         self.wallet = self.init_wallet()
+        self.ready = {
+          'start': False,
+          'ohlcv': False,
+          'trade': False,
+          'orderbook': False,
+        }
 
     def init_wallet(self):
         wallet = {}
@@ -55,7 +61,7 @@ class EXBase():
 
     def is_ready(self):
         """ Return True if data streams are up-to-date. """
-        for _, ready in self.streams_ready.items():
+        for _, ready in self.ready.items():
             if not ready:
                 return False
         return True
@@ -67,20 +73,25 @@ class EXBase():
         streams = []
         if 'ohlcv' in data_streams:
             streams.append(ensure_future(self._start_ohlcv_stream(log)))
-            self.streams_ready['ohlcv'] = False
+        else:
+            self.ready['ohlcv'] = True
 
         if 'trade' in data_streams:
             streams.append(self._start_trade_stream(log))
-            self.streams_ready['trade'] = False
+        else:
+            self.ready['trade'] = True
 
         if 'orderbook' in data_streams:
             streams.append(self._start_orderbook_stream(log))
-            self.streams_ready['orderbook'] = False
+        else:
+            self.ready['orderbook'] = True
 
         await asyncio.gather(*streams)
 
         await self.update_markets()
         await self.update_wallet()
+
+        self.ready['start'] = True
 
     async def _start_ohlcv_stream(self, log=False):
 
@@ -113,10 +124,10 @@ class EXBase():
 
                 # insert 1000 ohlcv per op, clear up task stack periodically
                 if len(ops) > 50:
-                    await self._exec_mongo_op(asyncio.gather, *ops)
+                    await execute_mongo_ops(*ops)
                     ops = []
 
-            await self._exec_mongo_op(asyncio.gather, *ops)
+            await execute_mongo_ops(*ops)
 
         async def is_uptodate(ohlcv_start_end):
             await self.update_ohlcv_start_end()
@@ -151,7 +162,7 @@ class EXBase():
                         await fetch_ohlcv_to_mongo(market, end, cur_time, tf)
 
             if await is_uptodate(self.ohlcv_start_end):
-                self.streams_ready['ohlcv'] = True
+                self.ready['ohlcv'] = True
                 await asyncio.sleep(self.config['ohlcv_delay'])
 
     async def _start_trade_stream(self, log=False):
@@ -180,6 +191,7 @@ class EXBase():
                 self.orderbooks[market] = await self._send_ccxt_request(self.ex.fetch_order_book, market, params=params)
                 self.orderbooks[market]['datetime'] = ms_dt(self.orderbooks[market]['timestamp'])
 
+            self.ready['orderbook'] = True
             await asyncio.sleep(self.config['orderbook_delay'])
 
     async def update_ticker(self, log=False):
@@ -342,20 +354,6 @@ class EXBase():
                 start = await self.mongo.get_ohlcv_start(self.exname, market, tf)
                 end = await self.mongo.get_ohlcv_end(self.exname, market, tf)
                 self.ohlcv_start_end[market][tf] = (start, end)
-
-    @staticmethod
-    async def _exec_mongo_op(func, *args, **kwargs):
-        try:
-            await func(*args, **kwargs)
-        except BulkWriteError as err:
-            for msg in err.details['writeErrors']:
-                if 'duplicate' in msg['errmsg']:
-                    continue
-                else:
-                    if self._config['mode'] == 'debug':
-                        pprint("Mongodb BulkWriteError:")
-                        pprint(err.details)
-                    raise BulkWriteError(err)
 
 
 #####################################################################################
