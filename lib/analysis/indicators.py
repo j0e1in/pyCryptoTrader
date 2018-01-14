@@ -1,6 +1,6 @@
 from ipdb import set_trace as trace
 from pprint import pprint
-import talib.abstract as talib_abs # ndarray/dataframe as input
+import talib.abstract as talib_abstract # ndarray/dataframe as input
 import talib # ndarray as input
 import pandas as pd
 import numpy as np
@@ -19,7 +19,7 @@ class Indicator():
         self.p = _config['params']
 
     def rsi(self, ohlcv):
-        ind = talib_abs.RSI(ohlcv, timeperiod=self.p['rsi_period'])
+        ind = talib_abstract.RSI(ohlcv, timeperiod=self.p['rsi_period'])
 
         rise = self.is_rising(ind)
         drop = self.is_dropping(ind)
