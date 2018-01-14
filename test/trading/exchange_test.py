@@ -95,16 +95,16 @@ def main():
     key = load_keys(get_project_root() + '/private/keys.json')['bitfinex']
     ex = exchange.bitfinex(mongo, key['apiKey'], key['secret'])
 
-    # test_update_wallet(mongo, ex)
-    # test_update_ticker(mongo, ex)
-    # test_update_markets_info(mongo, ex)
-    # test_ex_start(mongo, ex)
+    test_update_wallet(ex)
+    # test_update_ticker(ex)
+    # test_update_markets_info(ex)
+    # test_ex_start(ex)
     # test_data_streams(ex)
     # test_fetch_open_orders(ex)
     # test_fetch_order(ex)
     # test_fetch_my_trades(ex)
     # test_get_deposit_address(ex)
-    test_create_cancel_order(ex)
+    # test_create_cancel_order(ex)
 
 
 if __name__ == '__main__':

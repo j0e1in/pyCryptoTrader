@@ -5,6 +5,7 @@ import asyncio
 import copy
 import ccxt.async as ccxt
 import logging
+import inspect
 
 from analysis.hist_data import fetch_ohlcv
 from utils import combine, \
@@ -26,7 +27,35 @@ logger = logging.getLogger()
 
 
 class EXBase():
-    """ Unifiied exchange interface for trader. """
+    """ Unifiied exchange interface for trader.
+        Available attributes / methods:
+        - Attreibutes:
+            exname
+            markets
+            markets_info
+            orderbook
+            tickers
+            timeframes
+            wallet
+
+        - Methods
+            start
+            get_deposit_address
+            get_new_deposit_address
+            fetch_order
+            fetch_open_orders
+            fetch_closed_orders
+            fetch_my_trades
+            update_ticker
+            update_markets
+            update_wallet
+            create_order
+            cancel_order
+            withdraw
+
+
+        ** Note: ohlcv and trades can be retreived from db
+    """
 
     def __init__(self, mongo, ex_id, apikey=None, secret=None, custom_config=None):
         self.mongo = mongo
@@ -181,15 +210,15 @@ class EXBase():
              'datetime': '2018-01-12T09:30:20.636Z',
              'timestamp': 1515749419636}
         """
-        self.orderbooks = {}
+        self.orderbook = {}
 
         while True:
             for market in self.markets:
                 if log:
                     logger.info(f"Fetching {market} orderbook")
 
-                self.orderbooks[market] = await self._send_ccxt_request(self.ex.fetch_order_book, market, params=params)
-                self.orderbooks[market]['datetime'] = ms_dt(self.orderbooks[market]['timestamp'])
+                self.orderbook[market] = await self._send_ccxt_request(self.ex.fetch_order_book, market, params=params)
+                self.orderbook[market]['datetime'] = ms_dt(self.orderbook[market]['timestamp'])
 
             self.ready['orderbook'] = True
             await asyncio.sleep(self.config['orderbook_delay'])
@@ -232,7 +261,7 @@ class EXBase():
                 self.tickers[market] = res[market]
         return self.tickers
 
-    def update_markets(self):
+    async def update_markets(self):
         not_implemented()
 
     #####################
@@ -261,8 +290,7 @@ class EXBase():
              'total': {'BCH': 0.00441364, 'BTC': 0.0051689, 'USD': 0.0},
              'used': {'BCH': 0.0, 'BTC': 0.0, 'USD': 0.0}}
         """
-        if not self.isauth():
-            raise ValueError(f"API key and secret are required")
+        self._check_auth()
 
         res = await self._send_ccxt_request(self.ex.fetch_balance)
 
@@ -272,11 +300,13 @@ class EXBase():
         return self.wallet
 
     async def get_deposit_address(self, currency, type=None):
+        self._check_auth()
         res = await self._send_ccxt_request(self.ex.fetch_deposit_address, currency)
         return res['address']
 
     async def get_new_deposit_address(self, currency, type=None):
         """ Generate a new address despite an old one is already existed. """
+        self._check_auth()
         res = await self._send_ccxt_request(self.ex.create_deposit_address, currency)
         return res['address']
 
@@ -341,8 +371,12 @@ class EXBase():
 
         return res
 
-    def isauth(self):
+    def is_authed(self):
         return True if self.apikey and self.secret else False
+
+    def _check_auth(self):
+        if not self.is_authed():
+            raise ccxt.AuthenticationError(f"Both API key and secret are required for ``{inspect.stack()[1][3]}``")
 
     async def update_ohlcv_start_end(self):
         # Get available ohlcv start / end datetime in db
@@ -401,6 +435,8 @@ class bitfinex(EXBase):
             bitfinex response:
                 type: exchange / trading (margin) / deposit (funding)
         """
+        self._check_auth()
+
         res = await self._send_ccxt_request(self.ex.fetch_balance)
         for curr in res['info']:
             sym = str.upper(curr['currency'])
@@ -423,11 +459,11 @@ class bitfinex(EXBase):
         params = {
             'limit_bids': self.config['orderbook_size'],
             'limit_asks': self.config['orderbook_size'],
-            'group': 1,
+            'group': 1, # 0 / 1
         }
         await super()._start_orderbook_stream(log=log, params=params)
 
-    async def update_markets_info(self):
+    async def update_markets(self):
         """
             ccxt response:
             [{'active': True,
@@ -521,6 +557,8 @@ class bitfinex(EXBase):
                        'was_forced': False}}
               ...]
         """
+        self._check_auth()
+
         res = await self._send_ccxt_request(self.ex.fetch_open_orders, symbol)
 
         orders = []
@@ -531,6 +569,7 @@ class bitfinex(EXBase):
         return orders
 
     async def fetch_closed_orders(self,  symbol=None):
+        self._check_auth()
         not_implemented()
         # Bug: empty response
         # res = await self._send_ccxt_request(self.ex.fetch_closed_orders, symbol)
@@ -542,6 +581,7 @@ class bitfinex(EXBase):
                 id: str, id of an order
                 parse: bool, if False, original ccxt response will be returned directly
         """
+        self._check_auth()
         ord = await self._send_ccxt_request(self.ex.fetch_order, id)
         return self.parse_order(ord) if parse is True else ord
 
@@ -568,6 +608,8 @@ class bitfinex(EXBase):
              'timestamp': 1512044991000,
              'type': None}]
         """
+        self._check_auth()
+
         params = {}
         params['reverse'] = 1
         if end:
@@ -592,6 +634,8 @@ class bitfinex(EXBase):
                 type: str, 'exchange' / 'margin' / 'funding'
                 [Doc] https://docs.bitfinex.com/v1/reference#rest-auth-deposit
         """
+        self._check_auth()
+
         if type == 'exchange':
             atype = 'exchange'
         elif type == 'margin':
@@ -614,6 +658,8 @@ class bitfinex(EXBase):
 
     async def get_new_deposit_address(self, currency, type='exchange'):
         """ Generate a new address despite an old one is already existed. """
+        self._check_auth()
+
         if type == 'exchange':
             wallet_type = 'exchange'
         elif type == 'margin':
@@ -702,6 +748,8 @@ class bitfinex(EXBase):
                 logger.warn(f"create_order params are invalid: {params}")
             return valid
 
+        self._check_auth()
+
         if not is_valid_params(params):
             return {}
 
@@ -728,6 +776,7 @@ class bitfinex(EXBase):
         return order
 
     async def cancel_order(self, id):
+        self._check_auth()
         res = await self._send_ccxt_request(self.ex.cancel_order, id)
         ccxt_parsed_order = self.ex.parse_order(res)
         return self.parse_order(ccxt_parsed_order)
