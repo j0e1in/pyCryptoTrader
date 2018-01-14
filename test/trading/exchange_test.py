@@ -79,20 +79,25 @@ def test_get_deposit_address(ex):
     pprint(f"New {curr} address: {res}")
 
 
-def test_create_cancel_order(ex):
+def test_create_order(ex):
     res = loop.run_until_complete(
-        ex.create_order('BTC/USD', 'limit', 'sell', amount=0.002, price=99999)
+        ex.create_order('BTC/USD', 'limit', 'sell', amount=0.0035, price=99999)
     )
     print('Open order:')
     pprint(res)
+    return res['id']
 
-    print('==================================')
-    loop.run_until_complete(asyncio.sleep(3))
 
+def test_cancel_order(ex):
     res = loop.run_until_complete(
-        ex.cancel_order(res['id'])
+        ex.cancel_order('134256839')
     )
     print('Cancel order:')
+    pprint(res)
+
+
+def test_fetch_open_positions(ex):
+    res = loop.run_until_complete(ex.fetch_positions())
     pprint(res)
 
 
@@ -100,23 +105,25 @@ def main():
     mongo = EXMongo()
 
     key = load_keys(get_project_root() + '/private/keys.json')['bitfinex']
-    ex = Bitfinex(mongo, key['apiKey'], key['secret'], verbose=True)
+    ex = Bitfinex(mongo, key['apiKey'], key['secret'], verbose=False)
 
     # test_update_wallet(ex)
     # test_update_ticker(ex)
     # test_update_markets_info(ex)
 
     # test_ex_start(ex)
-    test_data_streams(ex)
+    # test_data_streams(ex)
     # test_get_orderbook(ex)
+    # test_get_deposit_address(ex)
 
     # test_fetch_open_orders(ex)
     # test_fetch_order(ex)
     # test_fetch_my_trades(ex)
+    # test_fetch_open_positions(ex)
 
-    # test_get_deposit_address(ex)
+    # test_create_order(ex)
+    # test_cancel_order(ex)
 
-    # test_create_cancel_order(ex)
 
 
 if __name__ == '__main__':
