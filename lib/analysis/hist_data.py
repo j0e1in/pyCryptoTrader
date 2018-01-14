@@ -41,22 +41,25 @@ async def fetch_ohlcv(exchange, symbol, start, end, timeframe='1m', log=True):
             logger.info(f'Fetching {symbol}_{timeframe} ohlcv from {ms_dt(start)} to {ms_dt(end)}')
 
         try:
-            ohlcvs = await exchange.fetch_ohlcv(symbol, timeframe=timeframe, since=start, params=params)
+            ohlcv = await exchange.fetch_ohlcv(symbol, timeframe=timeframe, since=start, params=params)
 
-            if len(ohlcvs) is 0 or ohlcvs[-1][0] == start: # no ohlcv in the period
+            if len(ohlcv) is 0 or ohlcv[-1][0] == start: # no ohlcv in the period
                 start = end
             else:
-                start = ohlcvs[-1][0] + 1000
+                start = ohlcv[-1][0] + 1000
 
-            yield ohlcvs
+            yield ohlcv
 
         except (ccxt.RequestTimeout,
-                ccxt.DDoSProtection) as error:
+                ccxt.DDoSProtection,
+                ccxt.ExchangeNotAvailable) as err:
 
-            if is_empty_response(error): # finished fetching all ohlcv
+            if is_empty_response(err): # finished fetching all ohlcv
                 break
+            elif isinstance(err, ccxt.ExchangeError):
+                raise err
 
-            logger.info(f'# {type(error).__name__} # retrying in {wait} seconds...')
+            logger.info(f'# {type(err).__name__} # retrying in {wait} seconds...')
             await asyncio.sleep(wait)
 
 
@@ -113,7 +116,8 @@ async def fetch_trades(exchange, symbol, start, end, log=True):
             yield trades
 
         except (ccxt.RequestTimeout,
-                ccxt.DDoSProtection) as error:
+                ccxt.DDoSProtection,
+                ccxt.ExchangeNotAvailable) as error:
 
             if is_empty_response(error): # finished fetching all trades
                 break

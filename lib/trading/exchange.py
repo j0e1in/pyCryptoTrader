@@ -1,6 +1,5 @@
 from pprint import pprint
 from asyncio import ensure_future
-from pymongo.errors import BulkWriteError
 import asyncio
 import copy
 import ccxt.async as ccxt
@@ -11,6 +10,7 @@ from analysis.hist_data import fetch_ohlcv
 from utils import combine, \
     config, \
     utc_now, \
+    roundup_dt, \
     rounddown_dt, \
     ex_name, \
     timeframe_timedelta, \
@@ -57,13 +57,13 @@ class EXBase():
         ** Note: ohlcv and trades can be retreived from db
     """
 
-    def __init__(self, mongo, ex_id, apikey=None, secret=None, custom_config=None):
+    def __init__(self, mongo, ex_id, apikey=None, secret=None, custom_config=None, verbose=False):
         self.mongo = mongo
         self.exname = ex_name(ex_id)
         self.apikey = apikey
         self.secret = secret
 
-        self.ex = init_ccxt_exchange(ex_id, apikey, secret)
+        self.ex = init_ccxt_exchange(ex_id, apikey, secret, verbose=verbose)
 
         self._config = custom_config if custom_config else config
         self.config = self._config['ccxt']
@@ -73,12 +73,15 @@ class EXBase():
 
         self.tickers = {}
         self.markets_info = {}
+        self.orderbook = {}
         self.wallet = self.init_wallet()
         self.ready = {
           'start': False,
           'ohlcv': False,
           'trade': False,
           'orderbook': False,
+          'markets': False,
+          'wallet': False,
         }
 
     def init_wallet(self):
@@ -95,32 +98,33 @@ class EXBase():
                 return False
         return True
 
-    async def start(self, data_streams=['ohlcv'], log=False):
+    def start_tasks(self, data_streams=['ohlcv'], log=False):
         """ Start data streams and load account data.
             Trader can only use EX instance if it's started and ready.
+            Param
+                data_streams: list, 'ohlcv'/'trade'/'orderbook'
+                log: bool, if True, log data stream actions
         """
-        streams = []
+        tasks = []
         if 'ohlcv' in data_streams:
-            streams.append(ensure_future(self._start_ohlcv_stream(log)))
+            tasks.append(self._start_ohlcv_stream(log=log))
         else:
             self.ready['ohlcv'] = True
 
         if 'trade' in data_streams:
-            streams.append(self._start_trade_stream(log))
+            tasks.append(self._start_trade_stream(log=log))
         else:
             self.ready['trade'] = True
 
         if 'orderbook' in data_streams:
-            streams.append(self._start_orderbook_stream(log))
+            tasks.append(self._start_orderbook_stream(log=log))
         else:
             self.ready['orderbook'] = True
 
-        await asyncio.gather(*streams)
+        tasks.append(self.update_markets())
+        tasks.append(self.update_wallet())
 
-        await self.update_markets()
-        await self.update_wallet()
-
-        self.ready['start'] = True
+        return tasks
 
     async def _start_ohlcv_stream(self, log=False):
 
@@ -153,10 +157,10 @@ class EXBase():
 
                 # insert 1000 ohlcv per op, clear up task stack periodically
                 if len(ops) > 50:
-                    await execute_mongo_ops(*ops)
+                    await execute_mongo_ops(ops)
                     ops = []
 
-            await execute_mongo_ops(*ops)
+            await execute_mongo_ops(ops)
 
         async def is_uptodate(ohlcv_start_end):
             await self.update_ohlcv_start_end()
@@ -174,7 +178,6 @@ class EXBase():
             return True
 
         self.ohlcv_start_end = {}
-        ready = True
 
         while True:
             await self.update_ohlcv_start_end()
@@ -183,23 +186,28 @@ class EXBase():
                 for tf in self.timeframes:
 
                     td = timeframe_timedelta(tf)
-                    cur_time = rounddown_dt(utc_now(), sec=td.seconds)
                     end = self.ohlcv_start_end[market][tf][1]
+                    cur_time = rounddown_dt(utc_now(), sec=td.seconds)
 
                     if end < cur_time:
-                        ready = False
+                        # Fetching one-by-one is faster and safer(from blocking)
+                        # than gather all tasks at once
                         await fetch_ohlcv_to_mongo(market, end, cur_time, tf)
 
             if await is_uptodate(self.ohlcv_start_end):
                 self.ready['ohlcv'] = True
-                await asyncio.sleep(self.config['ohlcv_delay'])
+                countdown = roundup_dt(utc_now(), sec=60) - utc_now()
+
+                # Sleep will be slighly shorter than expected
+                # Add extra seconds because exchange server data preperation may delay
+                await asyncio.sleep(countdown.seconds + 8)
 
     async def _start_trade_stream(self, log=False):
         # TODO
         pass
 
-    async def _start_orderbook_stream(self, log=False, params={}):
-        """
+    async def _start_orderbook_stream(self, params={}, log=False):
+        """ Fetch orderbook passively. May not be needed if is using `_book`.
             ccxt response:
             {'asks': [[117.54, 8.39429112],
                       [117.55, 16.78858223],
@@ -210,18 +218,25 @@ class EXBase():
              'datetime': '2018-01-12T09:30:20.636Z',
              'timestamp': 1515749419636}
         """
-        self.orderbook = {}
-
         while True:
             for market in self.markets:
-                if log:
-                    logger.info(f"Fetching {market} orderbook")
-
-                self.orderbook[market] = await self._send_ccxt_request(self.ex.fetch_order_book, market, params=params)
-                self.orderbook[market]['datetime'] = ms_dt(self.orderbook[market]['timestamp'])
+                self.orderbook[market] = await self._fetch_orderbook(market, params=params, log=log)
 
             self.ready['orderbook'] = True
             await asyncio.sleep(self.config['orderbook_delay'])
+
+    async def get_orderbook(self, symbol, params={}, log=False):
+        """ Fetch orderbook of a specific symbol on-demand. """
+        self.orderbook[symbol] = await self._fetch_orderbook(symbol, params=params, log=log)
+        return self.orderbook[symbol]
+
+    async def _fetch_orderbook(self, symbol, params={}, log=False):
+        if log:
+            logger.info(f"Fetching {symbol} orderbook")
+
+        orderbook = await self._send_ccxt_request(self.ex.fetch_order_book, symbol, params=params)
+        orderbook['datetime'] = ms_dt(orderbook['timestamp'])
+        return orderbook
 
     async def update_ticker(self, log=False):
         """
@@ -297,6 +312,7 @@ class EXBase():
         for curr, amount in res['free'].items():
             self.wallet[curr] = amount
 
+        self.ready['wallet'] = True
         return self.wallet
 
     async def get_deposit_address(self, currency, type=None):
@@ -416,7 +432,7 @@ class bitfinex(EXBase):
     # cancel_order
     # withdraw
 
-    def __init__(self, mongo, apikey=None, secret=None, custom_config=None):
+    def __init__(self, mongo, apikey=None, secret=None, custom_config=None, verbose=False):
         super().__init__(mongo, 'bitfinex', apikey, secret, custom_config)
 
     def init_wallet(self):
@@ -453,6 +469,7 @@ class bitfinex(EXBase):
             else:
                 self.wallet[sym][curr['type']] = curr['available']
 
+        self.ready['wallet'] = True
         return self.wallet
 
     async def _start_orderbook_stream(self, log=False):
@@ -462,6 +479,14 @@ class bitfinex(EXBase):
             'group': 1, # 0 / 1
         }
         await super()._start_orderbook_stream(log=log, params=params)
+
+    async def get_orderbook(self, symbol, log=False):
+        params = {
+            'limit_bids': self.config['orderbook_size'],
+            'limit_asks': self.config['orderbook_size'],
+            'group': 1, # 0 / 1
+        }
+        return await super().get_orderbook(symbol, log=log, params=params)
 
     async def update_markets(self):
         """
@@ -517,6 +542,8 @@ class bitfinex(EXBase):
         for mark in res:
             if mark['symbol'] in self.markets:
                 self.markets_info[mark['symbol']] = mark
+
+        self.ready['markets'] = True
         return self.markets_info
 
     async def fetch_open_orders(self, symbol=None):

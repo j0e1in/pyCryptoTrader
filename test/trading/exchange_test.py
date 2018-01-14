@@ -35,9 +35,11 @@ def test_ex_start(ex):
                 break
             await asyncio.sleep(2)
 
+    tasks = ex.start_tasks(log=True)
+
     # Start multiple coroutines at the same time
     loop.run_until_complete(asyncio.wait([
-        ex.start(log=True),
+        *tasks,
         wait_for_ex_ready(ex)
     ]))
 
@@ -47,6 +49,11 @@ def test_data_streams(ex):
         ex._start_ohlcv_stream(log=True),
         ex._start_orderbook_stream(log=True)
     ]))
+
+
+def test_get_orderbook(ex):
+    res = loop.run_until_complete(ex.get_orderbook('BTC/USD'))
+    pprint(res)
 
 
 def test_fetch_open_orders(ex):
@@ -93,17 +100,22 @@ def main():
     mongo = EXMongo()
 
     key = load_keys(get_project_root() + '/private/keys.json')['bitfinex']
-    ex = exchange.bitfinex(mongo, key['apiKey'], key['secret'])
+    ex = exchange.bitfinex(mongo, key['apiKey'], key['secret'], verbose=True)
 
-    test_update_wallet(ex)
+    # test_update_wallet(ex)
     # test_update_ticker(ex)
     # test_update_markets_info(ex)
+
     # test_ex_start(ex)
-    # test_data_streams(ex)
+    test_data_streams(ex)
+    # test_get_orderbook(ex)
+
     # test_fetch_open_orders(ex)
     # test_fetch_order(ex)
     # test_fetch_my_trades(ex)
+
     # test_get_deposit_address(ex)
+
     # test_create_cancel_order(ex)
 
 

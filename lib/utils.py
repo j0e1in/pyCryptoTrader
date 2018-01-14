@@ -1,6 +1,7 @@
 from pprint import pprint
 from collections import OrderedDict
 from datetime import datetime, timezone, timedelta
+from pymongo.errors import BulkWriteError
 import asyncio
 import ccxt.async as ccxt
 import calendar
@@ -16,10 +17,12 @@ logger = logging.getLogger()
 
 INF = 9999999
 
+
 def get_project_root():
     file_dir = os.path.dirname(os.path.abspath(__file__))
     file_dir = os.path.dirname(file_dir)
     return file_dir
+
 
 def load_config(file):
     with open(file) as f:
@@ -350,6 +353,7 @@ def check_periods(periods):
             return False
     return True
 
+
 async def execute_mongo_ops(ops):
     if not isinstance(ops, list):
         ops = [ops]
@@ -368,6 +372,7 @@ async def execute_mongo_ops(ops):
                 raise BulkWriteError(err)
     else:
         return True
+
 
 class Timer():
 
