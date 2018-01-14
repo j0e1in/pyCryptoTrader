@@ -62,6 +62,7 @@ class EXBase():
         self.exname = ex_name(ex_id)
         self.apikey = apikey
         self.secret = secret
+        self.verbose = verbose
 
         self.ex = init_ccxt_exchange(ex_id, apikey, secret, verbose=verbose)
 
@@ -76,7 +77,6 @@ class EXBase():
         self.orderbook = {}
         self.wallet = self.init_wallet()
         self.ready = {
-          'start': False,
           'ohlcv': False,
           'trade': False,
           'orderbook': False,
@@ -93,7 +93,7 @@ class EXBase():
 
     def is_ready(self):
         """ Return True if data streams are up-to-date. """
-        for _, ready in self.ready.items():
+        for task, ready in self.ready.items():
             if not ready:
                 return False
         return True
