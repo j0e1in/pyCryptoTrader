@@ -20,7 +20,8 @@ from utils import combine, \
     not_implemented, \
     init_ccxt_exchange, \
     execute_mongo_ops, \
-    sec_ms
+    sec_ms, \
+    handle_ccxt_request
 
 from ipdb import set_trace as trace
 
@@ -73,6 +74,8 @@ class EXBase():
         self.markets = self._config['trading'][self.exname]['markets']
         self.timeframes = self._config['trading'][self.exname]['timeframes']
 
+        self.trade_fees = {'datetime': None}
+        self.withdraw_fees = {'datetime': None}
         self.markets_info = {}
         self.orderbook = {}
         self.tickers = {}
@@ -83,6 +86,8 @@ class EXBase():
           'orderbook': False,
           'markets': False,
           'wallet': False,
+          'trade_fees': False,
+          'withdraw_fees': False,
         }
 
     def init_wallet(self):
@@ -124,6 +129,8 @@ class EXBase():
 
         tasks.append(self.update_markets())
         tasks.append(self.update_wallet())
+        tasks.append(self.update_trade_fees())
+        tasks.append(self.update_withdraw_fees())
 
         return tasks
 
@@ -170,7 +177,7 @@ class EXBase():
                 for tf in self.timeframes:
 
                     td = timeframe_timedelta(tf)
-                    cur_time = rounddown_dt(utc_now(), sec=td.seconds)
+                    # cur_time = rounddown_dt(utc_now(), sec=td.seconds)
                     end = self.ohlcv_start_end[market][tf][1]
 
                     if end < cur_time:
@@ -256,7 +263,7 @@ class EXBase():
         if log:
             logger.info(f"Fetching {symbol} orderbook")
 
-        orderbook = await self._send_ccxt_request(self.ex.fetch_order_book, symbol, params=params)
+        orderbook = await handle_ccxt_request(self.ex.fetch_order_book, symbol, params=params)
         orderbook['datetime'] = ms_dt(orderbook['timestamp'])
         return orderbook
 
@@ -292,7 +299,7 @@ class EXBase():
                  'vwap': None},
             ...}
         """
-        res = await self._send_ccxt_request(self.ex.fetch_tickers)
+        res = await handle_ccxt_request(self.ex.fetch_tickers)
         for market in self.markets:
             if market in res:
                 self.tickers[market] = res[market]
@@ -329,7 +336,7 @@ class EXBase():
         """
         self._check_auth()
 
-        res = await self._send_ccxt_request(self.ex.fetch_balance)
+        res = await handle_ccxt_request(self.ex.fetch_balance)
 
         for curr, amount in res['free'].items():
             self.wallet[curr] = amount
@@ -339,13 +346,13 @@ class EXBase():
 
     async def get_deposit_address(self, currency, type=None):
         self._check_auth()
-        res = await self._send_ccxt_request(self.ex.fetch_deposit_address, currency)
+        res = await handle_ccxt_request(self.ex.fetch_deposit_address, currency)
         return res['address']
 
     async def get_new_deposit_address(self, currency, type=None):
         """ Generate a new address despite an old one is already existed. """
         self._check_auth()
-        res = await self._send_ccxt_request(self.ex.create_deposit_address, currency)
+        res = await handle_ccxt_request(self.ex.create_deposit_address, currency)
         return res['address']
 
     async def fetch_open_orders(self, symbol=None):
@@ -379,44 +386,15 @@ class EXBase():
     async def withdraw(self):
         not_implemented()
 
+    async def withdraw_fees(self):
+        not_implemented()
+
+    async def trade_fees(self):
+        not_implemented()
+
     ##############################
     # EXCHANGE UTILITY FUNCTIONS #
     ##############################
-
-    async def _send_ccxt_request(self, func, *args, **kwargs):
-
-        def is_empty_response(err):
-            return True if 'empty response' in str(err) else False
-
-        wait = config['ccxt']['wait']
-        succ = False
-        count = 0
-
-        while not succ:
-            if count > self.config['max_retry']:
-                logger.error(f"{func} exceeds max retry times")
-                return None
-
-            count += 1
-            try:
-                res = await func(*args, **kwargs)
-
-            except (ccxt.RequestTimeout,
-                    ccxt.DDoSProtection,
-                    ccxt.ExchangeNotAvailable) as err:
-
-                if is_empty_response(err):  # finished fetching all ohlcv
-                    break
-                elif isinstance(err, ccxt.ExchangeError):
-                    raise err
-
-                logger.info(f'# {type(err).__name__} # retrying in {wait} seconds...')
-                await asyncio.sleep(wait)
-
-            else:
-                succ = True
-
-        return res
 
     def is_authed(self):
         return True if self.apikey and self.secret else False

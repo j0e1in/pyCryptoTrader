@@ -1,4 +1,5 @@
 from pprint import pprint
+import asyncio
 import ccxt.async as ccxt
 import copy
 import logging
@@ -8,7 +9,10 @@ from utils import ms_dt, \
                   dt_ms, \
                   not_implemented, \
                   execute_mongo_ops, \
-                  sec_ms
+                  sec_ms, \
+                  roundup_dt, \
+                  utc_now, \
+                  handle_ccxt_request
 
 from ipdb import set_trace as trace
 
@@ -59,7 +63,7 @@ class Bitfinex(EXBase):
         """
         self._check_auth()
 
-        res = await self._send_ccxt_request(self.ex.fetch_balance)
+        res = await handle_ccxt_request(self.ex.fetch_balance)
         for curr in res['info']:
             sym = str.upper(curr['currency'])
 
@@ -144,7 +148,7 @@ class Bitfinex(EXBase):
                 ...
             ]
         """
-        res = await self._send_ccxt_request(self.ex.fetch_markets)
+        res = await handle_ccxt_request(self.ex.fetch_markets)
         for mark in res:
             if mark['symbol'] in self.markets:
                 self.markets_info[mark['symbol']] = mark
@@ -192,7 +196,7 @@ class Bitfinex(EXBase):
         """
         self._check_auth()
 
-        res = await self._send_ccxt_request(self.ex.fetch_open_orders, symbol)
+        res = await handle_ccxt_request(self.ex.fetch_open_orders, symbol)
 
         orders = []
         for ord in res:
@@ -203,9 +207,8 @@ class Bitfinex(EXBase):
 
     async def fetch_closed_orders(self,  symbol=None):
         self._check_auth()
-        not_implemented()
-        # Bug: empty response
-        # res = await self._send_ccxt_request(self.ex.fetch_closed_orders, symbol)
+        # bug in ccxt
+        # res = await handle_ccxt_request(self.ex.fetch_closed_orders, symbol)
         # return res
 
     async def fetch_order(self, id, parse=True):
@@ -215,7 +218,7 @@ class Bitfinex(EXBase):
                 parse: bool, if False, original ccxt response will be returned directly
         """
         self._check_auth()
-        ord = await self._send_ccxt_request(self.ex.fetch_order, id)
+        ord = await handle_ccxt_request(self.ex.fetch_order, id)
         return self.parse_order(ord) if parse is True else ord
 
     async def fetch_positions(self, symbol=None):
@@ -236,7 +239,7 @@ class Bitfinex(EXBase):
             pos['datetime'] = ms_dt(pos['timestamp'])
 
         self._check_auth()
-        res = await self._send_ccxt_request(self.ex.private_post_positions)
+        res = await handle_ccxt_request(self.ex.private_post_positions)
 
         positions = []
         for pos in res:
@@ -282,7 +285,7 @@ class Bitfinex(EXBase):
         if end:
             params['until'] = end
 
-        res = await self._send_ccxt_request(self.ex.fetch_my_trades, symbol, start, limit, params)
+        res = await handle_ccxt_request(self.ex.fetch_my_trades, symbol, start, limit, params)
 
         trades = []
         for trade in res:
@@ -316,7 +319,7 @@ class Bitfinex(EXBase):
             'wallet_name': address_type
         }
 
-        res = await self._send_ccxt_request(self.ex.fetch_deposit_address, currency, params)
+        res = await handle_ccxt_request(self.ex.fetch_deposit_address, currency, params)
 
         if res['info']['result'] == 'error':
             logger.error(f"Failed to get {currency} {type} deposit address")
@@ -340,7 +343,7 @@ class Bitfinex(EXBase):
             'wallet_name': address_type
         }
 
-        res = await self._send_ccxt_request(self.ex.create_deposit_address, currency, params)
+        res = await handle_ccxt_request(self.ex.create_deposit_address, currency, params)
 
         if res['info']['result'] == 'error':
             logger.error(f"Failed to generate {currency} {type} deposit address")
@@ -427,7 +430,7 @@ class Bitfinex(EXBase):
         params['type'] = type
 
         try:
-            res = await self._send_ccxt_request(self.ex.create_order,
+            res = await handle_ccxt_request(self.ex.create_order,
                                           symbol=symbol,
                                           type=type,
                                           side=side,
@@ -446,7 +449,7 @@ class Bitfinex(EXBase):
         self._check_auth()
 
         try:
-            res = await self._send_ccxt_request(self.ex.cancel_order, id)
+            res = await handle_ccxt_request(self.ex.cancel_order, id)
         except ccxt.OrderNotFound as err:
             logger.warn(f"OrderNotFound: {str(err)}")
             return {}
@@ -463,17 +466,98 @@ class Bitfinex(EXBase):
         params = {
             'order_ids': ids
         }
-        res = await self._send_ccxt_request(self.ex.private_post_order_cancel_multi, params=params)
+        res = await handle_ccxt_request(self.ex.private_post_order_cancel_multi, params=params)
         return res
 
     async def cancel_order_all(self):
         self._check_auth()
-        res = await self._send_ccxt_request(self.ex.private_post_order_cancel_all)
+        res = await handle_ccxt_request(self.ex.private_post_order_cancel_all)
         return res
 
     async def _start_my_trade_stream(self, symbol, log=False):
         """ Fetch all trades to mongodb. """
         not_implemented()
+
+    async def update_trade_fees(self, log=False):
+        """ Periodically update trade fees.
+            ccxt response:
+            [{'fees': [{'maker_fees': '0.1', 'pairs': 'BTC', 'taker_fees': '0.2'},
+                       {'maker_fees': '0.1', 'pairs': 'LTC', 'taker_fees': '0.2'},
+                       {'maker_fees': '0.1', 'pairs': 'ETH', 'taker_fees': '0.2'},
+                       ...
+                       {'maker_fees': '0.1', 'pairs': 'ZRX', 'taker_fees': '0.2'},
+                       {'maker_fees': '0.1', 'pairs': 'TNB', 'taker_fees': '0.2'},
+                       {'maker_fees': '0.1', 'pairs': 'SPK', 'taker_fees': '0.2'}],
+              'maker_fees': '0.1',
+              'taker_fees': '0.2'}]
+        """
+        self._check_auth()
+
+        logger.info(f"Starting updating trade fees...")
+        while True:
+            if log:
+                logger.info(f"Update trade fees")
+
+            res = await handle_ccxt_request(self.ex.private_post_account_infos)
+
+            fees = {}
+            for fee in res[0]['fees']:
+                fees[fee['pairs']] = {'maker_fees': float(fee['maker_fees']), 'taker_fees': float(fee['taker_fees'])}
+
+            self.trade_fees = fees
+            self.ready['trade_fees'] = True
+            await asyncio.sleep(self.config['fee_delay'])
+
+    async def update_withdraw_fees(self, log=False):
+        """ Periodically update withdraw fees.
+            ccxt response:
+            {'withdraw': {'AVT': '0.5',
+              'BAT': 0,
+              'BCH': '0.0001',
+              'BTC': '0.0008',
+              'BTG': 0,
+              'DAT': '1.0',
+              'DSH': '0.01',
+              'EDO': '0.5',
+              'EOS': '0.1',
+              'ETC': '0.01',
+              'ETH': '0.01',
+              'ETP': '0.01',
+              'FUN': 0,
+              'GNT': 0,
+              'IOT': '0.5',
+              'LTC': '0.001',
+              'MNA': 0,
+              'NEO': 0,
+              'OMG': '0.1',
+              'QSH': '1.0',
+              'QTM': '0.01',
+              'SAN': '0.1',
+              'SNT': 0,
+              'SPK': 0,
+              'TNB': 0,
+              'XMR': '0.04',
+              'XRP': '0.02',
+              'YYW': '0.1',
+              'ZEC': '0.001',
+              'ZRX': 0}}
+        """
+        self._check_auth()
+
+        logger.info(f"Starting updating withdraw fees...")
+        while True:
+            if log:
+                logger.info(f"Update withdraw fees")
+
+            res = await handle_ccxt_request(self.ex.private_post_account_fees)
+
+            fees = res['withdraw']
+            for sym in fees:
+                fees[sym] = float(fees[sym])
+
+            self.withdraw_fees = fees
+            self.ready['withdraw_fees'] = True
+            await asyncio.sleep(self.config['fee_delay'])
 
     def parse_order(self, order):
         order['margin'] = self.is_margin_order(order)

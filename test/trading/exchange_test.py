@@ -9,30 +9,28 @@ from db import EXMongo
 from trading.exchanges import Bitfinex
 from utils import get_project_root, load_keys
 
-loop = asyncio.get_event_loop()
-loop.set_debug(True)
 
-
-def test_update_wallet(ex):
+async def test_update_wallet(ex):
     print('-- Update wallet --')
-    res = loop.run_until_complete(ex.update_wallet())
+    res = await asyncio.gather(ex.update_wallet())
     pprint(res)
 
 
-def test_update_ticker(ex):
+async def test_update_ticker(ex):
     print('-- Update ticker --')
-    res = loop.run_until_complete(ex.update_ticker())
+    res = await asyncio.gather(ex.update_ticker())
     pprint(res)
 
 
-def test_update_markets(ex):
+async def test_update_markets(ex):
     print('-- Market info --')
-    res = loop.run_until_complete(ex.update_markets())
+    res = await asyncio.gather(ex.update_markets())
     pprint(res)
 
 
-def test_ex_start(ex):
+async def test_ex_start(ex):
     print('-- EX Start --')
+
     async def wait_for_ex_ready(ex):
         while True:
             if ex.is_ready():
@@ -43,118 +41,133 @@ def test_ex_start(ex):
     tasks = ex.start_tasks(log=True)
 
     # Start multiple coroutines at the same time
-    loop.run_until_complete(asyncio.wait([
-        *tasks,
-        wait_for_ex_ready(ex)
-    ]))
+    await asyncio.gather(*tasks, wait_for_ex_ready(ex))
 
 
-def test_data_streams(ex):
+async def test_data_streams(ex):
     print('-- Data stream --')
-    loop.run_until_complete(asyncio.wait([
+    # await asyncio.gather(asyncio.wait([
+    #     ex._start_ohlcv_stream(log=True),
+    #     ex._start_orderbook_stream(log=True)
+    # ]))
+    await asyncio.gather(
         ex._start_ohlcv_stream(log=True),
-        ex._start_orderbook_stream(log=True)
-    ]))
+        ex._start_orderbook_stream(log=True),
+    )
 
 
-def test_get_orderbook(ex):
+async def test_get_orderbook(ex):
     print('-- Get orderbook --')
-    res = loop.run_until_complete(ex.get_orderbook('BTC/USD'))
+    res = await asyncio.gather(ex.get_orderbook('BTC/USD'))
     pprint(res)
 
 
-def test_fetch_open_orders(ex):
+async def test_fetch_open_orders(ex):
     print('-- Fetch open orders --')
-    res = loop.run_until_complete(ex.fetch_open_orders())
+    res = await asyncio.gather(ex.fetch_open_orders())
     pprint(res)
 
 
-def test_fetch_order(ex):
+async def test_fetch_closed_orders(ex):
+    print('-- Fetch closed orders --')
+    res = await asyncio.gather(ex.fetch_closed_orders())
+    pprint(res)
+
+
+async def test_fetch_order(ex):
     print('-- Fetch order --')
-    res = loop.run_until_complete(ex.fetch_order('7126033276'))
+    res = await asyncio.gather(ex.fetch_order('7126033276'))
     pprint(res)
 
 
-def test_fetch_my_recent_trades(ex):
+async def test_fetch_my_recent_trades(ex):
     print('-- Fetch my recent trades --')
-    res = loop.run_until_complete(ex.fetch_my_recent_trades('BTC/USD', datetime(2018, 1, 15)))
+    res = await asyncio.gather(ex.fetch_my_recent_trades('BTC/USD', datetime(2018, 1, 15)))
     pprint(res)
 
 
-def test_get_deposit_address(ex):
+async def test_get_deposit_address(ex):
     print('-- Get deposit address --')
     curr = 'BTC'
-    res = loop.run_until_complete(ex.get_deposit_address(curr, 'margin'))
+    res = await asyncio.gather(ex.get_deposit_address(curr, 'margin'))
     pprint(f"Old {curr} address: {res}")
-    res = loop.run_until_complete(ex.get_new_deposit_address(curr, 'margin'))
+    res = await asyncio.gather(ex.get_new_deposit_address(curr, 'margin'))
     pprint(f"New {curr} address: {res}")
 
 
-def test_create_order(ex):
+async def test_create_order(ex):
     print('-- Create order --')
-    res = loop.run_until_complete(
+    res = await asyncio.gather(
         ex.create_order('BTC/USD', 'limit', 'sell', amount=0.002, price=99999)
     )
     pprint(res)
 
 
-def test_cancel_order(ex):
+async def test_cancel_order(ex):
     print('-- Cancel order --')
-    res = loop.run_until_complete(ex.cancel_order('134256839'))
+    res = await asyncio.gather(ex.cancel_order('134256839'))
     pprint(res)
 
 
-def test_fetch_open_positions(ex):
+async def test_fetch_open_positions(ex):
     print('-- Fetch open positions --')
-    res = loop.run_until_complete(ex.fetch_positions())
+    res = await asyncio.gather(ex.fetch_positions())
     pprint(res)
 
 
-def test_cancel_order_multi(ex):
+async def test_cancel_order_multi(ex):
     print('-- Cancel order multi --')
-    res = loop.run_until_complete(ex.cancel_order_multi(['7178212463', '7178244233']))
+    res = await asyncio.gather(ex.cancel_order_multi(['7178212463', '7178244233']))
     pprint(res)
 
 
-def test_cancel_order_all(ex):
+async def test_cancel_order_all(ex):
     print('-- Cancel order all --')
-    res = loop.run_until_complete(ex.cancel_order_all())
+    res = await asyncio.gather(ex.cancel_order_all())
     pprint(res)
 
 
-def test_get_market_price(ex):
+async def test_get_market_price(ex):
     print('-- Get market price --')
-    res = loop.run_until_complete(ex.get_market_price('BTC/USD'))
+    res = await asyncio.gather(ex.get_market_price('BTC/USD'))
     pprint(res)
 
 
-def main():
+async def test_update_fees(ex):
+    print('-- Trade and withdraw fees --')
+    await asyncio.gather(ex.update_trade_fees(), ex.update_withdraw_fees())
+
+
+async def main():
     mongo = EXMongo()
 
     key = load_keys(get_project_root() + '/private/keys.json')['bitfinex']
     ex = Bitfinex(mongo, key['apiKey'], key['secret'], verbose=False)
 
-    # test_ex_start(ex)
-    # test_data_streams(ex)
+    # await test_ex_start(ex)
+    # await test_data_streams(ex)
 
-    # test_update_wallet(ex)
-    # test_update_ticker(ex)
-    # test_update_markets(ex)
+    # await test_update_wallet(ex)
+    # await test_update_ticker(ex)
+    # await test_update_markets(ex)
 
-    # test_get_orderbook(ex)
-    # test_get_deposit_address(ex)
-    # test_get_market_price(ex)
+    # await test_get_orderbook(ex)
+    # await test_get_deposit_address(ex)
+    # await test_get_market_price(ex)
 
-    # test_create_order(ex)
-    # test_cancel_order(ex)
-    # test_cancel_order_multi(ex)
-    # test_cancel_order_all(ex)
+    # await test_create_order(ex)
+    # await test_cancel_order(ex)
+    # await test_cancel_order_multi(ex)
+    # await test_cancel_order_all(ex)
 
-    # test_fetch_open_orders(ex)
-    # test_fetch_order(ex)
-    # test_fetch_open_positions(ex)
-    # test_fetch_my_recent_trades(ex)
+    # await test_fetch_open_orders(ex)
+    # await test_fetch_closed_orders(ex) # bug in ccxt
+    # await test_fetch_order(ex)
+    # await test_fetch_open_positions(ex)
+    # await test_fetch_my_recent_trades(ex)
+
+    # await test_update_fees(ex)
 
 
 if __name__ == '__main__':
-    run(main)
+    run(main, debug=False)
