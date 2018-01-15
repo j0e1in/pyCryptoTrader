@@ -19,10 +19,11 @@ def setup():
                           format='%(asctime)s | %(filename)s | %(funcName)s | %(levelname)5s | %(message)s')
 
 
-def run(func, *args, **kwargs):
+def run(func, debug=False, *args, **kwargs):
 
     if asyncio.iscoroutinefunction(func):
         loop = asyncio.get_event_loop()
+        loop.set_debug(debug)
 
         s = time.time()
         loop.run_until_complete(func(*args, **kwargs))
