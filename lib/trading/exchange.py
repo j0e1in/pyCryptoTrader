@@ -16,6 +16,7 @@ from utils import combine, \
     timeframe_timedelta, \
     rsym, \
     ms_dt, \
+    dt_ms, \
     not_implemented, \
     init_ccxt_exchange, \
     execute_mongo_ops, \
@@ -357,7 +358,7 @@ class EXBase():
     async def fetch_positions(self):
         not_implemented()
 
-    async def fetch_my_trades(self):
+    async def fetch_my_recent_trades(self):
         not_implemented()
 
     async def create_order(self):
@@ -670,8 +671,8 @@ class Bitfinex(EXBase):
 
         return positions
 
-    async def fetch_my_trades(self, symbol, start=None, end=None, limit=1000):
-        """
+    async def fetch_my_recent_trades(self, symbol, start=None, end=None, limit=1000):
+        """ Fetch most recent N trades.
             ccxt response:
             {'amount': 0.52,
              'cost': 5038.8,
@@ -694,6 +695,9 @@ class Bitfinex(EXBase):
              'type': None}]
         """
         self._check_auth()
+
+        start = dt_ms(start) if start else None
+        end = dt_ms(end) if end else None
 
         params = {}
         params['reverse'] = 1
