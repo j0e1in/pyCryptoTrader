@@ -1,14 +1,16 @@
 from setup import setup, run
 setup()
 
+from datetime import datetime
 from pprint import pprint
 import asyncio
 
 from db import EXMongo
-from trading.exchange import Bitfinex
+from trading.exchanges import Bitfinex
 from utils import get_project_root, load_keys
 
 loop = asyncio.get_event_loop()
+loop.set_debug(True)
 
 
 def test_update_wallet(ex):
@@ -23,9 +25,9 @@ def test_update_ticker(ex):
     pprint(res)
 
 
-def test_update_markets_info(ex):
+def test_update_markets(ex):
     print('-- Market info --')
-    res = loop.run_until_complete(ex.update_markets_info())
+    res = loop.run_until_complete(ex.update_markets())
     pprint(res)
 
 
@@ -73,9 +75,9 @@ def test_fetch_order(ex):
     pprint(res)
 
 
-def test_fetch_my_trades(ex):
-    print('-- Fetch my trades --')
-    res = loop.run_until_complete(ex.fetch_my_trades('BTC/USD'))
+def test_fetch_my_recent_trades(ex):
+    print('-- Fetch my recent trades --')
+    res = loop.run_until_complete(ex.fetch_my_recent_trades('BTC/USD', datetime(2018, 1, 15)))
     pprint(res)
 
 
@@ -91,10 +93,9 @@ def test_get_deposit_address(ex):
 def test_create_order(ex):
     print('-- Create order --')
     res = loop.run_until_complete(
-        ex.create_order('BTC/USD', 'limit', 'sell', amount=0.0035, price=99999)
+        ex.create_order('BTC/USD', 'limit', 'sell', amount=0.002, price=99999)
     )
     pprint(res)
-    return res['id']
 
 
 def test_cancel_order(ex):
@@ -133,26 +134,26 @@ def main():
     key = load_keys(get_project_root() + '/private/keys.json')['bitfinex']
     ex = Bitfinex(mongo, key['apiKey'], key['secret'], verbose=False)
 
-    # test_update_wallet(ex)
-    # test_update_ticker(ex)
-    # test_update_markets_info(ex)
-
     # test_ex_start(ex)
     # test_data_streams(ex)
 
+    # test_update_wallet(ex)
+    # test_update_ticker(ex)
+    # test_update_markets(ex)
+
     # test_get_orderbook(ex)
     # test_get_deposit_address(ex)
-    test_get_market_price(ex)
-
-    # test_fetch_open_orders(ex)
-    # test_fetch_order(ex)
-    # test_fetch_my_trades(ex)
-    # test_fetch_open_positions(ex)
+    # test_get_market_price(ex)
 
     # test_create_order(ex)
     # test_cancel_order(ex)
     # test_cancel_order_multi(ex)
     # test_cancel_order_all(ex)
+
+    # test_fetch_open_orders(ex)
+    # test_fetch_order(ex)
+    # test_fetch_open_positions(ex)
+    # test_fetch_my_recent_trades(ex)
 
 
 if __name__ == '__main__':

@@ -7,15 +7,14 @@ import time
 import pandas as pd
 
 from utils import sec_ms, ms_sec,\
-                  timeframe_timedelta,\
-                  ms_dt,\
-                  dt_ms,\
-                  timeframe_to_freq,\
-                  config
+    timeframe_timedelta,\
+    ms_dt,\
+    dt_ms,\
+    timeframe_to_freq,\
+    config
 
 from db import EXMongo
 
-## TODO: build ohlcvs from trades and check they matches ohlcvs downloaded from exchange
 
 logger = logging.getLogger()
 
@@ -43,7 +42,7 @@ async def fetch_ohlcv(exchange, symbol, start, end, timeframe='1m', log=True):
         try:
             ohlcv = await exchange.fetch_ohlcv(symbol, timeframe=timeframe, since=start, params=params)
 
-            if len(ohlcv) is 0 or ohlcv[-1][0] == start: # no ohlcv in the period
+            if len(ohlcv) is 0 or ohlcv[-1][0] == start:  # no ohlcv in the period
                 start = end
             else:
                 start = ohlcv[-1][0] + 1000
@@ -54,7 +53,7 @@ async def fetch_ohlcv(exchange, symbol, start, end, timeframe='1m', log=True):
                 ccxt.DDoSProtection,
                 ccxt.ExchangeNotAvailable) as err:
 
-            if is_empty_response(err): # finished fetching all ohlcv
+            if is_empty_response(err):  # finished fetching all ohlcv
                 break
             elif isinstance(err, ccxt.ExchangeError):
                 raise err
@@ -119,13 +118,18 @@ async def fetch_trades(exchange, symbol, start, end, log=True):
                 ccxt.DDoSProtection,
                 ccxt.ExchangeNotAvailable) as error:
 
-            if is_empty_response(error): # finished fetching all trades
+            if is_empty_response(error):  # finished fetching all trades
                 break
             elif isinstance(error, ccxt.ExchangeError):
                 raise error
 
             logger.info(f'# {type(error).__name__} # retrying in {wait} seconds...')
             await asyncio.sleep(wait)
+
+
+async def fetch_my_trades(exchange, symbol, start, end):
+    """ Fetch all trades in a period. """
+    pass
 
 
 def is_empty_response(err):
@@ -137,8 +141,7 @@ async def find_missing_ohlcv(coll, start, end, timeframe):
     start = dt_ms(start)
     end = dt_ms(end)
 
-    if not await EXMongo.check_columns(coll,
-            ['timestamp', 'open', 'close', 'high', 'low', 'volume']):
+    if not await EXMongo.check_columns(coll, ['timestamp', 'open', 'close', 'high', 'low', 'volume']):
         raise ValueError('Collection\'s fields do not match candle\'s.')
 
     td = timeframe_timedelta(timeframe)
@@ -185,4 +188,3 @@ async def fill_missing_ohlcv(mongo, exchange, symbol, start, end, timeframe):
 
     fill_ohlcv(df)
     return df
-
