@@ -82,7 +82,7 @@ async def test_fetch_order(ex):
 
 async def test_fetch_my_recent_trades(ex):
     print('-- Fetch my recent trades --')
-    res = await asyncio.gather(ex.fetch_my_recent_trades('BTC/USD', datetime(2018, 1, 15)))
+    res = await asyncio.gather(ex.fetch_my_recent_trades('BTC/USD', start=datetime(2018, 1, 15), limit=3))
     pprint(res)
 
 
