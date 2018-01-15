@@ -374,6 +374,47 @@ async def execute_mongo_ops(ops):
         return True
 
 
+async def handle_ccxt_request(func, *args, **kwargs):
+
+    def is_empty_response(err):
+        return True if 'empty response' in str(err) else False
+
+    wait = config['ccxt']['wait']
+    max_retry = config['request_max_retry']
+    succ = False
+    count = 0
+
+    while not succ:
+        if count > max_retry:
+            logger.error(f"{func} exceeds max retry times")
+            return None
+
+        count += 1
+        try:
+            res = await func(*args, **kwargs)
+
+        except (ccxt.RequestTimeout,
+                ccxt.DDoSProtection,
+                ccxt.ExchangeNotAvailable,
+                ccxt.ExchangeError) as err:
+
+            if is_empty_response(err):  # finished fetching all ohlcv
+                break
+            elif not (isinstance(err, ccxt.ExchangeError) and (
+                str(err).find("Web server is returning an unknown error") >= 0
+             or str(err).find("Ratelimit") >= 0)
+            ):
+                raise err
+
+            logger.info(f'# {type(err).__name__} # retrying in {wait} seconds...')
+            await asyncio.sleep(wait)
+
+        else:
+            succ = True
+
+    return res
+
+
 class Timer():
 
     def __init__(self, start, interval):
