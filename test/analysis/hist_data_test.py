@@ -1,16 +1,19 @@
 from setup import run, setup
 setup()
 
+from pprint import pprint
 from datetime import datetime
 import motor.motor_asyncio as motor
 import pandas as pd
 
 from db import EXMongo
-from utils import ms_sec, init_ccxt_exchange, ms_dt
+from utils import ms_sec, init_ccxt_exchange, ms_dt, load_keys
 from analysis.hist_data import fetch_ohlcv, \
                                fetch_trades, \
+                               fetch_my_trades, \
                                find_missing_ohlcv, \
                                fill_missing_ohlcv
+from trading.exchanges import Bitfinex
 
 
 async def test_fetch_ohlcv():
@@ -33,6 +36,16 @@ async def test_fetch_trades():
     trades = fetch_trades(exchange, 'ETH/USD', start, end)
     async for trd in trades:
         print('Last trade:', ms_dt(trd[-1]['timestamp']))
+
+
+async def test_fetch_my_trades():
+    key = load_keys()['bitfinex']
+    exchange = init_ccxt_exchange('bitfinex', key['apiKey'], key['secret'])
+    start = datetime(2017, 1, 1)
+
+    async for trades in fetch_my_trades(exchange, 'BTC/USD', start, parser=Bitfinex.parse_my_trade):
+        pprint(trades)
+        print('----------------')
 
 
 async def test_find_missing_ohlcv():
@@ -74,7 +87,9 @@ async def main():
     print('-----------------------------')
     await test_fetch_ohlcv()
     print('-----------------------------')
-    # await test_fetch_trades()
+    await test_fetch_trades()
+    print('-----------------------------')
+    await test_fetch_my_trades()
     print('-----------------------------')
     await test_find_missing_ohlcv()
     print('-----------------------------')

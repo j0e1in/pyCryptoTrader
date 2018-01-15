@@ -11,7 +11,8 @@ from utils import sec_ms, ms_sec,\
     ms_dt,\
     dt_ms,\
     timeframe_to_freq,\
-    config
+    config, \
+    handle_ccxt_request
 
 from db import EXMongo
 
@@ -39,27 +40,14 @@ async def fetch_ohlcv(exchange, symbol, start, end, timeframe='1m', log=True):
         if log:
             logger.info(f'Fetching {symbol}_{timeframe} ohlcv from {ms_dt(start)} to {ms_dt(end)}')
 
-        try:
-            ohlcv = await exchange.fetch_ohlcv(symbol, timeframe=timeframe, since=start, params=params)
+        ohlcv = await handle_ccxt_request(exchange.fetch_ohlcv, symbol, timeframe=timeframe, since=start, params=params)
 
-            if len(ohlcv) is 0 or ohlcv[-1][0] == start:  # no ohlcv in the period
-                start = end
-            else:
-                start = ohlcv[-1][0] + 1000
+        if len(ohlcv) is 0 or ohlcv[-1][0] == start:  # no ohlcv in the period
+            start = end
+        else:
+            start = ohlcv[-1][0] + 1000
 
-            yield ohlcv
-
-        except (ccxt.RequestTimeout,
-                ccxt.DDoSProtection,
-                ccxt.ExchangeNotAvailable) as err:
-
-            if is_empty_response(err):  # finished fetching all ohlcv
-                break
-            elif isinstance(err, ccxt.ExchangeError):
-                raise err
-
-            logger.info(f'# {type(err).__name__} # retrying in {wait} seconds...')
-            await asyncio.sleep(wait)
+        yield ohlcv
 
 
 async def fetch_trades(exchange, symbol, start, end, log=True):
@@ -90,50 +78,69 @@ async def fetch_trades(exchange, symbol, start, end, log=True):
     }
 
     while start < end:
-        try:
-            if log:
-                logger.info(f'Fetching {symbol} trades starting from {ms_dt(start)}')
+        if log:
+            logger.info(f'Fetching {symbol} trades starting from {ms_dt(start)}')
 
-            trades = await exchange.fetch_trades(symbol, params=params)
+        trades = await handle_ccxt_request(exchange.fetch_trades, symbol, params=params)
 
-            if len(trades) is 0:
-                break
+        if len(trades) is 0:
+            break
 
-            if trades[0]['timestamp'] == trades[-1]['timestamp']:
-                # All 1000 trades have the same timestamp,
-                # (1000 transactions in 1 sec, which is unlikely to happen)
-                # just ignore the rest of trades that have same timestamp,
-                # no much we can do about it.
-                start += 1000
+        if trades[0]['timestamp'] == trades[-1]['timestamp']:
+            # All 1000 trades have the same timestamp,
+            # (1000 transactions in 1 sec, which is unlikely to happen)
+            # just ignore the rest of trades that have same timestamp,
+            # no much we can do about it.
+            start += 1000
 
-            if len(trades) < params['limit']:
-                start = trades[-1]['timestamp'] + 1000
-            else:
-                start, trades = remove_last_timestamp(trades)
+        if len(trades) < params['limit']:
+            start = trades[-1]['timestamp'] + 1000
+        else:
+            start, trades = remove_last_timestamp(trades)
 
-            params['start'] = start
-            yield trades
+        params['start'] = start
 
-        except (ccxt.RequestTimeout,
-                ccxt.DDoSProtection,
-                ccxt.ExchangeNotAvailable) as error:
-
-            if is_empty_response(error):  # finished fetching all trades
-                break
-            elif isinstance(error, ccxt.ExchangeError):
-                raise error
-
-            logger.info(f'# {type(error).__name__} # retrying in {wait} seconds...')
-            await asyncio.sleep(wait)
+        yield trades
 
 
-async def fetch_my_trades(exchange, symbol, start, end):
+async def fetch_my_trades(exchange, symbol, start, end=None, parser=None, log=True):
     """ Fetch all trades in a period. """
-    pass
+    if end and start >= end:
+        raise ValueError(f"start {start} should < end {end}.")
+
+    start = dt_ms(start)
+    end = dt_ms(end) if end else None
+    limit = 1000
+
+    params = {}
+    params['reverse'] = 1
+    if end:
+        params['until'] = end
+
+    while True:
+        if log:
+            logger.info(f'Fetching account trades starting from {ms_dt(start)}')
+
+        res = await handle_ccxt_request(exchange.fetch_my_trades, symbol, start, limit, params)
+        trades = []
+
+        for trade in res:
+            if parser:
+                trade = parser(trade)
+            else:
+                del trade['info']
+            trades.append(trade)
+
+        if len(trades) is 0:
+            break
+        else:
+            start = trades[-1]['timestamp'] + 1 # +1 ms because many trades may occur within 1 sec
+
+        yield trades
 
 
 def is_empty_response(err):
-    return True if 'empty response' in str(err) else False
+    return True if str(err).find('empty response') >= 0 else False
 
 
 async def find_missing_ohlcv(coll, start, end, timeframe):
