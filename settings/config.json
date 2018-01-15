@@ -33,11 +33,9 @@
     }
   },
 
-  "database":{
-    "dbname_exchange": "exchange"
-  },
-
   "trading": {
+    "trade_portion": 0.6,
+
     "bitfinex": {
       "markets": [
         "BTC/USD"
@@ -55,8 +53,8 @@
 
   "analysis": {
     "fee": 0.002,
-    "margin_fee": 0.002,
-    "margin_rate": 3,
+    "margin_fee": 0.003,
+    "margin_rate": 3.33,
     "_comment_min_order_value": "minimal USD value is allwed to open an order",
     "min_order_value": 10,
     "funds": {
@@ -159,6 +157,10 @@
     "rsi_period": 14,
     "rsi_upper_bound": 70,
     "rsi_lower_bound": 30
+  },
+
+  "database":{
+    "dbname_exchange": "exchange"
   }
 }
 
