@@ -281,21 +281,25 @@ class Bitfinex(EXBase):
         end = dt_ms(end) if end else None
 
         params = {}
-        params['reverse'] = 1
         if end:
             params['until'] = end
 
         res = await handle_ccxt_request(self.ex.fetch_my_trades, symbol, start, limit, params)
-
         trades = []
         for trade in res:
-            trade['fee'] = abs(float(trade['info']['fee_amount']))
-            trade['fee_currency'] = trade['info']['fee_currency']
-            trade['datetime'] = ms_dt(trade['timestamp'])
-            del trade['info']
+            self.parse_my_trade(trade)
             trades.append(trade)
 
+        trades = trades[::-1] # reverse the order to oldest first
         return trades
+
+    @staticmethod
+    def parse_my_trade(trade):
+        trade['fee'] = abs(float(trade['info']['fee_amount']))
+        trade['fee_currency'] = trade['info']['fee_currency']
+        trade['datetime'] = ms_dt(trade['timestamp'])
+        del trade['info']
+        return trade
 
     async def get_deposit_address(self, currency, type='exchange'):
         """

@@ -215,10 +215,6 @@ class EXBase():
         # TODO
         not_implemented()
 
-    async def _start_my_trade_stream(self, symbol, log=False):
-        """ Fetch all trades to mongodb. """
-        not_implemented()
-
     async def _start_orderbook_stream(self, params={}, log=False):
         """ Fetch orderbook passively. May not be needed if using `get_orderbook`."""
         logger.info("Starting orderbook data stream...")
@@ -229,6 +225,15 @@ class EXBase():
 
             self.ready['orderbook'] = True
             await asyncio.sleep(self.config['orderbook_delay'])
+
+    async def update_my_trades(self, symbol):
+        """ Keep history trades in mongodb up-to-date. """
+        # TODO
+        not_implemented()
+
+        # if not self.ex.hasFetchMyTrades:
+        #     logger.warn(f"{self.exname} doesn't have fetch_my_trades method.")
+        #     return
 
     async def get_orderbook(self, symbol, params={}, log=False):
         """ Fetch orderbook of a specific symbol on-demand.
