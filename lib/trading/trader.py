@@ -142,9 +142,9 @@ class SingleEXTrader():
                 return
 
             if action == 'long':
-                price = orderbook['bids'][0][0] * (1 - 0.003)
+                price = orderbook['bids'][0][0] * (1 - self.config['limit_price_diff'])
             else:
-                price = orderbook['asks'][0][0] * (1 + 0.003)
+                price = orderbook['asks'][0][0] * (1 + self.config['limit_price_diff'])
 
             side = 'buy' if action == 'long' else 'sell'
             amount = self.calc_order_amount(symbol, type, side, spend, orderbook,

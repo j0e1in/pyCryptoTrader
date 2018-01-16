@@ -49,8 +49,8 @@ async def main():
     # await asyncio.gather(test_trader_start(trader))
     # await asyncio.gather(test_start_trading(trader))
     # await asyncio.gather(test_cancel_all_orders(trader))
-    await asyncio.gather(test_long(trader))
-    await asyncio.gather(test_short(trader))
+    # await asyncio.gather(test_long(trader))
+    # await asyncio.gather(test_short(trader))
 
 
 if __name__ == '__main__':

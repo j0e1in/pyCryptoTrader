@@ -36,8 +36,12 @@
 
   "trading": {
     "trade_portion": 0.6,
+
     "_conmment_maintain_portion": "ratio of balance in wallet and balance in markets",
     "maintain_portion": 0.2,
+
+    "_comment_limit_price_diff": "price difference (buffer) to the top price in orderbook"
+    "limit_price_diff": 0.003,
 
     "bitfinex": {
       "margin_rate": 3.33,
@@ -61,8 +65,10 @@
     "fee": 0.002,
     "margin_fee": 0.003,
     "margin_rate": 3.33,
+
     "_comment_min_order_value": "minimal USD value is allwed to open an order",
     "min_order_value": 10,
+
     "funds": {
       "bitfinex": {
         "USD": 1000
