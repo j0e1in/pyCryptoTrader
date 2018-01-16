@@ -402,7 +402,7 @@ async def handle_ccxt_request(func, *args, **kwargs):
                 break
             elif not (isinstance(err, ccxt.ExchangeError) and (
                 str(err).find("Web server is returning an unknown error") >= 0
-             or str(err).find("Ratelimit") >= 0)
+                or str(err).find("Ratelimit") >= 0)
             ):
                 raise err
 
@@ -413,6 +413,43 @@ async def handle_ccxt_request(func, *args, **kwargs):
             succ = True
 
     return res
+
+
+def filter_by(dicts, conditions, match='all'):
+    """ Filter a list of dicts, returning the ones that match certain value.
+        Param
+            dicts: list of dicts
+            conditions: list of (field, field_value) in which a dict will be returned
+                       if one/all conditions are matched
+            match: 'one' / 'all', if 'one', a dict only need to match one condition
+                                  if 'all', a dict need to match every conditions
+    """
+    if not isinstance(dicts, list) or (len(dicts) > 0 and not isinstance(dicts[0], dict)):
+        raise ValueError(f"`filter_by` requires a list of dicts, not {type(dicts)}")
+
+    if not isinstance(conditions, list):
+        conditions = [conditions]
+
+    filtered = []
+    for d in dicts:
+        for cond in conditions:
+            if cond[0] in d and d[cond[0]] == cond[1]:
+                if match == 'one':
+                    filtered.append(d)
+                    break
+                else:  # all
+                    continue
+            else:  # doesn't match
+                if match == 'one':
+                    continue
+                else:  # all
+                    break
+
+            # only come to here if a dict matches all or none
+            if match == 'all':
+                filtered.append(d)
+
+    return filtered
 
 
 class Timer():
