@@ -2,6 +2,7 @@
   "mode": "debug",
   "use_multicore": true,
   "max_processes": 16,
+  "request_max_retry": 5,
 
   "_comment_key_file": "file path to api keys, use relative path from utils.py",
   "key_file": "../private/keys.json",
@@ -9,7 +10,7 @@
   "ccxt": {
     "wait": 35,
     "rate_limit": 3000,
-    "max_retry": 5,
+    "fee_delay": 1800,
     "orderbook_delay": 25,
     "orderbook_size": 400
   },
@@ -35,8 +36,13 @@
 
   "trading": {
     "trade_portion": 0.6,
+    "_conmment_maintain_portion": "ratio of balance in wallet and balance in markets",
+    "maintain_portion": 0.2,
 
     "bitfinex": {
+      "margin_rate": 3.33,
+      "min_trade_value": 30,
+
       "markets": [
         "BTC/USD"
       ],
@@ -76,8 +82,8 @@
           "DASH/USD",
           "LTC/USD",
           "NEO/USD",
-          "XMR/USD",
           "XRP/USD",
+          "XMR/USD",
           "ZEC/USD",
 
           "AVT/USD",

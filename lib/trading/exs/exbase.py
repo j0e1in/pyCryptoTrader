@@ -344,10 +344,19 @@ class EXBase():
         res = await handle_ccxt_request(self.ex.fetch_balance)
 
         for curr, amount in res['free'].items():
-            self.wallet[curr] = amount
+            self.wallet[curr] = float(amount)
 
         self.ready['wallet'] = True
         return self.wallet
+
+    async def get_balance(self, curr, type=None):
+        """ Child classes should override this method to adapt to its wallet structure.
+            Default has no type.
+            Params
+                curr: str, eg. 'USD', 'BTC', ...
+                type: str, eg. 'exchange', 'margin', 'funding' etc.
+        """
+        return self.wallet[curr]
 
     async def get_deposit_address(self, currency, type=None):
         self._check_auth()

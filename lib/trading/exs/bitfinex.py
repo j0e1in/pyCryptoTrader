@@ -71,16 +71,32 @@ class Bitfinex(EXBase):
                 self.wallet[sym] = {'exchange': 0, 'margin': 0, 'funding': 0}
 
             if curr['type'] == 'exchange':
-                self.wallet[sym]['exchange'] = curr['available']
+                self.wallet[sym]['exchange'] = float(curr['available'])
             elif curr['type'] == 'trading':
-                self.wallet[sym]['margin'] = curr['available']
+                self.wallet[sym]['margin'] = float(curr['available'])
             elif curr['type'] == 'deposit':
-                self.wallet[sym]['funding'] = curr['available']
+                self.wallet[sym]['funding'] = float(curr['available'])
             else:
-                self.wallet[sym][curr['type']] = curr['available']
+                self.wallet[sym][curr['type']] = float(curr['available'])
 
         self.ready['wallet'] = True
         return self.wallet
+
+    def get_balance(self, curr, type):
+        """ Child classes should override this method to adapt to its wallet structure.
+            Default has no type.
+            Params
+                curr: str, eg. 'USD', 'BTC', ...
+                type: str, eg. 'exchange', 'margin', 'funding' etc.
+        """
+        if type == 'exchange':
+            return self.wallet[curr]['exchange']
+        elif type == 'margin':
+            return self.wallet[curr]['margin']
+        elif type == 'funding':
+            return self.wallet[curr]['funding']
+        else:
+            raise ValueError(f"Wallet type {type} is not supported.")
 
     async def _start_orderbook_stream(self, log=False):
         params = {
@@ -234,6 +250,10 @@ class Bitfinex(EXBase):
               'timestamp': '1515947276.0'}]
         """
         def parse_position(position):
+            pos['amount'] = float(pos['amount'])
+            pos['base'] = float(pos['base'])
+            pos['pl'] = float(pos['pl'])
+            pos['swap'] = float(pos['swap'])
             pos['symbol'] = self.to_ccxt_symbol(pos['symbol'])
             pos['timestamp'] = sec_ms(pos['timestamp'])
             pos['datetime'] = ms_dt(pos['timestamp'])
@@ -494,6 +514,11 @@ class Bitfinex(EXBase):
                        {'maker_fees': '0.1', 'pairs': 'SPK', 'taker_fees': '0.2'}],
               'maker_fees': '0.1',
               'taker_fees': '0.2'}]
+
+            self.trade_fees = [
+                'BTC': {'maker_fees': '0.1', 'taker_fees': '0.2'}},
+                ...
+            ]
         """
         self._check_auth()
 
@@ -506,7 +531,8 @@ class Bitfinex(EXBase):
 
             fees = {}
             for fee in res[0]['fees']:
-                fees[fee['pairs']] = {'maker_fees': float(fee['maker_fees']), 'taker_fees': float(fee['taker_fees'])}
+                fees[fee['pairs']] = {'maker_fees': float(fee['maker_fees']) / 100,
+                                      'taker_fees': float(fee['taker_fees']) / 100}
 
             self.trade_fees = fees
             self.ready['trade_fees'] = True

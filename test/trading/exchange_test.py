@@ -98,7 +98,7 @@ async def test_get_deposit_address(ex):
 async def test_create_order(ex):
     print('-- Create order --')
     res = await asyncio.gather(
-        ex.create_order('BTC/USD', 'limit', 'sell', amount=0.002, price=99999)
+        ex.create_order('BTC/USD', 'market', 'buy', amount=0.002, price=99999)
     )
     pprint(res)
 
@@ -163,7 +163,7 @@ async def main():
     # await test_fetch_open_orders(ex)
     # await test_fetch_closed_orders(ex) # bug in ccxt
     # await test_fetch_order(ex)
-    # await test_fetch_open_positions(ex)
+    await test_fetch_open_positions(ex)
     # await test_fetch_my_recent_trades(ex)
 
     # await test_update_fees(ex)

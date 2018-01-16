@@ -5,29 +5,44 @@ from pprint import pprint
 import asyncio
 
 from db import EXMongo
-from trading.exchange import Bitfinex
+from trading.exchanges import Bitfinex
 from trading.trader import SingleEXTrader
 from utils import get_project_root, load_keys
 
 loop = asyncio.get_event_loop()
 
 
-def test_trader_start(trader):
-    trader.start()
+async def test_trader_start(trader):
+    await asyncio.gather(trader.start())
 
 
-def test_start_trading(trader):
-    loop.run_until_complete(trader.start_trading())
-    pprint(trader.ohlcv)
+async def test_start_trading(trader):
+    await asyncio.gather(trader.start_trading())
 
 
-def main():
+async def test_cancel_all_orders(trader):
+    print('-- Cancel all orders --')
+    res = await asyncio.gather(trader.cancel_all_orders('BTC/USD'))
+    pprint(res)
+
+
+async def test_long(trader):
+    print('-- Long --')
+    await asyncio.gather(
+        trader.long('BTC/USD', 100, margin=True),
+        trader.ex.update_trade_fees()
+    )
+
+
+async def main():
     mongo = EXMongo()
-    trader = SingleEXTrader(mongo, 'bitfinex')
+    trader = SingleEXTrader(mongo, 'bitfinex', None)
 
-    # test_trader_start(trader)
-    test_start_trading(trader)
+    # await asyncio.gather(test_trader_start(trader))
+    # await asyncio.gather(test_start_trading(trader))
+    # await asyncio.gather(test_cancel_all_orders(trader))
+    await asyncio.gather(test_long(trader))
 
 
 if __name__ == '__main__':
-    run(main)
+    run(main, debug=True)

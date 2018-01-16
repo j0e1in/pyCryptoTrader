@@ -424,6 +424,9 @@ def filter_by(dicts, conditions, match='all'):
             match: 'one' / 'all', if 'one', a dict only need to match one condition
                                   if 'all', a dict need to match every conditions
     """
+    def is_match(d, cond):
+        return cond[0] in d and d[cond[0]] == cond[1]
+
     if not isinstance(dicts, list) or (len(dicts) > 0 and not isinstance(dicts[0], dict)):
         raise ValueError(f"`filter_by` requires a list of dicts, not {type(dicts)}")
 
@@ -432,22 +435,22 @@ def filter_by(dicts, conditions, match='all'):
 
     filtered = []
     for d in dicts:
-        for cond in conditions:
-            if cond[0] in d and d[cond[0]] == cond[1]:
-                if match == 'one':
-                    filtered.append(d)
-                    break
-                else:  # all
-                    continue
-            else:  # doesn't match
-                if match == 'one':
-                    continue
-                else:  # all
+        all_match = True
+
+        if match == 'all':
+            for cond in conditions:
+                if not is_match(d, cond):
+                    all_match = False
                     break
 
-            # only come to here if a dict matches all or none
-            if match == 'all':
+            if all_match:
                 filtered.append(d)
+
+        elif match == 'one':
+            for cond in conditions:
+                if is_match(d, cond):
+                    filtered.append(d)
+                    break
 
     return filtered
 
