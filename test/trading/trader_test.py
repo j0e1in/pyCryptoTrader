@@ -33,6 +33,7 @@ async def test_long(trader):
         trader.ex.update_trade_fees()
     )
 
+
 async def test_short(trader):
     print('-- Short --')
     await asyncio.gather(
