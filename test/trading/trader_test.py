@@ -29,7 +29,14 @@ async def test_cancel_all_orders(trader):
 async def test_long(trader):
     print('-- Long --')
     await asyncio.gather(
-        trader.long('BTC/USD', 100, margin=True),
+        trader.long('BTC/USD', 100, type='limit'),
+        trader.ex.update_trade_fees()
+    )
+
+async def test_short(trader):
+    print('-- Short --')
+    await asyncio.gather(
+        trader.short('BTC/USD', 100, type='limit'),
         trader.ex.update_trade_fees()
     )
 
@@ -42,7 +49,8 @@ async def main():
     # await asyncio.gather(test_start_trading(trader))
     # await asyncio.gather(test_cancel_all_orders(trader))
     await asyncio.gather(test_long(trader))
+    await asyncio.gather(test_short(trader))
 
 
 if __name__ == '__main__':
-    run(main, debug=True)
+    run(main, debug=False)

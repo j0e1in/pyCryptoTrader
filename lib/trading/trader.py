@@ -84,10 +84,20 @@ class SingleEXTrader():
         start = end - td
         self.ohlcv = await self.mongo.get_ohlcvs_of_symbols(self.ex.exname, self.markets, self.timeframes, start, end)
 
-    async def long(self, symbol, confidence, margin=True):
+    async def long(self, symbol, confidence, type='market'):
         """ Cancel all orders, close sell positions
             and open a buy margin order (if has enough balance).
         """
+        await self._do_long_short('long', symbol, confidence, type)
+
+    async def short(self, symbol, confidence, type='market'):
+        """ Cancel all orders, close buy positions
+            and open a sell margin order (if has enough balance).
+        """
+        await self._do_long_short('short', symbol, confidence, type)
+
+    async def _do_long_short(self, action, symbol, confidence, type='market'):
+
         await self.cancel_all_orders(symbol)
         await self.ex.update_wallet()
         positions = await self.ex.fetch_positions()
@@ -104,19 +114,19 @@ class SingleEXTrader():
         self_base = base / self.config[self.ex.exname]['margin_rate']
 
         curr = symbol.split('/')[1]
-        wallet_type = 'margin' if margin else 'exchange'
+        wallet_type = 'margin'
 
         # Calculate spendable balance
-        if symbol_amount >= 0:
-            # Buy with partial remaining balance (after keeping maintenance)
+        cond = (symbol_amount >= 0) if action == 'long' else (symbol_amount <= 0)
+        if cond:
             available_balance = self.ex.get_balance(curr, wallet_type)
             total_value = available_balance + self_base
 
         else:
-            # Buy with partial (remaining balance + position value)
             sym_base, sym_pl = self.calc_position_value(symbol_positions)
             self_sym_base = sym_base / self.config[self.ex.exname]['margin_rate']
-            pos_close_fee = self.calc_position_close_fee('sell', symbol_positions, orderbook)
+            close_side = 'sell' if action == 'long' else 'buy'
+            pos_close_fee = self.calc_position_close_fee(close_side, symbol_positions, orderbook)
             position_return = self_sym_base + sym_pl - pos_close_fee
             available_balance = self.ex.get_balance(curr, wallet_type) + position_return
             total_value = available_balance + self_base - self_sym_base  # substract overlap base of current symbol
@@ -126,28 +136,30 @@ class SingleEXTrader():
         if spendable > 0:
             spend = spendable * confidence / 100 * self.config['trade_portion']
 
-            trade_value = spend * self.config[self.ex.exname]['margin_rate'] if margin else spend
+            trade_value = spend * self.config[self.ex.exname]['margin_rate']
             if trade_value < self.config[self.ex.exname]['min_trade_value']:
                 logger.info(f"Trade value is lower than minimum. Skip long order.")
                 return
 
-            price = orderbook['bids'][0][0] * (1 - 0.002)
-            amount = self.calc_order_amount(symbol, 'limit', 'buy', spend, orderbook,
+            if action == 'long':
+                price = orderbook['bids'][0][0] * (1 - 0.003)
+            else:
+                price = orderbook['asks'][0][0] * (1 + 0.003)
+
+            side = 'buy' if action == 'long' else 'sell'
+            amount = self.calc_order_amount(symbol, type, side, spend, orderbook,
                                             price=price, margin=True)
 
-            if symbol_amount < 0:
-                amount += -symbol_amount  # plus the 'sell' position amount
+            cond = (symbol_amount < 0) if action == 'long' else (symbol_amount > 0)
+            if cond:
+                amount += abs(symbol_amount)  # plus the opposite side position amount
 
-            order = await self.ex.create_order(symbol, 'limit', 'buy', amount, price=price)
+            order = await self.ex.create_order(symbol, type, side, amount, price=price)
             if order:
-                logger.info(f"Created an margin buy order: "
-                            f"id({order['id']}) price({order['price']}) amount({order['amount']})")
-
-    async def short(self, symbol, confidence, margin=False):
-        # Cancel all orders
-        await self.cancel_all_orders(symbol)
-
-        # Create an sell order if margin=True
+                logger.info(f"Created an margin {side} order: "
+                            f"id: {order['id']} price: {order['price']} amount: {order['amount']}")
+        else:
+            logger.info(f"Spendable balance is < 0, unable to {action}.")
 
     @staticmethod
     def calc_position_value(positions):
