@@ -42,15 +42,21 @@ async def test_short(trader):
     )
 
 
+async def test_strategy(trader):
+    print('-- Strategy --')
+    await asyncio.gather(trader.start())
+
+
 async def main():
     mongo = EXMongo()
-    trader = SingleEXTrader(mongo, 'bitfinex', None)
+    trader = SingleEXTrader(mongo, 'bitfinex', 'pattern', log=True)
 
     # await asyncio.gather(test_trader_start(trader))
     # await asyncio.gather(test_start_trading(trader))
     # await asyncio.gather(test_cancel_all_orders(trader))
     # await asyncio.gather(test_long(trader))
     # await asyncio.gather(test_short(trader))
+    await asyncio.gather(test_strategy(trader))
 
 
 if __name__ == '__main__':

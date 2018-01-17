@@ -38,7 +38,7 @@ async def test_ex_start(ex):
                 break
             await asyncio.sleep(2)
 
-    tasks = ex.start_tasks(log=True)
+    tasks = ex.start_tasks()
 
     # Start multiple coroutines at the same time
     await asyncio.gather(*tasks, wait_for_ex_ready(ex))
@@ -47,12 +47,12 @@ async def test_ex_start(ex):
 async def test_data_streams(ex):
     print('-- Data stream --')
     # await asyncio.gather(asyncio.wait([
-    #     ex._start_ohlcv_stream(log=True),
-    #     ex._start_orderbook_stream(log=True)
+    #     ex._start_ohlcv_stream(),
+    #     ex._start_orderbook_stream()
     # ]))
     await asyncio.gather(
-        ex._start_ohlcv_stream(log=True),
-        ex._start_orderbook_stream(log=True),
+        ex._start_ohlcv_stream(),
+        ex._start_orderbook_stream(),
     )
 
 
@@ -142,7 +142,7 @@ async def main():
     mongo = EXMongo()
 
     key = load_keys(get_project_root() + '/private/keys.json')['bitfinex']
-    ex = Bitfinex(mongo, key['apiKey'], key['secret'], verbose=False)
+    ex = Bitfinex(mongo, key['apiKey'], key['secret'], verbose=False, log=True)
 
     # await test_ex_start(ex)
     # await test_data_streams(ex)
@@ -163,7 +163,7 @@ async def main():
     # await test_fetch_open_orders(ex)
     # await test_fetch_closed_orders(ex) # bug in ccxt
     # await test_fetch_order(ex)
-    await test_fetch_open_positions(ex)
+    # await test_fetch_open_positions(ex)
     # await test_fetch_my_recent_trades(ex)
 
     # await test_update_fees(ex)

@@ -4,13 +4,15 @@ import asyncio
 import logging
 import pandas as pd
 
+from trading import strategy
 from trading import exchanges
 from utils import config, \
                   load_keys, \
                   utc_now, \
                   rounddown_dt, \
                   roundup_dt, \
-                  filter_by
+                  filter_by, \
+                  smallest_tf
 
 from ipdb import set_trace as trace
 
@@ -19,38 +21,41 @@ logger = logging.getLogger()
 
 class SingleEXTrader():
 
-    def __init__(self, mongo, ex_id, strategy_name, custom_config=None, verbose=False):
+    def __init__(self, mongo, ex_id, strategy_name, custom_config=None, ccxt_verbose=False, log=False):
         self.mongo = mongo
-        self.strategy = self.init_strategy(strategy_name)
-        self.verbose = verbose
         self._config = custom_config if custom_config else config
         self.config = self._config['trading']
+        self.log = log
 
         # Requires self attributes above, put this at last
-        self.ex = self.init_exchange(ex_id)
+        self.ex = self.init_exchange(ex_id, ccxt_verbose)
+        self.strategy = self.init_strategy(strategy_name)
+
         self.markets = self.ex.markets
         self.timeframes = self.ex.timeframes
-        self.ohlcv = self.create_empty_ohlcv_store()
+        self.ohlcvs = self.create_empty_ohlcv_store()
 
-    def init_exchange(self, ex_id):
+    def init_exchange(self, ex_id, ccxt_verbose=False):
+        """ Make an instance of a custom EX class. """
         key = load_keys(self._config['key_file'])[ex_id]
         ex_class = getattr(exchanges, str.capitalize(ex_id))
         return ex_class(self.mongo, key['apiKey'], key['secret'],
                         custom_config=self._config,
-                        verbose=self.verbose)
+                        ccxt_verbose=ccxt_verbose,
+                        log=self.log)
 
     def init_strategy(self, name):
-        if name == 'parttern':
-            strategy = PatternStrategy(self, self._config)
+        if name == 'pattern':
+            strgy = strategy.PatternStrategy(self, self._config)
         else:
             raise ValueError(f"{name} strategy is not supported.")
 
-        return strategy
+        return strgy
 
     async def start(self):
         """ All-in-one entry for starting trading bot. """
         # Get required starting tasks of exchange.
-        ex_start_tasks = self.ex.start_tasks(log=self.verbose)
+        ex_start_tasks = self.ex.start_tasks()
 
         # Start routines required by exchange and trader itself
         await asyncio.gather(
@@ -87,10 +92,13 @@ class SingleEXTrader():
             await asyncio.sleep(countdown.seconds + 45)
 
     async def update_ohlcv(self):
-        td = timedelta(days=self.config['strategy']['ohlcv_days'])
+        td = timedelta(days=self.config['strategy']['data_days'])
         end = roundup_dt(utc_now(), min=1)
         start = end - td
-        self.ohlcv = await self.mongo.get_ohlcvs_of_symbols(self.ex.exname, self.markets, self.timeframes, start, end)
+        self.ohlcvs = await self.mongo.get_ohlcvs_of_symbols(self.ex.exname, self.markets, self.timeframes, start, end)
+
+        for symbol in self.ohlcvs:
+            self.fill_ohlcv_with_small_tf(self.ohlcvs[symbol])
 
     async def long(self, symbol, confidence, type='market'):
         """ Cancel all orders, close sell positions
@@ -162,10 +170,21 @@ class SingleEXTrader():
             if cond:
                 amount += abs(symbol_amount)  # plus the opposite side position amount
 
+            order = None
+            # Uncomment this to create order
             order = await self.ex.create_order(symbol, type, side, amount, price=price)
+
+            alert_sound(0.2, 'Order created')
+            alert_sound(0.2, 'Order created')
+            alert_sound(0.2, 'Order created')
+            alert_sound(0.2, 'Order created')
+            alert_sound(0.2, 'Order created')
+
             if order:
                 logger.info(f"Created an margin {side} order: "
                             f"id: {order['id']} price: {order['price']} amount: {order['amount']}")
+            elif order is None:
+                logger.warn(f"Order is not submitted, uncomment the create_order line to enable.")
         else:
             logger.info(f"Spendable balance is < 0, unable to {action}.")
 
@@ -277,3 +296,35 @@ class SingleEXTrader():
                 ohlcv[market][tf] = df.copy(deep=True)
 
         return ohlcv
+
+    @staticmethod
+    def fill_ohlcv_with_small_tf(ohlcvs):
+        """ Fill larger timeframe ohlcv with smaller ones
+            to make larger timeframe real-time.
+        """
+        sm_tf = smallest_tf(list(ohlcvs.keys()))
+
+        for tf in ohlcvs.keys():
+            if tf != sm_tf:
+                last_dt = ohlcvs[tf].index[-1]
+                last_dt += timedelta(seconds=1)
+
+                try:
+                    new_ohlcv = ohlcvs[tf].iloc[0].copy()
+                    new_ohlcv.name = ohlcvs[sm_tf][last_dt:].index[-1]
+                    new_ohlcv.open = ohlcvs[sm_tf][last_dt:].iloc[0].open
+                    new_ohlcv.close = ohlcvs[sm_tf][last_dt:].iloc[-1].close
+                    new_ohlcv.high = ohlcvs[sm_tf][last_dt:].high.max()
+                    new_ohlcv.low = ohlcvs[sm_tf][last_dt:].low.min()
+                    new_ohlcv.volume = ohlcvs[sm_tf][last_dt:].volume.sum()
+
+                    ohlcvs[tf] = ohlcvs[tf].append(new_ohlcv)
+                except IndexError as err:
+                    alert_sound(0.2, 'IndexError')
+                    alert_sound(0.2, 'IndexError')
+                    trace()
+
+        return ohlcvs
+
+
+

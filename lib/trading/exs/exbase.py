@@ -59,17 +59,20 @@ class EXBase():
         ** Note: ohlcv and trades can be retreived from db
     """
 
-    def __init__(self, mongo, ex_id, apikey=None, secret=None, custom_config=None, verbose=False):
+    def __init__(self, mongo, ex_id, apikey=None, secret=None,
+                 custom_config=None, ccxt_verbose=False, log=False):
         self.mongo = mongo
         self.exname = ex_name(ex_id)
         self.apikey = apikey
         self.secret = secret
-        self.verbose = verbose
-
-        self.ex = init_ccxt_exchange(ex_id, apikey, secret, verbose=verbose)
+        self.log = log
 
         self._config = custom_config if custom_config else config
         self.config = self._config['ccxt']
+
+        self.ex = init_ccxt_exchange(ex_id, apikey, secret,
+                                     verbose=ccxt_verbose,
+                                     timeout=self._config['request_timeout'])
 
         self.markets = self._config['trading'][self.exname]['markets']
         self.timeframes = self._config['trading'][self.exname]['timeframes']
@@ -104,7 +107,7 @@ class EXBase():
                 return False
         return True
 
-    def start_tasks(self, data_streams=['ohlcv'], log=False):
+    def start_tasks(self, data_streams=['ohlcv']):
         """ Start data streams and load account data.
             Trader can only use EX instance if it's started and ready.
             Param
@@ -113,17 +116,17 @@ class EXBase():
         """
         tasks = []
         if 'ohlcv' in data_streams:
-            tasks.append(self._start_ohlcv_stream(log=log))
+            tasks.append(self._start_ohlcv_stream())
         else:
             self.ready['ohlcv'] = True
 
         if 'trade' in data_streams:
-            tasks.append(self._start_trade_stream(log=log))
+            tasks.append(self._start_trade_stream())
         else:
             self.ready['trade'] = True
 
         if 'orderbook' in data_streams:
-            tasks.append(self._start_orderbook_stream(log=log))
+            tasks.append(self._start_orderbook_stream())
         else:
             self.ready['orderbook'] = True
 
@@ -134,7 +137,7 @@ class EXBase():
 
         return tasks
 
-    async def _start_ohlcv_stream(self, log=False):
+    async def _start_ohlcv_stream(self):
 
         async def fetch_ohlcv_to_mongo(symbol, start, end, timeframe):
             ops = []
@@ -142,7 +145,7 @@ class EXBase():
 
             collname = f"{self.exname}_ohlcv_{rsym(symbol)}_{timeframe}"
             coll = self.mongo.get_collection('exchange', collname)
-            res = fetch_ohlcv(self.ex, symbol, start, end, timeframe, log=log)
+            res = fetch_ohlcv(self.ex, symbol, start, end, timeframe, log=self.log)
 
             async for ohlcv in res:
                 processed_ohlcv = []
@@ -211,17 +214,17 @@ class EXBase():
                 # Add extra seconds because exchange server data preperation may delay
                 await asyncio.sleep(countdown.seconds + 8)
 
-    async def _start_trade_stream(self, symbol, log=False):
+    async def _start_trade_stream(self, symbol):
         # TODO
         not_implemented()
 
-    async def _start_orderbook_stream(self, params={}, log=False):
+    async def _start_orderbook_stream(self, params={}):
         """ Fetch orderbook passively. May not be needed if using `get_orderbook`."""
         logger.info("Starting orderbook data stream...")
 
         while True:
             for market in self.markets:
-                self.orderbook[market] = await self._fetch_orderbook(market, params=params, log=log)
+                self.orderbook[market] = await self._fetch_orderbook(market, params=params, log=self.log)
 
             self.ready['orderbook'] = True
             await asyncio.sleep(self.config['orderbook_delay'])
@@ -235,7 +238,7 @@ class EXBase():
         #     logger.warn(f"{self.exname} doesn't have fetch_my_trades method.")
         #     return
 
-    async def get_orderbook(self, symbol, params={}, log=False):
+    async def get_orderbook(self, symbol, params={}):
         """ Fetch orderbook of a specific symbol on-demand.
             ccxt response:
             {'asks': [[13534.0, 1.2373243],
@@ -253,7 +256,7 @@ class EXBase():
              'datetime': '2018-01-12T09:30:20.636Z',
              'timestamp': 1515749419636}
         """
-        self.orderbook[symbol] = await self._fetch_orderbook(symbol, params=params, log=log)
+        self.orderbook[symbol] = await self._fetch_orderbook(symbol, params=params, log=self.log)
         return self.orderbook[symbol]
 
     async def get_market_price(self, symbol):
@@ -264,15 +267,15 @@ class EXBase():
             'sell': orderbook['asks'][0][0],
         }
 
-    async def _fetch_orderbook(self, symbol, params={}, log=False):
-        if log:
+    async def _fetch_orderbook(self, symbol, params={}):
+        if self.log:
             logger.info(f"Fetching {symbol} orderbook")
 
         orderbook = await handle_ccxt_request(self.ex.fetch_order_book, symbol, params=params)
         orderbook['datetime'] = ms_dt(orderbook['timestamp'])
         return orderbook
 
-    async def update_ticker(self, log=False):
+    async def update_ticker(self):
         """
             ccxt response:
             {'AVT/BTC':
@@ -340,6 +343,9 @@ class EXBase():
              'used': {'BCH': 0.0, 'BTC': 0.0, 'USD': 0.0}}
         """
         self._check_auth()
+
+        if self.log:
+            logger.info("Updating wallet...")
 
         res = await handle_ccxt_request(self.ex.fetch_balance)
 

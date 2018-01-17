@@ -12,6 +12,9 @@ import pandas as pd
 import uuid
 import math
 import os
+import sys
+
+from ipdb import set_trace as trace
 
 logger = logging.getLogger()
 
@@ -396,17 +399,30 @@ async def handle_ccxt_request(func, *args, **kwargs):
         except (ccxt.RequestTimeout,
                 ccxt.DDoSProtection,
                 ccxt.ExchangeNotAvailable,
-                ccxt.ExchangeError) as err:
+                ccxt.ExchangeError,
+                KeyError) as err:
 
-            if is_empty_response(err):  # finished fetching all ohlcv
+            logger.warn(f"{str(err)}")
+
+            # finished fetching all ohlcv
+            if is_empty_response(err):
                 break
-            elif not (isinstance(err, ccxt.ExchangeError) and (
-                str(err).find("Web server is returning an unknown error") >= 0
-                or str(err).find("Ratelimit") >= 0)
-            ):
+
+            # server or server-side connection error
+            elif isinstance(err, ccxt.ExchangeError) \
+            and not (str(err).find("Web server is returning an unknown error") >= 0
+            or       str(err).find("Ratelimit") >= 0
+            or       str(err).find("Cannot connect to host") >= 0):
+                logger.warn(f"raised at ExchangeError, {type(err)} {str(err)}")
                 raise err
 
-            logger.info(f'# {type(err).__name__} # retrying in {wait} seconds...')
+            # caused by ccxt.bitfinex handle_errors in bitfinex.py line 634
+            elif isinstance(err, KeyError) \
+                    and not str(err).find('message') >= 0:
+                logger.warn(f"raised at KeyError, {str(err)}")
+                raise err
+
+            logger.info(f'# {type(err).__name__} # retry {func.__name__} in {wait} seconds...')
             await asyncio.sleep(wait)
 
         else:
@@ -453,6 +469,43 @@ def filter_by(dicts, conditions, match='all'):
                     break
 
     return filtered
+
+
+def is_within(dt, tf):
+    td = timeframe_timedelta(tf)
+    return True if (utc_now() - dt) <= td else False
+
+
+def near_end(dt, tf):
+    td = timeframe_timedelta(tf)
+    rdt = roundup_dt(dt, sec=td.seconds)
+    return True if (rdt - dt) <= td / 3 * 2 else False
+
+
+def smallest_tf(tfs):
+    tds = [(idx, timeframe_timedelta(tf)) for idx, tf in enumerate(tfs)]
+    tds.sort(key=lambda tup: tup[1])
+    return tfs[tds[0][0]]
+
+def alert_sound(duration, words):
+    """ Play aler sound for N seconds.
+        Require some dependencies.
+        Ubuntu: $ sudo apt install sox
+        Windows: $ pip install winsound
+        OSX: $ Built-in speech
+    """
+    freq = 500  # Hz
+
+    if sys.platform == "linux" or sys.platform == "linux2":  # linux
+        print('linux')
+        os.system(f"play --no-show-progress --null --channels 1 synth {duration} sine {freq}")
+    elif sys.platform == "darwin":  # OS X
+        os.system(f"say {words}")
+    elif sys.platform == "win32":  # Windows
+        import winsound
+        winsound.Beep(freq, duration * 1000)
+    else:
+        logger.warn(f"Platform {sys.platform} is not supported.")
 
 
 class Timer():

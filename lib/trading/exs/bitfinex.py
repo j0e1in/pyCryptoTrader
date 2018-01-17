@@ -42,8 +42,13 @@ class Bitfinex(EXBase):
     # cancel_order (O)
     # withdraw
 
-    def __init__(self, mongo, apikey=None, secret=None, custom_config=None, verbose=False):
-        super().__init__(mongo, 'bitfinex', apikey, secret, custom_config=custom_config, verbose=verbose)
+    def __init__(self, mongo, apikey=None, secret=None,
+                 custom_config=None, ccxt_verbose=False, log=False):
+
+        super().__init__(mongo, 'bitfinex', apikey, secret,
+                         custom_config=custom_config,
+                         ccxt_verbose=ccxt_verbose,
+                         log=log)
 
     def init_wallet(self):
         tmp = {'exchange': 0, 'margin': 0, 'funding': 0}
@@ -98,21 +103,21 @@ class Bitfinex(EXBase):
         else:
             raise ValueError(f"Wallet type {type} is not supported.")
 
-    async def _start_orderbook_stream(self, log=False):
+    async def _start_orderbook_stream(self):
         params = {
             'limit_bids': self.config['orderbook_size'],
             'limit_asks': self.config['orderbook_size'],
             'group': 1, # 0 / 1
         }
-        await super()._start_orderbook_stream(log=log, params=params)
+        await super()._start_orderbook_stream(log=self.log, params=params)
 
-    async def get_orderbook(self, symbol, log=False):
+    async def get_orderbook(self, symbol):
         params = {
             'limit_bids': self.config['orderbook_size'],
             'limit_asks': self.config['orderbook_size'],
             'group': 1, # 0 / 1
         }
-        return await super().get_orderbook(symbol, log=log, params=params)
+        return await super().get_orderbook(symbol, log=self.log, params=params)
 
     async def update_markets(self):
         """
@@ -164,6 +169,8 @@ class Bitfinex(EXBase):
                 ...
             ]
         """
+        if self.log:
+            logger.info("Updating markets...")
         res = await handle_ccxt_request(self.ex.fetch_markets)
         for mark in res:
             if mark['symbol'] in self.markets:
@@ -498,11 +505,11 @@ class Bitfinex(EXBase):
         res = await handle_ccxt_request(self.ex.private_post_order_cancel_all)
         return res
 
-    async def _start_my_trade_stream(self, symbol, log=False):
+    async def _start_my_trade_stream(self, symbol):
         """ Fetch all trades to mongodb. """
         not_implemented()
 
-    async def update_trade_fees(self, log=False):
+    async def update_trade_fees(self):
         """ Periodically update trade fees.
             ccxt response:
             [{'fees': [{'maker_fees': '0.1', 'pairs': 'BTC', 'taker_fees': '0.2'},
@@ -524,7 +531,7 @@ class Bitfinex(EXBase):
 
         logger.info(f"Starting updating trade fees...")
         while True:
-            if log:
+            if self.log:
                 logger.info(f"Update trade fees")
 
             res = await handle_ccxt_request(self.ex.private_post_account_infos)
@@ -538,7 +545,7 @@ class Bitfinex(EXBase):
             self.ready['trade_fees'] = True
             await asyncio.sleep(self.config['fee_delay'])
 
-    async def update_withdraw_fees(self, log=False):
+    async def update_withdraw_fees(self):
         """ Periodically update withdraw fees.
             ccxt response:
             {'withdraw': {'AVT': '0.5',
@@ -576,7 +583,7 @@ class Bitfinex(EXBase):
 
         logger.info(f"Starting updating withdraw fees...")
         while True:
-            if log:
+            if self.log:
                 logger.info(f"Update withdraw fees")
 
             res = await handle_ccxt_request(self.ex.private_post_account_fees)

@@ -4,6 +4,9 @@
   "max_processes": 16,
   "request_max_retry": 5,
 
+  "_comment_request_timeout": "ccxt default is 10000 (10 sec)",
+  "request_timeout": 15000,
+
   "_comment_key_file": "file path to api keys, use relative path from utils.py",
   "key_file": "../private/keys.json",
 
@@ -35,20 +38,22 @@
   },
 
   "trading": {
+    "margin": true,
     "trade_portion": 0.6,
 
     "_conmment_maintain_portion": "ratio of balance in wallet and balance in markets",
     "maintain_portion": 0.2,
 
-    "_comment_limit_price_diff": "price difference (buffer) to the top price in orderbook"
+    "_comment_limit_price_diff": "price difference (buffer) to the top price in orderbook",
     "limit_price_diff": 0.003,
+
 
     "bitfinex": {
       "margin_rate": 3.33,
       "min_trade_value": 30,
 
       "markets": [
-        "BTC/USD"
+        "ETH/USD"
       ],
       "timeframes": [
           "1m",
@@ -57,7 +62,7 @@
       ]
     },
     "strategy": {
-      "ohlcv_days": 30
+      "data_days": 7
     },
     "params": {
       "trade_portion": 0.9,
@@ -72,7 +77,7 @@
       "wvf_ltLB": 40,
       "wvf_mtLB": 14,
       "wvf_strg": 3
-    },
+    }
   },
 
   "analysis": {
