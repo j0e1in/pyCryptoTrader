@@ -12,7 +12,8 @@ from utils import config, \
                   rounddown_dt, \
                   roundup_dt, \
                   filter_by, \
-                  smallest_tf
+                  smallest_tf, \
+                  alert_sound
 
 from ipdb import set_trace as trace
 

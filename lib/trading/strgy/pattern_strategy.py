@@ -31,9 +31,13 @@ class PatternStrategy(SingleEXStrategy):
             if is_within(sig.index[-1], tf) \
             and near_end(sig.index[-1], tf):
                 conf = sig[-1]
+
+
                 if conf > 0:
+                    pprint(sig[-10:])
                     self.trader.long(market, conf, type='limit')
                 elif conf < 0:
+                    pprint(sig[-10:])
                     self.trader.short(market, conf, type='limit')
                 else:
                     continue
