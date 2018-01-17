@@ -14,7 +14,7 @@ Expand-Archive "$((Resolve-Path .\).Path)\ta-lib-0.4.0-msvc.zip" -DestinationPat
 cp -R ta-lib "C:\ta-lib"
 
 
-pip install -r ../../requirements.txt
+pip install -r ../../../requirements.txt
 
 
 # Install matplotlib finance package

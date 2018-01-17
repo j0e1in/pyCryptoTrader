@@ -18,7 +18,7 @@ sudo make install
 
 
 # Install python requirements
-pip install -r ../../requirements.txt
+pip install -r ../../../requirements.txt
 
 
 # Install mpl_finance
