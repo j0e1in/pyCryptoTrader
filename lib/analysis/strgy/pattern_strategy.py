@@ -1,16 +1,9 @@
 from pprint import pprint
-import talib.abstract as talib_abs # ndarray/dataframe as input
-import talib # ndarray as input
-import numpy as np
-import pandas as pd
-import math
-
-from ipdb import set_trace as trace
 
 from analysis.indicators import Indicator
 from analysis.strgy.base_strategy import SingleExchangeStrategy
-from utils import config
 
+from ipdb import set_trace as trace
 
 class PatternStrategy(SingleExchangeStrategy):
 
