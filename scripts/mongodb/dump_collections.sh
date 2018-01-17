@@ -106,7 +106,7 @@ colls2=(
   "bitfinex_trades_ZECUSD"
 )
 
-dest="/media/j0e1in/WD Ultra 1T/Mongodb Data/20180118_exchange"
+dest="$HOME/mongo_backup/exchange"
 
 mkdir -p $dest
 

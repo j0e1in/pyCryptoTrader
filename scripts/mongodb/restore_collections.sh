@@ -106,11 +106,12 @@ colls2=(
   "bitfinex_trades_ZECUSD"
 )
 
-src=$HOME/mongo_backup/exchange
+src="$HOME/mongo_backup/exchange"
 
 for c in ${colls[@]}
 do
-  mongorestore -d exchange2 -c $c --archive=$src/$c.bson
+  mongorestore -d exchange -c $c --gzip --archive="$src/$c.gzip"
 done
 
+# Or use `$ mongorestore -d exchange --gzip dir/`  to restore
 # https://docs.mongodb.com/manual/reference/program/mongorestore/#examples
