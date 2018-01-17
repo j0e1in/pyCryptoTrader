@@ -58,7 +58,21 @@
     },
     "strategy": {
       "ohlcv_days": 30
-    }
+    },
+    "params": {
+      "trade_portion": 0.9,
+
+      "wvf_tf": "1h",
+      "wvf_conf": 50,
+      "wvf_lbsdh": 22,
+      "wvf_bbl": 20,
+      "wvf_bbsd": 2.0,
+      "wvf_lbph": 50,
+      "wvf_ph": 0.85,
+      "wvf_ltLB": 40,
+      "wvf_mtLB": 14,
+      "wvf_strg": 3
+    },
   },
 
   "analysis": {
