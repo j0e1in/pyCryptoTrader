@@ -402,8 +402,6 @@ async def handle_ccxt_request(func, *args, **kwargs):
                 ccxt.ExchangeError,
                 KeyError) as err:
 
-            logger.warn(f"{str(err)}")
-
             # finished fetching all ohlcv
             if is_empty_response(err):
                 break
