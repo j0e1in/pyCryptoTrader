@@ -19,9 +19,9 @@ logger = logging.getLogger()
 
 class SingleEXTrader():
 
-    def __init__(self, mongo, ex_id, strategy, custom_config=None, verbose=False):
+    def __init__(self, mongo, ex_id, strategy_name, custom_config=None, verbose=False):
         self.mongo = mongo
-        self.strategy = strategy
+        self.strategy = self.init_strategy(strategy_name)
         self.verbose = verbose
         self._config = custom_config if custom_config else config
         self.config = self._config['trading']
@@ -38,6 +38,14 @@ class SingleEXTrader():
         return ex_class(self.mongo, key['apiKey'], key['secret'],
                         custom_config=self._config,
                         verbose=self.verbose)
+
+    def init_strategy(self, name):
+        if name == 'parttern':
+            strategy = PatternStrategy(self, self._config)
+        else:
+            raise ValueError(f"{name} strategy is not supported.")
+
+        return strategy
 
     async def start(self):
         """ All-in-one entry for starting trading bot. """
