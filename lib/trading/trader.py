@@ -36,6 +36,11 @@ class SingleEXTrader():
         self.timeframes = self.ex.timeframes
         self.ohlcvs = self.create_empty_ohlcv_store()
 
+        self.last_trade = {
+            'timestamp': None,
+            'side': None,
+        }
+
     def init_exchange(self, ex_id, ccxt_verbose=False):
         """ Make an instance of a custom EX class. """
         key = load_keys(self._config['key_file'])[ex_id]
@@ -115,6 +120,17 @@ class SingleEXTrader():
 
     async def _do_long_short(self, action, symbol, confidence, type='market'):
 
+        side = 'buy' if action == 'long' else 'sell'
+
+        # TODO: (HIGH) use variables to set sig_tf
+        sig_tf = '1h'
+
+        # Block repeated trading on the same signal
+        if self.last_trade['timestamp'] \
+        and is_within(self.last_trade['timestamp'], sig_tf):
+            if self.last_trade['side'] == side:
+                return
+
         await self.cancel_all_orders(symbol)
         await self.ex.update_wallet()
         positions = await self.ex.fetch_positions()
@@ -163,7 +179,6 @@ class SingleEXTrader():
             else:
                 price = orderbook['asks'][0][0] * (1 + self.config['limit_price_diff'])
 
-            side = 'buy' if action == 'long' else 'sell'
             amount = self.calc_order_amount(symbol, type, side, spend, orderbook,
                                             price=price, margin=True)
 
@@ -184,6 +199,10 @@ class SingleEXTrader():
             if order:
                 logger.info(f"Created an margin {side} order: "
                             f"id: {order['id']} price: {order['price']} amount: {order['amount']}")
+
+                self.last_trade['timestamp'] = utc_now()
+                self.last_trade['side'] = side
+
             elif order is None:
                 logger.warn(f"Order is not submitted, uncomment the create_order line to enable.")
         else:
@@ -309,6 +328,10 @@ class SingleEXTrader():
             if tf != sm_tf:
                 last_dt = ohlcvs[tf].index[-1]
                 last_dt += timedelta(seconds=1)
+
+                # All timeframes are at the same timestamp, no need to fill
+                if len(ohlcvs[sm_tf][last_dt:]) == 0:
+                    continue
 
                 try:
                     new_ohlcv = ohlcvs[tf].iloc[0].copy()
