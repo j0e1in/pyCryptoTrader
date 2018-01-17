@@ -3,7 +3,7 @@
 export NEW_MONGO_DATA_LOC=/new/location/mongodb/
 
 mkdir -p Tmp/
-cd tmp
+cd Tmp
 
 
 # Downlaod ta-lib source
