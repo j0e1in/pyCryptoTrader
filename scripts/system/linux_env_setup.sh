@@ -16,6 +16,7 @@ cd ta-lib
 make
 sudo make install
 
+sudo apt install sox # to play sound alert
 
 # Install python requirements
 pip install -r ../../../requirements.txt

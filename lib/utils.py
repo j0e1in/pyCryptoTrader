@@ -495,7 +495,7 @@ def alert_sound(duration, words):
     freq = 500  # Hz
 
     if sys.platform == "linux" or sys.platform == "linux2":  # linux
-        print('linux')
+        # sudo apt install sox
         os.system(f"play --no-show-progress --null --channels 1 synth {duration} sine {freq}")
     elif sys.platform == "darwin":  # OS X
         os.system(f"say {words}")
