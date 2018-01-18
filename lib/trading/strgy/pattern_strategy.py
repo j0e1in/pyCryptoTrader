@@ -62,6 +62,8 @@ class PatternStrategy(SingleEXStrategy):
         """ Rank markets' profitability.
             Returns a list of markets.
         """
+        # TODO: (HIGH PRIOR)
+
         # Idea 1: calculate smoothness in past 1-4 days
         #         lower the smoothness higher the rank
 

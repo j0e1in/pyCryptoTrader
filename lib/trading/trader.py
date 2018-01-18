@@ -40,6 +40,20 @@ class SingleEXTrader():
             'timestamp': None,
             'side': None,
         }
+        self._summary = {
+            'start': None,
+            'now': None,                # Update in getter
+            'days': 0,                  # Update in getter
+            'initial_balance': {},      # Update on first update_wallet
+            'initial_value': 0,         # Update on first update_wallet after start trading (1m ohlcv are up-to-date)
+            'current_balance': {},      # Update in getter
+            'current_value': 0,         # Update in getter
+            'total_trade_fee': 0,       # Update in getter (from past trades)
+            'total_margin_fee': 0,      # Update in getter (from past trades)
+            'PL': 0,                    # Update in getter
+            'PL(%)': 0,                 # Update in getter
+            'PL_Eff': 0,                # Update in getter
+        }
 
     def init_exchange(self, ex_id, ccxt_verbose=False):
         """ Make an instance of a custom EX class. """
@@ -85,6 +99,7 @@ class SingleEXTrader():
 
     async def start_trading(self):
         logger.info("Start trading...")
+        self._summary['start'] = utc_now()
 
         while True:
             # read latest ohlcv from db
@@ -120,9 +135,11 @@ class SingleEXTrader():
 
     async def _do_long_short(self, action, symbol, confidence, type='market'):
 
+        # TODO: calculate margin fee and store each order in db
+
         side = 'buy' if action == 'long' else 'sell'
 
-        # TODO: (HIGH) use variables to set sig_tf
+        # TODO: (HIGH PRIOR) use variables to set sig_tf
         sig_tf = '1h'
 
         # Block repeated trading on the same signal
@@ -350,5 +367,6 @@ class SingleEXTrader():
 
         return ohlcvs
 
-
-
+    @property
+    def summary(self):
+        self._summary['now'] = utc_now()

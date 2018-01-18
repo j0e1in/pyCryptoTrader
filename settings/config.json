@@ -53,7 +53,7 @@
       "min_trade_value": 30,
 
       "markets": [
-        "ETH/USD"
+        "XRP/USD"
       ],
       "timeframes": [
           "1m",

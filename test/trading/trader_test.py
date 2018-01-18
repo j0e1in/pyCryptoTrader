@@ -5,11 +5,7 @@ from pprint import pprint
 import asyncio
 
 from db import EXMongo
-from trading.exchanges import Bitfinex
 from trading.trader import SingleEXTrader
-from utils import get_project_root, load_keys
-
-loop = asyncio.get_event_loop()
 
 
 async def test_trader_start(trader):
