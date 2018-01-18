@@ -54,5 +54,3 @@ def run(func, debug=False, log_file=None, *args, **kwargs):
         print('========================')
         print('time:', e-s)
         print('========================')
-
-
