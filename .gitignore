@@ -5,6 +5,7 @@ private/
 .vscode/
 tmp/
 Tmp/
+log/
 *.ipynb
 
 # Byte-compiled / optimized / DLL files

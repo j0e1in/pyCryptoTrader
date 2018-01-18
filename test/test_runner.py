@@ -25,9 +25,8 @@ def main(argv):
             test_file = cmd[1]
 
             cmd[1] = cur_dir + '/' + cmd[1]
-            cmd_msg = ' '.join(cmd)
 
-            print(f"\n>>>>>>>>>> RUNNING {test_file} <<<<<<<<<<\n")
+            print(f"\n>>>>>>>>>> RUNNING {test_file} <<<<<<<<<<")
 
             p = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE)
 
@@ -38,6 +37,8 @@ def main(argv):
                 print("Error Message:\n")
                 print(err)
                 sys.exit(1)
+            else:
+                print('Success\n')
 
 
 if __name__ == '__main__':
