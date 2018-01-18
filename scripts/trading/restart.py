@@ -36,6 +36,8 @@ def main(argv):
             print("Error Message:")
             print(err)
 
+            os.system('mv ')
+
             print("----------- Restarting Process ----------")
             time.sleep(3)
 

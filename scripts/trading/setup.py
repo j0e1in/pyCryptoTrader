@@ -28,7 +28,7 @@ def run(func, debug=False, log_file=None, *args, **kwargs):
         log_file = f"{root_dir}/log/{log_file}"
 
         # Add file handler to logger (stdout is already set)
-        fh = logging.FileHandler(log_file, mode='w')
+        fh = logging.FileHandler(log_file, mode='a')
         fh.setFormatter(logging.Formatter(log_fmt))
         logging.getLogger().addHandler(fh)
 
