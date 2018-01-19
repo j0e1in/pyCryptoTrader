@@ -565,3 +565,5 @@ class EXPeriod():
 
     def datetime_period(self, dt):
         return pd.Period(dt, self.freq)
+
+
