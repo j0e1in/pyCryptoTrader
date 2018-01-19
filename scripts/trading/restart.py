@@ -29,18 +29,20 @@ def main(argv):
 
         if rc is 0: # success
             output = output.decode('utf-8')
-            print("Output Message:")
-            print(output)
+            msg = f"Output Message:\n{output}"
+
         else: # failure
             err = err.decode('utf-8')
-            print("Error Message:")
-            print(err)
-
-            os.system('mv ')
+            msg = f"Error Message:\n{err}"
 
             print("----------- Restarting Process ----------")
-            time.sleep(3)
 
+        print(msg)
+
+        with open('restart.log', 'a') as f:
+            f.write(msg)
+
+        time.sleep(3)
 
 
 if __name__ == '__main__':
