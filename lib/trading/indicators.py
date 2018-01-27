@@ -13,7 +13,7 @@ class Indicator():
 
     def __init__(self, custom_config=None):
         _config = custom_config if custom_config else config
-        self.p = _config['params']
+        self.p = _config['analysis']['params']
 
     def rsi(self, ohlcv):
         ind = talib_abstract.RSI(ohlcv, timeperiod=self.p['rsi_period'])

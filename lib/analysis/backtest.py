@@ -439,7 +439,7 @@ class ParamOptimizer():
 
     def __init__(self, mongo, strategy, custom_config=None):
         self._config = custom_config if custom_config else config
-        self.params = self._config['params']
+        self.params = self._config['analysis']['params']
 
         self.mongo = mongo
         self.strategy = strategy
@@ -490,7 +490,7 @@ class ParamOptimizer():
         count = 0
         for i in range(len(combs)):
             params = OrderedDict(combs.iloc[i].to_dict())
-            config['params'] = params
+            config['analysis']['params'] = params
 
             self.strategy.set_config(config)
 
