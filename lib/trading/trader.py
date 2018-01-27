@@ -367,6 +367,40 @@ class SingleEXTrader():
 
         return ohlcvs
 
-    @property
-    def summary(self):
-        self._summary['now'] = utc_now()
+    def eval_summary(self):
+        td = timedelta(seconds=self.config['summary_delay'])
+        if (utc_now() - self._summary['now']) < td:
+            return self._summary
+
+        self.ex.update_wallet()
+
+        wallet_value = self.ex.calc_wallet_value()
+        now = utc_now()
+
+        self._summary['now'] = now
+        self._summary['days'] = (now - self._summary['start']).days
+        self._summary['current_balance'] = self.wallet
+        self._summary['current_value'] = wallet_value
+        self._summary['total_trade_fee'] = self.ex.calc_trade_fee(self.start, now)
+        self._summary['total_margin_fee'] = self.ex.calc_margin_fee(self.start, now)
+        self._summary['PL'] = self._summary['current_value'] - self._summary['initial_value']
+        self._summary['PL(%)'] = self._summary['PL'] / self._summary['initial_value']
+        self._summary['PL_Eff'] = self._summary['PL(%)'] / days * 0.3
+
+
+        self._summary = {
+            'start': None,
+            'now': None,                # Update in getter
+            'days': 0,                  # Update in getter
+            'initial_balance': {},      # Update on first update_wallet
+            'initial_value': 0,         # Update on first update_wallet after start trading (1m ohlcv are up-to-date)
+            'current_balance': {},      # Update in getter
+            'current_value': 0,         # Update in getter
+            'total_trade_fee': 0,       # Update in getter (from past trades)
+            'total_margin_fee': 0,      # Update in getter (from past trades)
+            'PL': 0,                    # Update in getter
+            'PL(%)': 0,                 # Update in getter
+            'PL_Eff': 0,                # Update in getter
+        }
+
+        return self._summary

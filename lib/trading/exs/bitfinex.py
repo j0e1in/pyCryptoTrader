@@ -282,7 +282,7 @@ class Bitfinex(EXBase):
     async def fetch_my_recent_trades(self, symbol, start=None, end=None, limit=1000):
         """ Fetch most recent N trades.
             ccxt response:
-            {'amount': 0.52,
+            [{'amount': 0.52,
              'cost': 5038.8,
              'datetime': '2017-11-30T12:29:51.000Z',
              'fee': None,
@@ -295,6 +295,20 @@ class Bitfinex(EXBase):
                       'tid': 104858401,
                       'timestamp': '1512044991.0',
                       'type': 'Buy'},
+             'order': '5607111792',
+             'price': 9690.0,
+             'side': 'buy',
+             'symbol': 'BTC/USD',
+             'timestamp': 1512044991000,
+             'type': None}]
+
+            Return:
+            [{'amount': 0.52,
+             'cost': 5038.8,
+             'datetime': datetime.datetime(2017, 11, 30, 12, 29, 51)
+             'fee': '-10.0776',
+             'fee_currency': 'USD',
+             'id': '104858401',
              'order': '5607111792',
              'price': 9690.0,
              'side': 'buy',
@@ -615,3 +629,34 @@ class Bitfinex(EXBase):
         base = symbol.split(qoute)[0]
         symbol = base.upper() + '/' + qoute.upper()
         return symbol
+
+    def calc_wallet_value(self):
+        """ Calculate total value of all currencies using latest 1m ohlcv. """
+        total_value = 0
+
+        for curr in self.wallet.keys():
+            amount = self.wallet[curr]['exchange']
+            amount += self.wallet[curr]['margin']
+            amount += self.wallet[curr]['funding']
+            total_value += self.calc_value_of(curr, amount)
+
+        return total_value
+
+    def calc_trade_fee(self, start, end):
+        """ Calcullate total trade fee in a period using history trades. """
+        trades = await self.mongo.get_my_trades(self.exname, start, end)
+        # TODO: decide my trades fields and calculate fee
+
+    def calc_margin_fee(self, start, end):
+        """ Calcullate total margin fee in a period using history orders and trades. """
+        not_implemented()
+
+    def calc_value_of(self, curr, value):
+        if curr == 'USD':
+            return value
+
+        sym = curr + '/USD'
+        price = self.mongo.get_last_ohclv(self, self.exname, sym, '1m').close
+        return price * amount
+
+

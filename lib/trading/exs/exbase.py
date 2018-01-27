@@ -434,3 +434,19 @@ class EXBase():
                 end = await self.mongo.get_ohlcv_end(self.exname, market, tf)
                 self.ohlcv_start_end[market][tf] = (start, end)
 
+    ###############################
+    # CUSTOM FUNCTIONS FOR TRADER #
+    ###############################
+
+    def calc_wallet_value(self):
+        """ Calculate total value of all currencies using latest 1m ohlcv. """
+        not_implemented()
+
+    def calc_trade_fee(self, start, end):
+        """ Calcullate total trade fee in a period using history trades. """
+        not_implemented()
+
+    def calc_margin_fee(self, start, end):
+        """ Calcullate total margin fee in a period using history orders and trades. """
+        not_implemented()
+
