@@ -642,7 +642,7 @@ class Bitfinex(EXBase):
 
         return total_value
 
-    def calc_trade_fee(self, start, end):
+    async def calc_trade_fee(self, start, end):
         """ Calcullate total trade fee in a period using history trades. """
         trades = await self.mongo.get_my_trades(self.exname, start, end)
         # TODO: decide my trades fields and calculate fee

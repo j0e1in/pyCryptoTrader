@@ -52,18 +52,18 @@ class EXMongo():
 
     async def get_ohlcv_start(self, ex, sym, tf):
         """ Get datetime of first ohlcv in a collection. """
-        res = self.get_first_ohclv(self, ex, sym, tf)
+        res = await self.get_first_ohclv(ex, sym, tf)
         return ms_dt(res['timestamp'])
 
     async def get_first_ohclv(self, ex, sym, tf):
         collname = f"{ex}_ohlcv_{rsym(sym)}_{tf}"
         coll = self.get_collection(self.config['dbname_exchange'], collname)
-        res = await coll.find_one({})
-        return res[0]
+        res = await coll.find_one({}, {'_id': 0})
+        return res
 
     async def get_ohlcv_end(self, ex, sym, tf):
         """ Get datetime of last ohlcv in a collection. """
-        res = self.get_last_ohclv(self, ex, sym, tf)
+        res = await self.get_last_ohclv(ex, sym, tf)
         return ms_dt(res['timestamp'])
 
     async def get_last_ohclv(self, ex, sym, tf):
@@ -76,7 +76,7 @@ class EXMongo():
         """ Get datetime of first trades in a collection. """
         collname = f"{ex}_trades_{rsym(sym)}"
         coll = self.get_collection(self.config['dbname_exchange'], collname)
-        res = await coll.find_one({})
+        res = await coll.find_one({}, {'_id': 0})
         return ms_dt(res['timestamp'])
 
     async def get_trades_end(self, ex, sym):
