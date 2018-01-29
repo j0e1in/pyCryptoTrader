@@ -26,7 +26,7 @@
   },
 
   "matplot": {
-    "enable": false,
+    "enable": true,
     "plot_indicators": true,
     "window_size": [15, 9],
     "plot_timeframes": {
@@ -85,6 +85,7 @@
     "fee": 0.002,
     "margin_fee": 0.003,
     "margin_rate": 3.33,
+    "force_liquidate_percentage": 0.85,
 
     "_comment_min_order_value": "minimal USD value is allwed to open an order",
     "min_order_value": 10,
@@ -98,7 +99,7 @@
       "bitfinex": {
         "_comment_markets": "markets to trade",
         "markets": [
-          "ETH/USD"
+          "XRP/USD"
         ],
         "markets_not_used": [
           "BTC/USD",

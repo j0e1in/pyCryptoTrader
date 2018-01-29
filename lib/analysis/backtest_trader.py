@@ -488,6 +488,8 @@ class SimulatedTrader():
             del self.orders[ex][order['#']]
             self.order_history[ex][order['#']] = order
 
+        self.force_liquidate_positions()
+
         copy_orders = deepcopy(self.orders)
         for ex, orders in copy_orders.items():
             for id, order in orders.items():
@@ -693,6 +695,46 @@ class SimulatedTrader():
             self.close_all_positions(ex)
 
         self.tick(last=True)  # force execution of all close position orders
+
+    def force_liquidate_positions(self):
+
+        # TODO: no force liquidation occurred in backtest
+
+        def close_position(order, liq_price, liq_time):
+            order['close_price'] = liq_price
+            order['close_time'] = liq_time
+            self._calc_order(order)
+            order['active'] = False
+            ex = order['ex']
+            self.wallet[ex][order['currency']] += self._calc_margin_return(order)
+            del self.positions[ex][order['#']]
+
+            if order['#'] in self.orders:
+                del self.orders[ex][order['#']]
+
+            self.order_history[ex][order['#']] = order
+
+        cur_time = self.timer.now()
+        for ex in self.markets:
+            poses = copy.deepcopy(self.positions[ex])
+            for id, pos in poses.items():
+
+                ohlcv = self.ohlcvs[ex][pos['market']]['1m'][pos['open_time']:cur_time]
+                liq_time = None
+
+                if pos['side'] == 'buy':
+                    liq_price = pos['open_price'] * (1 - self.config['force_liquidate_percentage'])
+                    liq_time = ohlcv[ohlcv.low <= liq_price].index
+
+                else:  # sell
+                    liq_price = pos['open_price'] * (1 + self.config['force_liquidate_percentage'])
+                    liq_time = ohlcv[ohlcv.high >= liq_price].index
+
+                if len(liq_time) > 0:
+                    close_position(pos, liq_price, liq_time[0])
+
+                    if self._config['mode'] == 'debug':
+                        logger.debug(f'Position was forced to liquidated at {liq_price}, {liq_time}')
 
     def get_last_ohlcv(self, ex, market, now=None):
         """ Find latest ohlcv from all timeframes. """

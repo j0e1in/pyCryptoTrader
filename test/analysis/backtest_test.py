@@ -10,9 +10,7 @@ from db import EXMongo
 
 
 async def test_run(backtest):
-    # Add `"BTC": 1` to config['analysis']['funds'] to test thoroughly.
-
-    strategy = SingleExchangeStrategy('bitfinex')
+    strategy = PatternStrategy('bitfinex')
     start = datetime(2017, 1, 1)
     end = datetime(2017, 2, 5)
     options = {
@@ -25,7 +23,17 @@ async def test_run(backtest):
     pprint(report)
 
 
-async def test_backtest_runner_run_fix_periods(mongo):
+async def test_backtest_runner_run_single_period(mongo):
+    period = (datetime(2018, 1, 10), datetime(2018, 1, 18))
+
+    strategy = PatternStrategy('bitfinex')
+    bt_runner = BacktestRunner(mongo, strategy, multicore=False)
+
+    summary = await bt_runner.run_periods(period)
+    pprint(summary)
+
+
+async def test_backtest_runner_run_multi_periods(mongo):
     periods = []
 
     for i in range(10):
@@ -84,16 +92,18 @@ async def main():
     mongo = EXMongo()
     backtest = Backtest(mongo)
 
+    # print('------------------------------')
+    # await test_run(backtest)
     print('------------------------------')
-    await test_run(backtest)
-    print('------------------------------')
-    await test_backtest_runner_run_fix_periods(mongo)
-    print('------------------------------')
-    await test_backtest_runner_run_random_periods(mongo)
-    print('------------------------------')
-    await test_backtest_runner_run_period_with_shift_step(mongo)
-    print('------------------------------')
-    await test_param_optimizer(mongo)
+    await test_backtest_runner_run_single_period(mongo)
+    # print('------------------------------')
+    # await test_backtest_runner_run_multi_periods(mongo)
+    # print('------------------------------')
+    # await test_backtest_runner_run_random_per, multicore=Falseiods(mongo)
+    # print('------------------------------')
+    # await test_backtest_runner_run_period_with_shift_step(mongo)
+    # print('------------------------------')
+    # await test_param_optimizer(mongo)
 
 if __name__ == '__main__':
     run(main)

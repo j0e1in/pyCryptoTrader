@@ -274,17 +274,21 @@ class BacktestRunner():
 
     """
 
-    def __init__(self, mongo, strategy, custom_config=None):
+    def __init__(self, mongo, strategy, multicore=True, custom_config=None):
         self._config = custom_config if custom_config is not None else config
 
         self.mongo = mongo
         self.strategy = strategy
+        self.multicore = multicore
 
     async def run_periods(self, periods):
         """
             Param
                 periods: array, [(start, end), (start, end), ...]
         """
+        if not isinstance(periods, list):
+            periods = [periods]
+
         reports = []
         reports_q = Queue(self._config['max_processes'])
         ps = queue.Queue(self._config['max_processes'])
@@ -312,7 +316,7 @@ class BacktestRunner():
 
             backtest = await Backtest(self.mongo).init(**opts)
 
-            if self._config['use_multicore']:
+            if self.multicore and self._config['use_multicore']:
                 if ps.full():
                     reports.append(reports_q.get())
                     ps.get().join()
@@ -345,6 +349,9 @@ class BacktestRunner():
 
     @staticmethod
     def _analyze_reports(reports):
+        if not isinstance(reports, list):
+            reports = [reports]
+
         summary = pd.DataFrame(columns=['start', 'end', 'days',
                                         '#P', '#L', 'PL(%)', 'PL_Eff'])
         for rep in reports:
