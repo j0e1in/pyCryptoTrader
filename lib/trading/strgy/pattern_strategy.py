@@ -4,7 +4,7 @@ import numpy as np
 
 from trading.strgy.base_strategy import SingleEXStrategy
 from trading.indicators import Indicator
-from utils import alert_sound
+from utils import timeframe_timedelta
 
 from ipdb import set_trace as trace
 from pprint import pprint
@@ -30,9 +30,11 @@ class PatternStrategy(SingleEXStrategy):
             sig = signals[market]['sig']
             tf = signals[market]['tf']
 
+            # trace()
+
             # if near start use previous sig? -> don't apply to '1m'
-            if is_within(sig.index[-1], tf) \
-            and near_end(sig.index[-1], tf):
+            if is_within(sig.index[-1], timeframe_timedelta(tf)) \
+            and near_end(sig.index[-1], timeframe_timedelta(tf)):
                 conf = sig[-1]
 
                 if conf > 0:

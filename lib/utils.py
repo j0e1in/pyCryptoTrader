@@ -469,14 +469,12 @@ def filter_by(dicts, conditions, match='all'):
     return filtered
 
 
-def is_within(dt, tf):
-    td = timeframe_timedelta(tf)
+def is_within(dt, td):
     return True if (utc_now() - dt) <= td else False
 
 
-def near_end(dt, tf):
-    ratio = 1 / 2 # smaller means closer to the end
-    td = timeframe_timedelta(tf)
+def near_end(dt, td):
+    ratio = 1 / 5 # smaller means closer to the end
     rdt = roundup_dt(dt, sec=td.seconds)
     return True if (rdt - dt) <= td * ratio else False
 

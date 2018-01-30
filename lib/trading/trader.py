@@ -13,7 +13,9 @@ from utils import config, \
                   roundup_dt, \
                   filter_by, \
                   smallest_tf, \
-                  alert_sound
+                  alert_sound, \
+                  is_within, \
+                  timeframe_timedelta
 
 from ipdb import set_trace as trace
 
@@ -125,14 +127,12 @@ class SingleEXTrader():
         """ Cancel all orders, close sell positions
             and open a buy margin order (if has enough balance).
         """
-        logger.debug('long...')
         await self._do_long_short('long', symbol, confidence, type)
 
     async def short(self, symbol, confidence, type='market'):
         """ Cancel all orders, close buy positions
             and open a sell margin order (if has enough balance).
         """
-        logger.debug('short...')
         await self._do_long_short('short', symbol, confidence, type)
 
     async def _do_long_short(self, action, symbol, confidence, type='market'):
@@ -144,11 +144,17 @@ class SingleEXTrader():
         # TODO: (HIGH PRIOR) use variables to set sig_tf
         sig_tf = '1h'
 
-        # Block repeated trading on the same signal
-        if self.last_trade['timestamp'] \
-        and is_within(self.last_trade['timestamp'], sig_tf):
-            if self.last_trade['side'] == side:
+        if self.last_trade['timestamp']:
+            # Block repeated trading on the same signal
+            if self.last_trade['side'] == side \
+            and is_within(self.last_trade['timestamp'], timeframe_timedelta(sig_tf)):
                 return
+
+            # Block repeated trading on opposite signal
+            elif self.last_trade['side'] != side \
+            and is_within(self.last_trade['timestamp'], timeframe_timedelta(sig_tf)/5):
+                return
+
 
         await self.cancel_all_orders(symbol)
         await self.ex.update_wallet()
