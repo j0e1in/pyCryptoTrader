@@ -485,7 +485,8 @@ def smallest_tf(tfs):
     tds.sort(key=lambda tup: tup[1])
     return tfs[tds[0][0]]
 
-def alert_sound(duration, words):
+
+def alert_sound(duration, words, n=1):
     """ Play aler sound for N seconds.
         Require some dependencies.
         Ubuntu: $ sudo apt install sox
@@ -494,16 +495,18 @@ def alert_sound(duration, words):
     """
     freq = 500  # Hz
 
-    if sys.platform == "linux" or sys.platform == "linux2":  # linux
-        # sudo apt install sox
-        os.system(f"play --no-show-progress --null --channels 1 synth {duration} sine {freq}")
-    elif sys.platform == "darwin":  # OS X
-        os.system(f"say {words}")
-    elif sys.platform == "win32":  # Windows
-        import winsound
-        winsound.Beep(freq, duration * 1000)
-    else:
-        logger.warn(f"Platform {sys.platform} is not supported.")
+    for i in range(n):
+
+        if sys.platform == "linux" or sys.platform == "linux2":  # linux
+            # sudo apt install sox
+            os.system(f"play --no-show-progress --null --channels 1 synth {duration} sine {freq}")
+        elif sys.platform == "darwin":  # OS X
+            os.system(f"say {words}")
+        elif sys.platform == "win32":  # Windows
+            import winsound
+            winsound.Beep(freq, duration * 1000)
+        else:
+            logger.warn(f"Platform {sys.platform} is not supported.")
 
 
 class Timer():
