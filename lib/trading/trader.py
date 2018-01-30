@@ -105,7 +105,7 @@ class SingleEXTrader():
             # read latest ohlcv from db
             await self.update_ohlcv()
 
-            self.strategy.run()
+            await self.strategy.run()
 
             # wait til next minute
             # +45 sec to wait for ohlcv of all markets to be fetched
@@ -125,12 +125,14 @@ class SingleEXTrader():
         """ Cancel all orders, close sell positions
             and open a buy margin order (if has enough balance).
         """
+        logger.debug('long...')
         await self._do_long_short('long', symbol, confidence, type)
 
     async def short(self, symbol, confidence, type='market'):
         """ Cancel all orders, close buy positions
             and open a sell margin order (if has enough balance).
         """
+        logger.debug('short...')
         await self._do_long_short('short', symbol, confidence, type)
 
     async def _do_long_short(self, action, symbol, confidence, type='market'):
@@ -184,7 +186,7 @@ class SingleEXTrader():
         spendable = available_balance - total_value * self.config['maintain_portion']
 
         if spendable > 0:
-            spend = spendable * confidence / 100 * self.config['trade_portion']
+            spend = spendable * abs(confidence) / 100 * self.config['trade_portion']
 
             trade_value = spend * self.config[self.ex.exname]['margin_rate']
             if trade_value < self.config[self.ex.exname]['min_trade_value']:
@@ -207,11 +209,7 @@ class SingleEXTrader():
             # Uncomment this to create order
             order = await self.ex.create_order(symbol, type, side, amount, price=price)
 
-            alert_sound(0.2, 'Order created')
-            alert_sound(0.2, 'Order created')
-            alert_sound(0.2, 'Order created')
-            alert_sound(0.2, 'Order created')
-            alert_sound(0.2, 'Order created')
+            alert_sound(0.2, 'Order created', 3)
 
             if order:
                 logger.info(f"Created an margin {side} order: "

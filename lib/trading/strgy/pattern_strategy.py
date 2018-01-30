@@ -1,7 +1,10 @@
 from utils import config, is_within, near_end
 
+import numpy as np
+
 from trading.strgy.base_strategy import SingleEXStrategy
 from trading.indicators import Indicator
+from utils import alert_sound
 
 from ipdb import set_trace as trace
 from pprint import pprint
@@ -16,7 +19,7 @@ class PatternStrategy(SingleEXStrategy):
     def init_vars(self):
         self.margin = self.trader.config['margin']
 
-    def strategy(self):
+    async def strategy(self):
 
         signals = {}
         for market in self.trader.markets:
@@ -32,13 +35,12 @@ class PatternStrategy(SingleEXStrategy):
             and near_end(sig.index[-1], tf):
                 conf = sig[-1]
 
-
                 if conf > 0:
                     pprint(sig[-10:])
-                    self.trader.long(market, conf, type='limit')
+                    await self.trader.long(market, conf, type='limit')
                 elif conf < 0:
                     pprint(sig[-10:])
-                    self.trader.short(market, conf, type='limit')
+                    await self.trader.short(market, conf, type='limit')
                 else:
                     continue
 
@@ -48,7 +50,8 @@ class PatternStrategy(SingleEXStrategy):
             Returns (signal, timeframe)
         """
         return {
-            'sig': self.wvf(market),
+            # 'sig': self.wvf(market),
+            'sig': self.hma(market),
             'tf': self.p['wvf_tf'],
         }
 
@@ -57,6 +60,9 @@ class PatternStrategy(SingleEXStrategy):
 
     def wvf(self, market):
         return self.ind.william_vix_fix_v3(self.trader.ohlcvs[market][self.p['wvf_tf']])
+
+    def hma(self, market):
+        return self.ind.hull_moving_average(self.trader.ohlcvs[market][self.p['hma_tf']])
 
     def rank_market(self, signals):
         """ Rank markets' profitability.

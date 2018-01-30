@@ -52,11 +52,6 @@ class Backtest():
 
         return self
 
-    # def reset(self):
-    #     """ Reset to test in same period to avoid loading data repeatedly."""
-    #     self.trader.reset()
-    #     self.strategy.init(self.trader)
-
     def _set_init_options(self, **options):
         if 'custom_config' in options:
             _config = options['custom_config']

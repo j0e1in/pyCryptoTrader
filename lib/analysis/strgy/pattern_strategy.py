@@ -18,7 +18,8 @@ class PatternStrategy(SingleExchangeStrategy):
 
         for market in self.markets:
 
-            sig = self.wvf(market)
+            # sig = self.wvf(market)
+            sig = self.hma(market)
             sig = sig.dropna()
 
             for dt, ss in sig.items():
@@ -47,3 +48,6 @@ class PatternStrategy(SingleExchangeStrategy):
 
     def wvf(self, market):
         return self.ind.william_vix_fix_v3(self.ohlcvs[market][self.p['wvf_tf']])
+
+    def hma(self, market):
+        return self.ind.hull_moving_average(self.ohlcvs[market][self.p['hma_tf']])

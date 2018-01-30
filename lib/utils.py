@@ -475,9 +475,10 @@ def is_within(dt, tf):
 
 
 def near_end(dt, tf):
+    ratio = 1 / 2 # smaller means closer to the end
     td = timeframe_timedelta(tf)
     rdt = roundup_dt(dt, sec=td.seconds)
-    return True if (rdt - dt) <= td / 3 * 2 else False
+    return True if (rdt - dt) <= td * ratio else False
 
 
 def smallest_tf(tfs):

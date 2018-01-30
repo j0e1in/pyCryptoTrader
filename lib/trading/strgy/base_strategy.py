@@ -12,9 +12,9 @@ class SingleEXStrategy():
     def refresh(self):
         self.init_vars()
 
-    def run(self):
+    async def run(self):
         self.refresh()
-        self.strategy()
+        await self.strategy()
 
     def strategy(self):
         not_implemented()

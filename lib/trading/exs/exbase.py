@@ -224,7 +224,7 @@ class EXBase():
 
         while True:
             for market in self.markets:
-                self.orderbook[market] = await self._fetch_orderbook(market, params=params, log=self.log)
+                self.orderbook[market] = await self._fetch_orderbook(market, params=params)
 
             self.ready['orderbook'] = True
             await asyncio.sleep(self.config['orderbook_delay'])
@@ -256,7 +256,7 @@ class EXBase():
              'datetime': '2018-01-12T09:30:20.636Z',
              'timestamp': 1515749419636}
         """
-        self.orderbook[symbol] = await self._fetch_orderbook(symbol, params=params, log=self.log)
+        self.orderbook[symbol] = await self._fetch_orderbook(symbol, params=params)
         return self.orderbook[symbol]
 
     async def get_market_price(self, symbol):

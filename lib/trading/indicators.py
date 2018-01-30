@@ -2,6 +2,7 @@ import talib.abstract as talib_abstract # ndarray/dataframe as input
 import talib # ndarray as input
 import pandas as pd
 import numpy as np
+import math
 
 from utils import config
 
@@ -134,6 +135,26 @@ class Indicator():
 
         # Aggressive filtered entry
         filtered_entry_aggr = upRange_Aggr & (close > close[strg]) & ((close < close[ltLB]) | (close < close[mtLB])) & filtered_aggr
+
+        self.verify_confidence(conf)
+        self.cap_confidence(conf)
+
+        return conf
+
+    def hull_moving_average(self, ohlcv, ma='wma'):
+        # Formula: HMA[i] = MA( (2*MA(input, period/2) - MA(input, period)), SQRT(period))
+        MA = getattr(talib, ma.upper())
+        hma = MA((2 * MA(np.asarray(ohlcv.close), self.p['hma_ma_period']/2))
+                    - MA(np.asarray(ohlcv.close), self.p['hma_ma_period']),
+                math.sqrt(self.p['hma_ma_period']))
+        hma = pd.Series(hma, index=ohlcv.index)
+
+        rise_sig = (hma.shift(2) >= hma.shift(1)) & (hma.shift(1) < hma)
+        drop_sig = (hma.shift(2) <= hma.shift(1)) & (hma.shift(1) > hma)
+
+        conf = pd.Series(index=ohlcv.index)
+        conf[rise_sig.index[rise_sig == True]] = BUY * self.p['hma_conf']
+        conf[drop_sig.index[drop_sig == True]] = SELL * self.p['hma_conf']
 
         self.verify_confidence(conf)
         self.cap_confidence(conf)

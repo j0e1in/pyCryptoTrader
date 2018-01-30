@@ -77,7 +77,11 @@
       "wvf_ph": 0.85,
       "wvf_ltLB": 40,
       "wvf_mtLB": 14,
-      "wvf_strg": 3
+      "wvf_strg": 3,
+
+      "hma_tf": "1h",
+      "hma_conf": 70,
+      "hma_ma_period": 14
     }
   },
 
@@ -99,7 +103,7 @@
       "bitfinex": {
         "_comment_markets": "markets to trade",
         "markets": [
-          "XRP/USD"
+          "ETH/USD"
         ],
         "markets_not_used": [
           "BTC/USD",
@@ -180,7 +184,11 @@
       "wvf_ph": 0.85,
       "wvf_ltLB": 40,
       "wvf_mtLB": 14,
-      "wvf_strg": 3
+      "wvf_strg": 3,
+
+      "hma_tf": "1h",
+      "hma_conf": 70,
+      "hma_ma_period": 9
     },
 
     "unused_params": {

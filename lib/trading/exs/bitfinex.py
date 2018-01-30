@@ -103,13 +103,13 @@ class Bitfinex(EXBase):
         else:
             raise ValueError(f"Wallet type {type} is not supported.")
 
-    async def _start_orderbook_stream(self):
-        params = {
-            'limit_bids': self.config['orderbook_size'],
-            'limit_asks': self.config['orderbook_size'],
-            'group': 1, # 0 / 1
-        }
-        await super()._start_orderbook_stream(log=self.log, params=params)
+    # async def _start_orderbook_stream(self):
+    #     params = {
+    #         'limit_bids': self.config['orderbook_size'],
+    #         'limit_asks': self.config['orderbook_size'],
+    #         'group': 1, # 0 / 1
+    #     }
+    #     await super()._start_orderbook_stream(params=params)
 
     async def get_orderbook(self, symbol):
         params = {
@@ -117,7 +117,7 @@ class Bitfinex(EXBase):
             'limit_asks': self.config['orderbook_size'],
             'group': 1, # 0 / 1
         }
-        return await super().get_orderbook(symbol, log=self.log, params=params)
+        return await super().get_orderbook(symbol, params=params)
 
     async def update_markets(self):
         """

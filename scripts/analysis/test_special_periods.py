@@ -17,7 +17,7 @@ from ipdb import set_trace as trace
 async def test_single_period(mongo, market):
     # dt = (datetime(2017, 1, 1), datetime(2018, 1, 1))
 
-    dt = (datetime(2018, 1, 10), datetime(2018, 1, 18))
+    dt = (datetime(2017, 1, 1), datetime(2018, 1, 1))
 
     _config = copy.deepcopy(config)
     _config['analysis']['exchanges']['bitfinex']['markets'] = [market]
@@ -50,8 +50,8 @@ async def test_special_periods_of_markets(mongo):
 
     markets = [
         # "BTC/USD",
-        # "ETH/USD",
-        "XRP/USD",
+        "ETH/USD",
+        # "XRP/USD",
         # "BCH/USD",
         # "ETC/USD",
         # "DASH/USD",
@@ -107,8 +107,8 @@ async def test_random_periods(mongo):
 async def main():
     mongo = EXMongo()
 
-    await test_special_periods_of_markets(mongo)
-    # await test_special_periods(mongo)
+    # await test_special_periods_of_markets(mongo)
+    await test_special_periods(mongo)
     # await test_random_periods(mongo)
 
 
