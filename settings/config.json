@@ -81,7 +81,7 @@
 
       "hma_tf": "1h",
       "hma_conf": 70,
-      "hma_ma_period": 14
+      "hma_ma_period": 10
     }
   },
 
