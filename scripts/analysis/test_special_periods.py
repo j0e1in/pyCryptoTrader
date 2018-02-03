@@ -43,7 +43,7 @@ async def test_single_period(mongo, market):
     print('-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n')
     pprint(report)
     print('\n-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n')
-    pprint(backtest.margin_PLs)
+    # pprint(backtest.margin_PLs)
 
 
 async def test_special_periods_of_markets(mongo):
@@ -65,14 +65,18 @@ async def test_special_periods_of_markets(mongo):
         await test_single_period(mongo, market)
 
 async def test_special_periods(mongo):
+    # periods = [
+    #     (datetime(2017, 3, 17), datetime(2017, 3, 19)),
+    #     (datetime(2017, 3, 25), datetime(2017, 4, 26)),
+    #     (datetime(2017, 5, 15), datetime(2017, 5, 26)),
+    #     (datetime(2017, 5, 28), datetime(2017, 6, 14)),
+    #     (datetime(2017, 6, 7), datetime(2017, 6, 28)),
+    #     (datetime(2017, 6, 18), datetime(2017, 6, 27, 14)),
+    #     (datetime(2017, 9, 2), datetime(2017, 9, 15, 11)),
+    # ]
+
     periods = [
-        (datetime(2017, 3, 17), datetime(2017, 3, 19)),
-        (datetime(2017, 3, 25), datetime(2017, 4, 26)),
-        (datetime(2017, 5, 15), datetime(2017, 5, 26)),
-        (datetime(2017, 5, 28), datetime(2017, 6, 14)),
-        (datetime(2017, 6, 7), datetime(2017, 6, 28)),
-        (datetime(2017, 6, 18), datetime(2017, 6, 27, 14)),
-        (datetime(2017, 9, 2), datetime(2017, 9, 15, 11)),
+        (datetime(2018, 1, 19), datetime(2018, 1, 29)),
     ]
 
     strategy = PatternStrategy('bitfinex')
@@ -107,8 +111,8 @@ async def test_random_periods(mongo):
 async def main():
     mongo = EXMongo()
 
-    # await test_special_periods_of_markets(mongo)
-    await test_special_periods(mongo)
+    await test_special_periods_of_markets(mongo)
+    # await test_special_periods(mongo)
     # await test_random_periods(mongo)
 
 
