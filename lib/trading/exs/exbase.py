@@ -148,30 +148,23 @@ class EXBase():
             res = fetch_ohlcv(self.ex, symbol, start, end, timeframe, log=self.log)
 
             async for ohlcv in res:
-                processed_ohlcv = []
 
                 if len(ohlcv) is 0:
                     break
 
                 # [ MTS, OPEN, CLOSE, HIGH, LOW, VOLUME ]
-                for rec in ohlcv:
-                    processed_ohlcv.append({
-                        'timestamp': rec[0],
-                        'open':      rec[1],
-                        'high':      rec[2],
-                        'low':       rec[3],
-                        'close':     rec[4],
-                        'volume':    rec[5]
-                    })
+                for oh in ohlcv:
+                    tmp = {
+                        'timestamp': oh[0],
+                        'open':      oh[1],
+                        'high':      oh[2],
+                        'low':       oh[3],
+                        'close':     oh[4],
+                        'volume':    oh[5]
+                    }
+                    ops.append(ensure_future(coll.update_one({'timestamp': tmp['timestamp']}, {'$set': tmp}, upsert=True)))
 
-                ops.append(ensure_future(coll.insert_many(processed_ohlcv, ordered=False)))
-
-                # insert 1000 ohlcv per op, clear up task stack periodically
-                if len(ops) > 50:
-                    await execute_mongo_ops(ops)
-                    ops = []
-
-            await execute_mongo_ops(ops)
+                await execute_mongo_ops(ops)
 
         async def is_uptodate(ohlcv_start_end):
             await self.update_ohlcv_start_end()
