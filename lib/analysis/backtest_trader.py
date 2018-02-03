@@ -742,9 +742,11 @@ class SimulatedTrader():
 
         for tf, ohlcv in self.ohlcvs[ex][market].items():
             if now is None: # slow mode
-                tmp = ohlcv.iloc[-1]
+                if len(ohlcv) > 0:
+                    tmp = ohlcv.iloc[-1]
             else: # fast mode
-                tmp = ohlcv[:now].iloc[-1]
+                if len(ohlcv) > 0:
+                    tmp = ohlcv[:now].iloc[-1]
 
             if tmp.name > last.name:
                 last = tmp
