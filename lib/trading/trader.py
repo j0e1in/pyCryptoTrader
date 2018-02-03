@@ -38,10 +38,6 @@ class SingleEXTrader():
         self.timeframes = self.ex.timeframes
         self.ohlcvs = self.create_empty_ohlcv_store()
 
-        self.last_trade = {
-            'timestamp': None,
-            'side': None,
-        }
         self._summary = {
             'start': None,
             'now': None,                # Update in getter
@@ -120,41 +116,30 @@ class SingleEXTrader():
         start = end - td
         self.ohlcvs = await self.mongo.get_ohlcvs_of_symbols(self.ex.exname, self.markets, self.timeframes, start, end)
 
-        for symbol in self.ohlcvs:
+
+        for symbol, tfs in self.ohlcvs.items():
+            sm_tf = smallest_tf(list(self.ohlcvs[symbol].keys()))
+
+            for tf in tfs:
+                if tf != sm_tf:
+                    self.ohlcvs[symbol][tf] = self.ohlcvs[symbol][tf][:-1] # drop the last row
             self.fill_ohlcv_with_small_tf(self.ohlcvs[symbol])
 
     async def long(self, symbol, confidence, type='market'):
         """ Cancel all orders, close sell positions
             and open a buy margin order (if has enough balance).
         """
-        await self._do_long_short('long', symbol, confidence, type)
+        return await self._do_long_short('long', symbol, confidence, type)
 
     async def short(self, symbol, confidence, type='market'):
         """ Cancel all orders, close buy positions
             and open a sell margin order (if has enough balance).
         """
-        await self._do_long_short('short', symbol, confidence, type)
+        return await self._do_long_short('short', symbol, confidence, type)
 
     async def _do_long_short(self, action, symbol, confidence, type='market'):
 
-        # TODO: calculate margin fee and store each order in db
-
         side = 'buy' if action == 'long' else 'sell'
-
-        # TODO: (HIGH PRIOR) use variables to set sig_tf
-        sig_tf = '1h'
-
-        if self.last_trade['timestamp']:
-            # Block repeated trading on the same signal
-            if self.last_trade['side'] == side \
-            and is_within(self.last_trade['timestamp'], timeframe_timedelta(sig_tf)):
-                return
-
-            # Block repeated trading on opposite signal
-            elif self.last_trade['side'] != side \
-            and is_within(self.last_trade['timestamp'], timeframe_timedelta(sig_tf)/5):
-                return
-
 
         await self.cancel_all_orders(symbol)
         await self.ex.update_wallet()
@@ -196,8 +181,9 @@ class SingleEXTrader():
 
             trade_value = spend * self.config[self.ex.exname]['margin_rate']
             if trade_value < self.config[self.ex.exname]['min_trade_value']:
-                logger.info(f"Trade value is lower than minimum. Skip long order.")
-                return
+                logger.info(f"Trade value is < {self.config[self.ex.exname]['min_trade_value']}."
+                            f"Skip the {side} order.")
+                return False
 
             if action == 'long':
                 price = orderbook['bids'][0][0] * (1 - self.config['limit_price_diff'])
@@ -221,13 +207,14 @@ class SingleEXTrader():
                 logger.info(f"Created an margin {side} order: "
                             f"id: {order['id']} price: {order['price']} amount: {order['amount']}")
 
-                self.last_trade['timestamp'] = utc_now()
-                self.last_trade['side'] = side
+                return True
 
             elif order is None:
                 logger.warn(f"Order is not submitted, uncomment the create_order line to enable.")
         else:
             logger.info(f"Spendable balance is < 0, unable to {action}.")
+
+        return False
 
     @staticmethod
     def calc_position_value(positions):
@@ -347,27 +334,21 @@ class SingleEXTrader():
 
         for tf in ohlcvs.keys():
             if tf != sm_tf:
-                last_dt = ohlcvs[tf].index[-1]
-                last_dt += timedelta(seconds=1)
+                start_dt = ohlcvs[tf].index[-1] + timeframe_timedelta(tf)
 
                 # All timeframes are at the same timestamp, no need to fill
-                if len(ohlcvs[sm_tf][last_dt:]) == 0:
+                if len(ohlcvs[sm_tf][start_dt:]) == 0:
                     continue
 
-                try:
-                    new_ohlcv = ohlcvs[tf].iloc[0].copy()
-                    new_ohlcv.name = ohlcvs[sm_tf][last_dt:].index[-1]
-                    new_ohlcv.open = ohlcvs[sm_tf][last_dt:].iloc[0].open
-                    new_ohlcv.close = ohlcvs[sm_tf][last_dt:].iloc[-1].close
-                    new_ohlcv.high = ohlcvs[sm_tf][last_dt:].high.max()
-                    new_ohlcv.low = ohlcvs[sm_tf][last_dt:].low.min()
-                    new_ohlcv.volume = ohlcvs[sm_tf][last_dt:].volume.sum()
+                new_ohlcv = ohlcvs[tf].iloc[0].copy()
+                new_ohlcv.name = start_dt
+                new_ohlcv.open = ohlcvs[sm_tf][start_dt:].iloc[0].open
+                new_ohlcv.close = ohlcvs[sm_tf][start_dt:].iloc[-1].close
+                new_ohlcv.high = ohlcvs[sm_tf][start_dt:].high.max()
+                new_ohlcv.low = ohlcvs[sm_tf][start_dt:].low.min()
+                new_ohlcv.volume = ohlcvs[sm_tf][start_dt:].volume.sum()
 
-                    ohlcvs[tf] = ohlcvs[tf].append(new_ohlcv)
-                except IndexError as err:
-                    alert_sound(0.2, 'IndexError')
-                    alert_sound(0.2, 'IndexError')
-                    trace()
+                ohlcvs[tf] = ohlcvs[tf].append(new_ohlcv)
 
         return ohlcvs
 
