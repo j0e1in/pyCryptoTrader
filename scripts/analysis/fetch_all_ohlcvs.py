@@ -19,8 +19,8 @@ from ipdb import set_trace as trace
 logger = logging.getLogger()
 
 
-start = datetime(2017, 10, 1)
-end = datetime(2018, 1, 31)
+start = datetime(2017, 1, 31)
+end = datetime(2018, 2, 4)
 
 
 async def fetch_ohlcv_to_mongo(coll, exchange, symbol, timeframe):

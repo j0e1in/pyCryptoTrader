@@ -470,11 +470,18 @@ def filter_by(dicts, conditions, match='all'):
 
 
 def is_within(dt, td):
+    """ Return True if dt is occurred with td time."""
     return True if (utc_now() - dt) <= td else False
 
 
+def near_start(dt, td):
+    ratio = 1 / 6 # smaller means closer to the start
+    rdt = rounddown_dt(dt, sec=td.seconds)
+    return True if (dt - rdt) <= td * ratio else False
+
+
 def near_end(dt, td):
-    ratio = 1 / 5 # smaller means closer to the end
+    ratio = 1 / 3 # smaller means closer to the end
     rdt = roundup_dt(dt, sec=td.seconds)
     return True if (rdt - dt) <= td * ratio else False
 
@@ -482,6 +489,12 @@ def near_end(dt, td):
 def smallest_tf(tfs):
     tds = [(idx, timeframe_timedelta(tf)) for idx, tf in enumerate(tfs)]
     tds.sort(key=lambda tup: tup[1])
+    return tfs[tds[0][0]]
+
+
+def largest_tf(tfs):
+    tds = [(idx, timeframe_timedelta(tf)) for idx, tf in enumerate(tfs)]
+    tds.sort(key=lambda tup: -tup[1])
     return tfs[tds[0][0]]
 
 

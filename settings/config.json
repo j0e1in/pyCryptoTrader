@@ -45,7 +45,7 @@
     "maintain_portion": 0.2,
 
     "_comment_limit_price_diff": "price difference (buffer) to the top price in orderbook",
-    "limit_price_diff": 0.003,
+    "limit_price_diff": 0.005,
 
     "summary_delay": 300,
 
