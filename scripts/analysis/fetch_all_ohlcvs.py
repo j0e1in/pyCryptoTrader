@@ -12,14 +12,15 @@ import motor.motor_asyncio as motor
 import logging
 
 from analysis.hist_data import fetch_ohlcv
-from utils import init_ccxt_exchange, execute_mongo_ops
+from utils import init_ccxt_exchange, execute_mongo_ops, config
 
+from ipdb import set_trace as trace
 
 logger = logging.getLogger()
 
 
-start = datetime(2018, 1, 1)
-end = datetime(2018, 1, 10)
+start = datetime(2017, 10, 1)
+end = datetime(2018, 1, 31)
 
 
 async def fetch_ohlcv_to_mongo(coll, exchange, symbol, timeframe):
@@ -29,30 +30,24 @@ async def fetch_ohlcv_to_mongo(coll, exchange, symbol, timeframe):
     res = fetch_ohlcv(exchange, symbol, start, end, timeframe)
 
     async for ohlcv in res:
-        processed_ohlcv = []
 
         if len(ohlcv) is 0:
             break
 
         # [ MTS, OPEN, CLOSE, HIGH, LOW, VOLUME ]
         for oh in ohlcv:
-            processed_ohlcv.append({
+            tmp = {
                 'timestamp': oh[0],
                 'open':      oh[1],
                 'high':      oh[2],
                 'low':       oh[3],
                 'close':     oh[4],
                 'volume':    oh[5]
-            })
+            }
+            ops.append(ensure_future(coll.update_one({'timestamp': tmp['timestamp']}, {'$set': tmp}, upsert=True)))
 
-        ops.append(ensure_future(coll.insert_many(processed_ohlcv, ordered=False)))
+        await execute_mongo_ops(ops)
 
-        # insert 1000 ohlcv per op, clean up task stack periodically
-        if len(ops) > 50:
-            await execute_mongo_ops(ops)
-            ops = []
-
-    await execute_mongo_ops(ops)
 
 async def main():
     ex = 'bitfinex'
@@ -88,13 +83,13 @@ async def main():
         ]
 
         ohlcv_pairs = ohlcv_pairs[::-1]  # reverse the order
+        db = mongo.get_database(config['database']['dbname_exchange'])
 
         for symbol, timeframe in ohlcv_pairs:
             _symbol = ''.join(symbol.split('/'))  # remove '/'
-            coll = getattr(mongo.exchange, coll_tamplate.format(ex, _symbol, timeframe))
+            coll = getattr(db, coll_tamplate.format(ex, _symbol, timeframe))
 
             await fetch_ohlcv_to_mongo(coll, exchange, symbol, timeframe)
-
 
             logger.info(f"Finished fetching {symbol} {timeframe}.")
 
