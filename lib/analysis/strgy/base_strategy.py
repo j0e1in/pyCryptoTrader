@@ -118,12 +118,12 @@ class SingleExchangeStrategy():
     def op_buy(self, now, market, spend, margin=False):
         if not self.fast_mode:
             raise RuntimeError("Wrong method is called in slow mode.")
-        self.trade('buy', now, market, spend, margin)
+        self.op_trade('buy', now, market, spend, margin)
 
     def op_sell(self, now, market, spend, margin=False):
         if not self.fast_mode:
             raise RuntimeError("Wrong method is called in slow mode.")
-        self.trade('sell', now, market, spend, margin)
+        self.op_trade('sell', now, market, spend, margin)
 
     def op_clean_orders(self, side, now):
         """
@@ -135,7 +135,7 @@ class SingleExchangeStrategy():
         self.append_op(self.trader.op_cancel_all_orders(self.ex, now))
         self.append_op(self.trader.op_close_all_positions(self.ex, now, side=side))
 
-    def trade(self, side, now, market, spend, margin=False):
+    def op_trade(self, side, now, market, spend, margin=False):
         ## TODO: Add BTC pairs value conversion or more precised min value restraint
         price = self.trader.cur_price(self.ex, market, now)
         curr = self.trader.trading_currency(market, side, margin)
@@ -153,9 +153,24 @@ class SingleExchangeStrategy():
         price = self.trader.cur_price(self.ex, market, now)
         amount = 0
         if not margin:
-            amount = spend if side == 'sell' else spend / price
+            # amount = spend if side == 'sell' else spend / price
+
+            if side == 'sell':
+                amount = spend * (1 - self._config['analysis']['fee'])
+            else:
+                amount = spend * (1 - self._config['analysis']['fee']) / price
+
         else:
-            amount = spend / price * self.trader.config['margin_rate']
+            # amount = spend / price * self.trader.config['margin_rate']
+
+            C = spend
+            P = price
+            F = self._config['analysis']['fee']
+            MF = self._config['analysis']['margin_fee']
+            MR = self._config['analysis']['margin_rate']
+
+            amount = C / (1 + F + (MR-1) * MF) / P * MR
+
         return amount
 
     def append_op(self, op):
