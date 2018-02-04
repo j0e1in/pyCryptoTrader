@@ -155,10 +155,11 @@ class SingleExchangeStrategy():
         if not margin:
             # amount = spend if side == 'sell' else spend / price
 
+            F = self._config['analysis']['fee']
             if side == 'sell':
-                amount = spend * (1 - self._config['analysis']['fee'])
+                amount = spend * (1 - F)
             else:
-                amount = spend * (1 - self._config['analysis']['fee']) / price
+                amount = spend * (1 - F) / price
 
         else:
             # amount = spend / price * self.trader.config['margin_rate']

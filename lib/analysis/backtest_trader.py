@@ -602,11 +602,8 @@ class SimulatedTrader():
         if self.fast_mode:
             raise RuntimeError('SimulatedTrader cur_price is called in fast mode.')
 
-        if len(self.trades[ex][market]) > 0:
-            return self.trades[ex][market].iloc[-1].price
-        else:
-            last_ohlcv = self.get_last_ohlcv(ex, market)
-            return last_ohlcv.close
+        last_ohlcv = self.get_last_ohlcv(ex, market)
+        return last_ohlcv.close
 
     def order_count(self):
         self._order_count += 1
@@ -835,7 +832,7 @@ class FastTrader(SimulatedTrader):
             for op in ops:
                 dt = op['time']
                 if op and dt <= cur_time:
-                    if op['name'] == 'open':
+                    if op['name'] == 'open_order':
                         real_orders[op['order']['op_#']] = self.open(op['order'])
 
                     elif op['name'] == 'close_position':
@@ -887,16 +884,14 @@ class FastTrader(SimulatedTrader):
 
         if now is None:
             now = self.timer.now()
-        if len(self.trades[ex][market]) > 0:
-            return self.trades[ex][market][:now].iloc[-1]['price']
-        else:
-            last_ohlcv = self.get_last_ohlcv(ex, market, now)
-            return last_ohlcv.close
+
+        last_ohlcv = self.get_last_ohlcv(ex, market, now)
+        return last_ohlcv.close
 
     def op_open(self, order, now):
         order['op_#'] = self.op_order_count()
         op = {
-            'name': 'open',
+            'name': 'open_order',
             'time': now,
             'order': order
         }
@@ -960,10 +955,12 @@ class FastTrader(SimulatedTrader):
                     self.op_execute_open_order(order, order['op_open_price'])
                     executed.append(order)
 
+        # Delete executed orders
         for order in executed:
             del self.op_orders[order['op_#']]
 
-        if op['name'] == 'open':
+        # Execute open_order
+        if op['name'] == 'open_order':
             order = op['order']
             order['op_open_time'] = now
 
@@ -1037,27 +1034,29 @@ class FastTrader(SimulatedTrader):
 
         if not order['margin']:
             if self.is_buy(order):
-                cost = price * amount
                 fee = price * amount * self.config['fee']
-                remain = cost - fee
-                amount = remain / price
+                cost = price * amount + fee
                 earn = amount
             else:
-                cost = amount
                 fee = amount * self.config['fee']
-                amount -= fee
+                cost = amount + fee
                 earn = amount * price
 
         else:
             # opening a margin position, earn = 0
             if not order['op_#'] in self.op_positions[order['ex']]:
-                cost = amount / self.config['margin_rate'] * price
+                P = price
+                F = self.config['fee']
+                MF = self.config['margin_fee']
+                MR = self.config['margin_rate']
+
+                cost = amount * (1 + F + (MR-1) * MF) * P / MR
                 order['op_open_price'] = price
 
             else: # closing a margin position, cost = 0
-                base_amount = amount / self.config['margin_rate']
                 close_fee = price * amount * self.config['fee']
-                return_margin = order['op_open_price'] * (amount - base_amount)
+                return_amount = amount * (1 - 1 / self.config['margin_rate'])
+                return_margin = order['op_open_price'] * return_amount
                 earn = price * amount - close_fee - return_margin
 
         return cost, earn
