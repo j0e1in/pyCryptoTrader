@@ -18,8 +18,8 @@ class PatternStrategy(SingleExchangeStrategy):
 
         for market in self.markets:
 
-            # sig = self.wvf(market)
-            sig = self.hma(market)
+            # sig = self.wvf_sig(market)
+            sig = self.hma_sig(market)
             sig = sig.dropna()
 
             for dt, ss in sig.items():
@@ -43,11 +43,11 @@ class PatternStrategy(SingleExchangeStrategy):
                     cost = ss / 100 * self.trader.op_wallet[self.ex][curr] * self.p['trade_portion']
                     self.op_sell(dt, market, cost, margin=self.margin)
 
-    def rsi(self, market):
-        return self.ind.rsi(self.ohlcvs[market][self.p['rsi_tf']])
+    def rsi_sig(self, market):
+        return self.ind.rsi_sig(self.ohlcvs[market][self.p['rsi_tf']])
 
-    def wvf(self, market):
-        return self.ind.william_vix_fix_v3(self.ohlcvs[market][self.p['wvf_tf']])
+    def wvf_sig(self, market):
+        return self.ind.william_vix_fix_v3_sig(self.ohlcvs[market][self.p['wvf_tf']])
 
-    def hma(self, market):
-        return self.ind.hull_moving_average(self.ohlcvs[market][self.p['hma_tf']])
+    def hma_sig(self, market):
+        return self.ind.hull_moving_average_sig(self.ohlcvs[market][self.p['hma_tf']])

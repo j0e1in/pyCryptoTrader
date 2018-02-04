@@ -38,8 +38,8 @@ class PatternStrategy(SingleEXStrategy):
         for market in self.trader.markets:
             signals[market] = self.calc_signal(market)
 
-        markets_order = self.rank_market(signals)
-        for market in markets_order:
+        market_ranks = self.rank_markets(signals)
+        for market in market_ranks:
             sig = signals[market]['sig']
             tf = signals[market]['tf']
 
@@ -106,10 +106,10 @@ class PatternStrategy(SingleEXStrategy):
         """ Main algorithm which calculates signals.
             Returns {signal, timeframe}
         """
-        # sig = self.wvf(market)
+        # sig = self.wvf_sig(market)
         # tf = self.p['wvf_tf']
 
-        sig = self.hma(market)
+        sig = self.hma_sig(market)
         tf = self.p['hma_tf']
 
         return {
@@ -117,16 +117,16 @@ class PatternStrategy(SingleEXStrategy):
             'tf': tf
         }
 
-    def rsi(self, market):
-        return self.ind.rsi(self.trader.ohlcvs[market][self.p['rsi_tf']])
+    def rsi_sig(self, market):
+        return self.ind.rsi_sig(self.trader.ohlcvs[market][self.p['rsi_tf']])
 
-    def wvf(self, market):
-        return self.ind.william_vix_fix_v3(self.trader.ohlcvs[market][self.p['wvf_tf']])
+    def wvf_sig(self, market):
+        return self.ind.william_vix_fix_v3_sig(self.trader.ohlcvs[market][self.p['wvf_tf']])
 
-    def hma(self, market):
-        return self.ind.hull_moving_average(self.trader.ohlcvs[market][self.p['hma_tf']])
+    def hma_sig(self, market):
+        return self.ind.hull_moving_average_sig(self.trader.ohlcvs[market][self.p['hma_tf']])
 
-    def rank_market(self, signals):
+    def rank_markets(self, signals):
         """ Rank markets' profitability.
             Returns a list of markets.
         """

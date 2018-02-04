@@ -6,6 +6,9 @@ import math
 
 from utils import config
 
+from ipdb import set_trace as trace
+from pprint import pprint
+
 BUY = 1
 SELL = -1
 
@@ -17,6 +20,9 @@ class Indicator():
         self.p = _config['analysis']['params']
 
     def rsi(self, ohlcv):
+        return talib_abstract.RSI(ohlcv, timeperiod=self.p['rsi_period'])
+
+    def rsi_sig(self, ohlcv):
         ind = talib_abstract.RSI(ohlcv, timeperiod=self.p['rsi_period'])
 
         rise = self.is_rising(ind)
@@ -55,7 +61,17 @@ class Indicator():
 
         return conf
 
-    def william_vix_fix_v3(self, ohlcv):
+    def wvf(self, ohlcv):
+        lbsdh = self.p['wvf_lbsdh']     # LookBack Period Standard Deviation High
+
+        low = ohlcv.low
+        close = ohlcv.close
+
+        # Williams Vix Fix Formula
+        wvf = (highest(close, lbsdh) - low) / highest(close, lbsdh) * 100
+        return wvf
+
+    def william_vix_fix_v3_sig(self, ohlcv):
         # Inputs Tab Criteria.
         lbsdh = self.p['wvf_lbsdh']     # LookBack Period Standard Deviation High
         bbl = self.p['wvf_bbl']         # Bolinger Band Length
@@ -68,28 +84,11 @@ class Indicator():
         mtLB = self.p['wvf_mtLB']       # Medium-Term Look Back Current Bar Has To Close Below This Value OR Long Term--Default=14 (10-20)
         strg = self.p['wvf_strg']         # Entry Price Action Strength--Close > X Bars Back---Default=3 (1-9)
 
-        def highest(ss, n):
-            """ Highest value for a given number of bars back. """
-            tmp = pd.Series(index=ss.index)
-            for i in np.arange(len(ss)):
-                m = max(0, i+0-n)
-                tmp[i] = ss[m:i+0].max()
-            return tmp
-
-        def stdev(ss, n):
-            """ Standard deviation of max last n elements in a series. """
-            tmp = pd.Series(index=ss.index)
-            for i in np.arange(len(ss)):
-                m = max(0, i+0-n)
-                tmp[i] = np.std(ss[m:i+0])
-            return tmp
-
         open = ohlcv.open
         high = ohlcv.high
         low = ohlcv.low
         close = ohlcv.close
 
-        # Williams Vix Fix Formula
         wvf = (highest(close, lbsdh) - low) / highest(close, lbsdh) * 100
         sDev = bbsd * stdev(wvf, bbl)
 
@@ -141,13 +140,17 @@ class Indicator():
 
         return conf
 
-    def hull_moving_average(self, ohlcv, ma='wma'):
+    def hma(self, ohlcv, ma='wma'):
         # Formula: HMA[i] = MA( (2*MA(input, period/2) - MA(input, period)), SQRT(period))
         MA = getattr(talib, ma.upper())
         hma = MA((2 * MA(np.asarray(ohlcv.close), self.p['hma_ma_period']/2))
                     - MA(np.asarray(ohlcv.close), self.p['hma_ma_period']),
                 math.sqrt(self.p['hma_ma_period']))
         hma = pd.Series(hma, index=ohlcv.index)
+        return hma
+
+    def hull_moving_average_sig(self, ohlcv, ma='wma'):
+        hma = self.hma(ohlcv, ma)
 
         rise_sig = (hma.shift(2) >= hma.shift(1)) & (hma.shift(1) < hma)
         drop_sig = (hma.shift(2) <= hma.shift(1)) & (hma.shift(1) > hma)
@@ -264,3 +267,21 @@ class Indicator():
         """ Check if confidence contains BUY or SELL value (which is invalid). """
         if ((conf == BUY) | (conf == SELL)).any():
             raise ValueError("Confidence is invalid.")
+
+
+def highest(ss, n):
+            """ Highest value for a given number of bars back. """
+            tmp = pd.Series(index=ss.index)
+            for i in np.arange(len(ss)):
+                m = max(0, i+0-n)
+                tmp[i] = ss[m:i+0].max()
+            return tmp
+
+
+def stdev(ss, n):
+    """ Standard deviation of max last n elements in a series. """
+    tmp = pd.Series(index=ss.index)
+    for i in np.arange(len(ss)):
+        m = max(0, i+0-n)
+        tmp[i] = np.std(ss[m:i+0])
+    return tmp
