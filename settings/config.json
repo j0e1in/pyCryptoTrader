@@ -26,7 +26,7 @@
   },
 
   "matplot": {
-    "enable": true,
+    "enable": false,
     "plot_indicators": true,
     "window_size": [15, 9],
     "plot_timeframes": {
@@ -87,9 +87,10 @@
 
   "analysis": {
     "fee": 0.002,
-    "margin_fee": 0.003,
+    "margin_fee": 0.0015,
     "margin_rate": 3.33,
     "force_liquidate_percentage": 0.85,
+    "price_tf": "1h",
 
     "_comment_min_order_value": "minimal USD value is allwed to open an order",
     "min_order_value": 10,
@@ -175,6 +176,12 @@
     "params": {
       "trade_portion": 0.9,
 
+      "rsi_tf": "1h",
+      "rsi_conf": 40,
+      "rsi_period": 14,
+      "rsi_upper_bound": 70,
+      "rsi_lower_bound": 30,
+
       "wvf_tf": "1h",
       "wvf_conf": 50,
       "wvf_lbsdh": 22,
@@ -192,11 +199,6 @@
     },
 
     "unused_params": {
-      "rsi_tf": "1h",
-      "rsi_conf": 40,
-      "rsi_period": 14,
-      "rsi_upper_bound": 70,
-      "rsi_lower_bound": 30
     }
 
   },

@@ -173,7 +173,6 @@ class EXBase():
                 for tf in self.timeframes:
 
                     td = timeframe_timedelta(tf)
-                    # cur_time = rounddown_dt(utc_now(), sec=td.seconds)
                     end = self.ohlcv_start_end[market][tf][1]
 
                     if end < cur_time:

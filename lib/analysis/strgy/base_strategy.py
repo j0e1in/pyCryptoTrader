@@ -152,25 +152,11 @@ class SingleExchangeStrategy():
     def calc_market_amount(self, side, market, spend, margin=False, now=None):
         price = self.trader.cur_price(self.ex, market, now)
         amount = 0
+
         if not margin:
-            # amount = spend if side == 'sell' else spend / price
-
-            F = self._config['analysis']['fee']
-            if side == 'sell':
-                amount = spend * (1 - F)
-            else:
-                amount = spend * (1 - F) / price
-
+            amount = spend if side == 'sell' else spend / price
         else:
-            # amount = spend / price * self.trader.config['margin_rate']
-
-            C = spend
-            P = price
-            F = self._config['analysis']['fee']
-            MF = self._config['analysis']['margin_fee']
-            MR = self._config['analysis']['margin_rate']
-
-            amount = C / (1 + F + (MR-1) * MF) / P * MR
+            amount = spend / price * self.trader.config['margin_rate']
 
         return amount
 
