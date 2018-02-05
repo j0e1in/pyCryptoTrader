@@ -164,6 +164,19 @@ class Indicator():
 
         return conf
 
+    def rsi_ma(self, ohlcv, period, ma='hma'):
+        """ RSI moving average. (Smoothed RSI) """
+        rsi = talib_abstract.RSI(ohlcv, timeperiod=self.p['rsi_period'])
+        rsi_ma = None
+
+        if ma == 'hma':
+            rsi_ma = self.hma(rsi, period)
+        else:
+            MA = getattr(talib, ma.upper())
+            rsi_ma = self.talib_s(MA, rsi, period)
+
+        return rsi_ma
+
     def calc_abs_talib_func(self, ta_func, market=None, tf=None, **ta_args):
         """ Run abstract talib function. """
         if market:
