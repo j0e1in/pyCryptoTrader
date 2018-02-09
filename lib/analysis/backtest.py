@@ -161,22 +161,29 @@ class Backtest():
         self.report['final_value'] = self._calc_total_value(self.timer.now())
         self.report['PL'] = self.report['final_value'] - self.report['initial_value']
         self.report['PL(%)'] = self.report['PL'] / self.report['initial_value'] * 100
+        self.report['Fee'] = 0
 
         # PL_Eff = 1 means 100% return in 30 days
         self.report['PL_Eff'] = self.report['PL(%)'] / (self.end - self.start).days * 0.3
 
         for ex, orders in self.trader.order_history.items():
             for _, order in orders.items():
-                if order['margin'] and not order['canceled']:
-                    self.margin_PLs.append(order['PL'])
+                if not order['canceled']:
 
-                    # Calculate number of profit/loss trades
-                    if order['PL'] >= 0:
-                        self.report['#_profit_trades'] += 1
-                    else:
-                        self.report['#_loss_trades'] += 1
+                    self.report['Fee'] += order['fee']
 
-                # TODO: Add PL calculations for normal order
+                    if order['margin']:
+                        self.report['Fee'] += order['margin_fee']
+
+                        self.margin_PLs.append(order['PL'])
+
+                        # Calculate number of profit/loss trades
+                        if order['PL'] >= 0:
+                            self.report['#_profit_trades'] += 1
+                        else:
+                            self.report['#_loss_trades'] += 1
+
+                    # TODO: Add PL calculations for normal order
 
     def _calc_total_value(self, dt):
         # TODO: Add conversion to BTC than to USD for exchanges that don't have USD pairs.
