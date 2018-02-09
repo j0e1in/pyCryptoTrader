@@ -470,7 +470,8 @@ class SimulatedTrader():
             order['close_time'] = self.timer.now()
             self._calc_order(order)
             order['active'] = False
-            self.wallet[ex][order['currency']] += self._calc_margin_return(order)
+            ret = self._calc_margin_return(order)
+            self.wallet[ex][order['currency']] += ret
             del self.positions[ex][order['#']]
             del self.orders[ex][order['#']]
             self.order_history[ex][order['#']] = order
@@ -653,21 +654,15 @@ class SimulatedTrader():
         return pl
 
     def _calc_margin_return(self, order):
-        # price_diff = order['close_price'] - order['open_price']
+        price_diff = order['close_price'] - order['open_price']
 
-        # if order['side'] == 'sell':
-        #     price_diff *= -1
-
-        # close_fee = order['close_price'] * order['amount'] * self.config['fee']
-        # result = order['open_price'] * order['amount'] / self.config['margin_rate'] \
-        #        + price_diff * order['amount'] - close_fee
-
-        ####
+        if order['side'] == 'sell':
+            price_diff *= -1
 
         close_fee = order['close_price'] * order['amount'] * self.config['fee']
-        return_amount = order['amount'] * (1 - 1 / self.config['margin_rate'])
-        return_margin = order['open_price'] * return_amount
-        result = order['close_price'] * order['amount'] - close_fee - return_margin
+        result = order['open_price'] * order['amount'] / self.config['margin_rate'] \
+               + price_diff * order['amount'] - close_fee
+
         return result
 
     def get_hist_margin_orders(self, ex, market):
@@ -1056,22 +1051,15 @@ class FastTrader(SimulatedTrader):
                 order['op_amount'] = cost / (1 + F * MR + (MR - 1) * MF) / P * MR
 
             else: # closing a margin position, cost = 0
-                # price_diff = price - order['op_open_price']
-                # close_fee = price * amount * self.config['fee']
-
-                # if order['side'] == 'sell':
-                #     price_diff *= -1
-
-                # earn = order['op_open_price'] * amount / self.config['margin_rate'] \
-                #        + price_diff * amount - close_fee
-
-                ####
-
                 amount = order['op_amount']
+                price_diff = price - order['op_open_price']
                 close_fee = price * amount * self.config['fee']
-                return_amount = amount * (1 - 1 / self.config['margin_rate'])
-                return_margin = order['op_open_price'] * return_amount
-                earn = price * amount - close_fee - return_margin
+
+                if order['side'] == 'sell':
+                    price_diff *= -1
+
+                earn = order['op_open_price'] * amount / self.config['margin_rate'] \
+                       + price_diff * amount - close_fee
 
         return cost, earn
 
