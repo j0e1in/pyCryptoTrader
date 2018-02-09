@@ -16,8 +16,7 @@ from ipdb import set_trace as trace
 
 async def test_single_period(mongo, market):
     # dt = (datetime(2017, 1, 1), datetime(2018, 1, 1))
-
-    dt = (datetime(2017, 1, 1), datetime(2018, 1, 1))
+    dt = (datetime(2018, 1, 1), datetime(2018, 2, 1))
 
     _config = copy.deepcopy(config)
     _config['analysis']['exchanges']['bitfinex']['markets'] = [market]
@@ -33,7 +32,7 @@ async def test_single_period(mongo, market):
 
     sp = backtest.ohlcvs['bitfinex'][backtest.markets['bitfinex'][0]]['1m'].iloc[0].open
     ep = backtest.ohlcvs['bitfinex'][backtest.markets['bitfinex'][0]]['1m'].iloc[-1].close
-    ch = ep / sp if ep >= sp else -(ep / sp)
+    ch = ep / sp if ep >= sp else ((ep / sp) - 1)
     print(f"# Starting price: {sp}\n"
           f"# Ending price:   {ep}\n"
           f"# Change(%):      {ch * 100}")
@@ -45,6 +44,15 @@ async def test_single_period(mongo, market):
     print('\n-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n')
     # pprint(backtest.margin_PLs)
 
+    hist = backtest.trader.order_history['bitfinex']
+
+    # Print orders with PL < -30
+    # for _, order in hist.items():
+    #     # if order['PL'] < -30:
+    #     if order['side'] == 'sell':
+    #         pprint(order)
+
+    return report
 
 async def test_special_periods_of_markets(mongo):
 
@@ -61,8 +69,13 @@ async def test_special_periods_of_markets(mongo):
         # "ZEC/USD",
     ]
 
+    total_pl = 0
+
     for market in markets:
-        await test_single_period(mongo, market)
+        report = await test_single_period(mongo, market)
+        total_pl += report['PL(%)']
+
+    print(f"Total PL(%): {total_pl/len(markets)}")
 
 async def test_special_periods(mongo):
     # periods = [
