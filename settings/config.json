@@ -26,7 +26,7 @@
   },
 
   "matplot": {
-    "enable": false,
+    "enable": true,
     "plot_indicators": true,
     "window_size": [15, 9],
     "plot_timeframes": {
@@ -39,7 +39,7 @@
 
   "trading": {
     "margin": true,
-    "trade_portion": 0.6,
+    "trade_portion": 0.7,
 
     "_conmment_maintain_portion": "ratio of balance in wallet and balance in markets",
     "maintain_portion": 0.2,
@@ -87,7 +87,7 @@
 
   "analysis": {
     "fee": 0.002,
-    "margin_fee": 0.0015,
+    "margin_fee": 0.003,
     "margin_rate": 3.33,
     "force_liquidate_percentage": 0.85,
     "price_tf": "1h",
@@ -104,7 +104,7 @@
       "bitfinex": {
         "_comment_markets": "markets to trade",
         "markets": [
-          "ETH/USD"
+          "XRP/USD"
         ],
         "markets_not_used": [
           "BTC/USD",
@@ -159,13 +159,13 @@
         ],
         "timeframes": [
           "1m",
-          "5m",
-          "30m",
-          "1h"
+          "1h",
+          "3h"
         ],
         "timeframes_not_used": [
+          "5m",
+          "30m",
           "15m",
-          "3h",
           "6h",
           "12h",
           "1d"
@@ -177,12 +177,17 @@
       "trade_portion": 0.9,
 
       "rsi_tf": "1h",
-      "rsi_conf": 40,
+      "rsi_conf": 70,
       "rsi_period": 14,
-      "rsi_upper_bound": 70,
-      "rsi_lower_bound": 30,
+      "rsi_uptrend_upper": 80,
+      "rsi_uptrend_lower": 25,
+      "rsi_downtrend_upper": 75,
+      "rsi_downtrend_lower": 22,
+      "rsi_adx_length": 14,
+      "rsi_di_length": 14,
+      "rsi_adx_threshold": 35,
 
-      "wvf_tf": "1h",
+      "wvf_tf": "3h",
       "wvf_conf": 50,
       "wvf_lbsdh": 22,
       "wvf_bbl": 20,
@@ -193,9 +198,38 @@
       "wvf_mtLB": 14,
       "wvf_strg": 3,
 
-      "hma_tf": "1h",
-      "hma_conf": 70,
-      "hma_ma_period": 9
+      "hma_tf": "3h",
+      "hma_conf": 60,
+      "hma_length": 10,
+      "hma_ma_length": 9,
+      "hma_adx_length": 46,
+      "hma_di_length": 14,
+      "hma_adx_thresh": 25,
+      "hma_fk_period": 5,
+      "hma_fd_period": 3,
+
+      "vma_tf": "1h",
+      "vma_length": 8,
+
+      "ann_tf": "1h",
+      "ann_conf": 100,
+      "ann_threshold": 0.003,
+
+      "vwma_tf": "1h",
+      "vwma_conf": 100,
+      "vwma_length": 15,
+      "vwma_ma_conf": 100,
+      "vwma_ma_length": 8,
+
+      "dmi_tf": "3h",
+      "dmi_conf": 100,
+      "dmi_adx_length": 46,
+      "dmi_di_length": 12,
+      "dmi_start_threshold": 22,
+      "dmi_end_threshold": 20,
+      "dmi_adx_peak_diff": 2,
+      "dmi_di_diff": 20
+
     },
 
     "unused_params": {

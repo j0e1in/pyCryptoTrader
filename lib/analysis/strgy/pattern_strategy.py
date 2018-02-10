@@ -1,5 +1,7 @@
 from pprint import pprint
 
+import matplotlib.pyplot as plt
+
 from analysis.indicators import Indicator
 from analysis.strgy.base_strategy import SingleExchangeStrategy
 
@@ -15,39 +17,47 @@ class PatternStrategy(SingleExchangeStrategy):
         self.margin = self._config['backtest']['margin']
 
     def fast_strategy(self):
-
         for market in self.markets:
+            sig = self.calc_signal(market)
+            self.execute_signal(sig, market)
 
-            # sig = self.wvf_sig(market)
-            sig = self.hma_sig(market)
-            sig = sig.dropna()
+    def execute_signal(self, sig, market):
+        sig = sig.dropna()
+        for dt, ss in sig.items():
+            if ss > 0: # buy
+                ss = abs(ss)
+                self.op_clean_orders('sell', dt)
+                curr = self.trader.quote_balance(market)
+                cost = ss / 100 * self.trader.op_wallet[self.ex][curr] * self.p['trade_portion']
+                self.op_buy(dt, market, cost, margin=self.margin)
 
-            for dt, ss in sig.items():
+            elif ss < 0: # sell
+                ss = abs(ss)
+                self.op_clean_orders('buy', dt)
 
-                if ss > 0: # buy
-                    ss = abs(ss)
-                    self.op_clean_orders('sell', dt)
+                if self.margin:
                     curr = self.trader.quote_balance(market)
-                    cost = abs(ss) / 100 * self.trader.op_wallet[self.ex][curr] * self.p['trade_portion']
-                    self.op_buy(dt, market, cost, margin=self.margin)
+                else:
+                    curr = self.trader.base_balance(market)
 
-                elif ss < 0: # sell
-                    ss = abs(ss)
-                    self.op_clean_orders('buy', dt)
+                cost = ss / 100 * self.trader.op_wallet[self.ex][curr] * self.p['trade_portion']
+                self.op_sell(dt, market, cost, margin=self.margin)
 
-                    if self.margin:
-                        curr = self.trader.quote_balance(market)
-                    else:
-                        curr = self.trader.base_balance(market)
+            else:  # ss == 0
+                # Close all positions and cancel all orders
+                self.op_clean_orders('all', dt)
 
-                    cost = ss / 100 * self.trader.op_wallet[self.ex][curr] * self.p['trade_portion']
-                    self.op_sell(dt, market, cost, margin=self.margin)
+    def calc_signal(self, market):
+        """ Main algorithm which calculates signals.
+            Returns {signal, timeframe}
+        """
+        wvf = self.ind.wvf_sig(self.ohlcvs[market][self.p['wvf_tf']])
+        # rsi = self.ind.rsi_sig(self.ohlcvs[market][self.p['rsi_tf']])
+        # ann = self.ind.ann_v3_sig(self.ohlcvs[market][self.p['ann_tf']])
+        # vwma = self.ind.vwma_sig(self.ohlcvs[market][self.p['vwma_tf']])
+        # vwma_ma = self.ind.vwma_ma_sig(self.ohlcvs[market][self.p['vwma_tf']])
+        # hma = self.ind.hma_sig(self.ohlcvs[market][self.p['hma_tf']])
+        # hma_ma = self.ind.hma_ma_sig(self.ohlcvs[market][self.p['hma_tf']])
+        dmi = self.ind.dmi_sig(self.ohlcvs[market][self.p['dmi_tf']])
 
-    def rsi_sig(self, market):
-        return self.ind.rsi_sig(self.ohlcvs[market][self.p['rsi_tf']])
-
-    def wvf_sig(self, market):
-        return self.ind.william_vix_fix_v3_sig(self.ohlcvs[market][self.p['wvf_tf']])
-
-    def hma_sig(self, market):
-        return self.ind.hull_moving_average_sig(self.ohlcvs[market][self.p['hma_tf']])
+        return dmi
