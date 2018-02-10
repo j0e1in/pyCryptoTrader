@@ -117,7 +117,7 @@ class Plot():
                 cost = format_value(order['cost'])
                 # text = f"#{order['#']}\nmargin\nopen\nP: {price}\nV: {cost}"
                 text = f"#{order['#']}"
-                self._ohllc_order_annotate(ohlc, side, time, text)
+                self._ohlc_order_annotate(ohlc, side, time, text)
 
                 # Annotate margin close
                 side = 'buy' if order['side'] == 'sell' else 'sell'
@@ -126,7 +126,7 @@ class Plot():
                 earn = format_value(order['close_price'] * order['amount'] * (1-self._config['analysis']['fee']))
                 # text = f"#{order['#']}\nmargin\nclose\nP: {price}\nV: {earn}"
                 text = f"#{order['#']}"
-                self._ohllc_order_annotate(ohlc, side, time, text)
+                self._ohlc_order_annotate(ohlc, side, time, text)
 
             else: # Annotate normal orders
                 side = order['side']
@@ -139,12 +139,12 @@ class Plot():
                     earn = format_value(order['amount'] * order['open_price'])
                 # text = f"#{order['#']}\nnormal\nP: {price}\nV: {cost}/{earn}"
                 text = f"#{order['#']}"
-                self._ohllc_order_annotate(ohlc, side, time, text)
+                self._ohlc_order_annotate(ohlc, side, time, text)
 
-    def _ohllc_order_annotate(self, ohlc, side, time, text):
+    def _ohlc_order_annotate(self, ohlc, side, time, text):
         ymin, ymax = self.ax.get_ylim()
         y_delta_head = (ymax - ymin) / 70
-        y_delta_tail = y_delta_head * 4
+        y_delta_tail = y_delta_head * 2
 
         if side == 'sell':
             y_value = ohlc.high.asof(time)
@@ -159,7 +159,7 @@ class Plot():
 
         opts = {
             'xy': (time, y_value + y_delta_head),
-            'xytext': (time, y_value + y_delta_tail),
+            'xytext': (time, y_value + y_delta_tail * 2),
             'arrowprops': dict(facecolor=color, headwidth=10, width=5, headlength=5),
             'horizontalalignment': 'center',
             'verticalalignment': v_align
