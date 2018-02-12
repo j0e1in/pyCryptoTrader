@@ -28,13 +28,7 @@
   "matplot": {
     "enable": true,
     "plot_indicators": true,
-    "window_size": [15, 9],
-    "plot_timeframes": {
-      "_comment_plot_timeframes": "specify timeframes to plot for each market, default is 1h",
-      "default": "1h",
-      "BTC/USD": "1h",
-      "ETH/USD": "1h"
-    }
+    "window_size": [15, 9]
   },
 
   "trading": {
@@ -176,6 +170,7 @@
     "params": {
       "trade_portion": 0.9,
       "stop_loss_percent": 0.07,
+      "stop_profit_percent": 0.10,
 
       "rsi_conf": 70,
       "rsi_period": 14,

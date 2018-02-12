@@ -224,14 +224,8 @@ class Backtest():
         for ex, markets in self.ohlcvs.items():
             for market, tfs in markets.items():
 
-                # Get timeframe to plot ohlc
-                if market in self.plot.config['plot_timeframes']:
-                    tf = self.plot.config['plot_timeframes'][market]
-                else:
-                    tf = self.plot.config['plot_timeframes']['default']
-
                 # Plot ohlc
-                ohlc = self.ohlcvs[ex][market][tf]
+                ohlc = self.ohlcvs[ex][market][self.trader.config['indicator_tf']]
                 self.plot.plot_ohlc(ohlc)
 
                 # Plot orders
