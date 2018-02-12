@@ -398,7 +398,8 @@ class SimulatedTrader():
             order = self.positions[ex][id]
 
             # queue the order again for trader to close
-            self.orders[ex][id] = order
+            if id not in self.orders[ex]:
+                self.orders[ex][id] = order
             return order
         else:
             return None
@@ -447,6 +448,9 @@ class SimulatedTrader():
         orders = deepcopy(self.orders[ex])
 
         for id, order in orders.items():
+            if self.is_margin_close(order):
+                continue # skip if the order is queued to close
+
             if (side == 'all')\
             or (order['side'] == side):
                 if self.cancel_order(order):
@@ -470,8 +474,8 @@ class SimulatedTrader():
             order['close_time'] = self.timer.now()
             self._calc_order(order)
             order['active'] = False
-            ret = self._calc_margin_return(order)
-            self.wallet[ex][order['currency']] += ret
+            earn = self._calc_margin_return(order)
+            self.wallet[ex][order['currency']] += earn
             del self.positions[ex][order['#']]
             del self.orders[ex][order['#']]
             self.order_history[ex][order['#']] = order
@@ -604,7 +608,7 @@ class SimulatedTrader():
             raise RuntimeError('SimulatedTrader cur_price is called in fast mode.')
 
         # last_ohlcv = self.get_last_ohlcv(ex, market)
-        last_ohlcv = self.ohlcvs[ex][market][self.config['price_tf']].iloc[-1]
+        last_ohlcv = self.ohlcvs[ex][market][self.config['indicator_tf']].iloc[-1]
         return last_ohlcv.close
 
     def order_count(self):
@@ -713,7 +717,10 @@ class SimulatedTrader():
             poses = copy.deepcopy(self.positions[ex])
             for id, pos in poses.items():
 
-                ohlcv = self.ohlcvs[ex][pos['market']]['1m'][pos['open_time']:cur_time]
+                if pos['open_time'] >= cur_time:
+                    logger.debug(f"wrong cur_time")
+
+                ohlcv = self.ohlcvs[ex][pos['market']][self.config['indicator_tf']][pos['open_time']:cur_time]
                 liq_time = None
 
                 if pos['side'] == 'buy':
@@ -882,7 +889,7 @@ class FastTrader(SimulatedTrader):
         if now is None:
             now = self.timer.now()
 
-        last_ohlcv = self.ohlcvs[ex][market][self.config['price_tf']][:now].iloc[-1]
+        last_ohlcv = self.ohlcvs[ex][market][self.config['indicator_tf']][:now].iloc[-1]
         return last_ohlcv.close
 
     def op_open(self, order, now):
@@ -975,13 +982,15 @@ class FastTrader(SimulatedTrader):
         elif op['name'] == 'close_position':
             order = op['order']
             curr = self.trading_currency(order=order)
-
+            # trace()
             if order['op_#'] in self.op_positions[order['ex']]:
                 price = self.cur_price(order['ex'], order['market'], now)
                 _, earn = self.op_calc_cost_earn(order, price)
 
                 self.op_wallet[order['ex']][curr] += earn
                 del self.op_positions[order['ex']][order['op_#']]
+            else:
+                logger.debug(f"{order['op_#']} is not in op_positions")
 
         elif op['name'] == 'cancel_order':
             # Only limit order can be canceled
