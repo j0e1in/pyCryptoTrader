@@ -82,7 +82,6 @@ async def test_param_optimizer(mongo):
     optimizer = ParamOptimizer(mongo, strategy, periods)
 
     optimizer.optimize_range('trade_portion', 0.1, 0.2, 0.1)
-    optimizer.optimize_selection('wvf_tf', ['30m', '1h'])
     summaries = await optimizer.run()
     summary = optimizer.analyze_summary(summaries, 'best_params')
     print(summary)

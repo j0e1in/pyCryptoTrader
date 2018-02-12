@@ -42,7 +42,7 @@
     "trade_portion": 0.7,
 
     "_conmment_maintain_portion": "ratio of balance in wallet and balance in markets",
-    "maintain_portion": 0.2,
+    "maintain_portion": 0.1,
 
     "_comment_limit_price_diff": "price difference (buffer) to the top price in orderbook",
     "limit_price_diff": 0.005,
@@ -90,7 +90,7 @@
     "margin_fee": 0.003,
     "margin_rate": 3.33,
     "force_liquidate_percentage": 0.85,
-    "price_tf": "1h",
+    "indicator_tf": "3h",
 
     "_comment_min_order_value": "minimal USD value is allwed to open an order",
     "min_order_value": 10,
@@ -175,8 +175,8 @@
 
     "params": {
       "trade_portion": 0.9,
+      "stop_loss_percent": 0.07,
 
-      "rsi_tf": "1h",
       "rsi_conf": 70,
       "rsi_period": 14,
       "rsi_uptrend_upper": 80,
@@ -187,7 +187,6 @@
       "rsi_di_length": 14,
       "rsi_adx_threshold": 35,
 
-      "wvf_tf": "3h",
       "wvf_conf": 50,
       "wvf_lbsdh": 22,
       "wvf_bbl": 20,
@@ -198,7 +197,6 @@
       "wvf_mtLB": 14,
       "wvf_strg": 3,
 
-      "hma_tf": "3h",
       "hma_conf": 60,
       "hma_length": 10,
       "hma_ma_length": 9,
@@ -208,20 +206,16 @@
       "hma_fk_period": 5,
       "hma_fd_period": 3,
 
-      "vma_tf": "1h",
       "vma_length": 8,
 
-      "ann_tf": "1h",
       "ann_conf": 100,
       "ann_threshold": 0.003,
 
-      "vwma_tf": "1h",
       "vwma_conf": 100,
       "vwma_length": 15,
       "vwma_ma_conf": 100,
       "vwma_ma_length": 8,
 
-      "dmi_tf": "3h",
       "dmi_conf": 100,
       "dmi_adx_length": 46,
       "dmi_di_length": 12,
