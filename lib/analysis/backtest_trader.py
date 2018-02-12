@@ -98,6 +98,7 @@ class SimulatedTrader():
         self.orders = self.order_records['orders']
         self.order_history = self.order_records['order_history']
         self.positions = self.order_records['positions']
+        self.wallet_history = []
         self._order_count = 0
 
     def _init_order_records(self):
@@ -479,6 +480,7 @@ class SimulatedTrader():
             del self.positions[ex][order['#']]
             del self.orders[ex][order['#']]
             self.order_history[ex][order['#']] = order
+            self.wallet_history.append(self.wallet[ex][order['currency']])
 
         def execute_normal_order(order):
             order['close_time'] = self.timer.now()
