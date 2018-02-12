@@ -60,16 +60,16 @@ class PatternStrategy(SingleExchangeStrategy):
             Returns {signal, timeframe}
         """
         ohlcv = self.ohlcvs[market][self.trader.config['indicator_tf']]
-        # wvf = self.ind.wvf_sig(ohlcv)
-        # rsi = self.ind.rsi_sig(ohlcv)
-        # ann = self.ind.ann_v3_sig(ohlcv)
-        # vwma = self.ind.vwma_sig(ohlcv)
-        # vwma_ma = self.ind.vwma_ma_sig(ohlcv)
-        # hma = self.ind.hma_sig(ohlcv)
-        # hma_ma = self.ind.hma_ma_sig(ohlcv)
-        dmi = self.ind.dmi_sig(ohlcv)
+        # sig = self.ind.wvf_sig(ohlcv)
+        # sig = self.ind.rsi_sig(ohlcv)
+        # sig = self.ind.ann_v3_sig(ohlcv)
+        # sig = self.ind.vwma_sig(ohlcv)
+        # sig = self.ind.vwma_ma_sig(ohlcv)
+        # sig = self.ind.hma_sig(ohlcv)
+        # sig = self.ind.hma_ma_sig(ohlcv)
+        sig = self.ind.dmi_sig(ohlcv)
 
-        return dmi
+        return sig
 
     def stop_loss(self, market, end):
         for id, pos in self.trader.op_positions[self.ex].items():
@@ -91,7 +91,7 @@ class PatternStrategy(SingleExchangeStrategy):
                     self.append_op(self.trader.op_close_position(pos, dt))
 
                     if self._config['mode'] == 'debug':
-                        logger.debug(f"Stop loss @ {ohlcv.loc[dt].close} ({dt})")
+                        logger.debug(f"Stop buy loss @ {ohlcv.loc[dt].close} ({dt})")
 
                 elif pos['side'] == 'sell' \
                 and ohlcv.high.max() > target_high:
@@ -99,11 +99,46 @@ class PatternStrategy(SingleExchangeStrategy):
                     self.append_op(self.trader.op_close_position(pos, dt))
 
                     if self._config['mode'] == 'debug':
-                        logger.debug(f"Stop loss @ {ohlcv.loc[dt].close} ({dt})")
+                        logger.debug(f"Stop sell loss @ {ohlcv.loc[dt].close} ({dt})")
 
     def stop_profit(self, market, end):
         for id, pos in self.trader.op_positions[self.ex].items():
-            pass
+            if pos['market'] != market:
+                continue
+
+            start = pos['op_open_time'] + timedelta(minutes=1)
+            ohlcv = self.trader.ohlcvs[self.ex][market][self.trader.config['indicator_tf']][start:end]
+            if start == end:
+                logger.warn('start == end')
+
+            if len(ohlcv) > 0:
+                if pos['side'] == 'buy':
+                    for dt, oh in ohlcv.iterrows():
+                        cur_high = ohlcv[:dt + timedelta(minutes=1)].close.max()
+                        target_low = cur_high * (1 - self.p['stop_profit_percent'])
+
+                        if target_low > pos['op_open_price'] and oh.close < target_low:
+                            self.append_op(self.trader.op_close_position(pos, dt))
+
+                            if self._config['mode'] == 'debug':
+                                logger.debug(f"Stop buy profit @ {ohlcv.loc[dt].close} ({dt})")
+
+                            break
+
+                elif pos['side'] == 'sell':
+                    for dt, oh in ohlcv.iterrows():
+                        cur_low = ohlcv[:dt + timedelta(minutes=1)].close.min()
+                        target_high = cur_low * (1 + self.p['stop_profit_percent'])
+
+                        if target_high < pos['op_open_price'] and oh.close > target_high:
+                            self.append_op(self.trader.op_close_position(pos, dt))
+
+                            if self._config['mode'] == 'debug':
+                                logger.debug(f"Stop sell profit @ {ohlcv.loc[dt].close} ({dt})")
+
+                            break
+
+
 
 
 
