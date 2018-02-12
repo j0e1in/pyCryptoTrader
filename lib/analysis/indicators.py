@@ -316,20 +316,26 @@ class Indicator():
         buy  = (pdi > mdi) & open_trade
         sell = (pdi < mdi) & open_trade
 
-        buy_reverse = (pdi > mdi) & ((pdi - mdi) < self.p['dmi_di_diff']) & adx_reverse & adx_thresh
-        sell_reverse = (pdi < mdi) & (-(pdi - mdi) < self.p['dmi_di_diff']) & adx_reverse & adx_thresh
+        buy_reverse  = (pdi > mdi) & (np.abs(pdi - mdi) < self.p['dmi_di_diff']) & adx_reverse & adx_thresh
+        sell_reverse = (pdi < mdi) & (np.abs(pdi - mdi) < self.p['dmi_di_diff']) & adx_reverse & adx_thresh
 
         rebuy = (pdi > mdi) & adx_rebound & adx_thresh
         resell = (pdi < mdi) & adx_rebound & adx_thresh
 
+        sig = pd.Series(np.nan, index=ohlcv.index)
+        sig[buy == True] = 1
+        sig[sell == True] = -1
+        sig[buy_reverse == True] = -1
+        sig[sell_reverse == True] = 1
+        sig[rebuy == True] = 1
+        sig[resell == True] = -1
+        sig[close_trade == True] = 0
+        sig = self.clean_repeat_sig(sig)
+
         conf = pd.Series(np.nan, index=ohlcv.index)
-        conf[buy == True] = self.p['dmi_conf']
-        conf[sell == True] = -self.p['dmi_conf']
-        conf[buy_reverse == True] = -self.p['dmi_conf']
-        conf[sell_reverse == True] = self.p['dmi_conf']
-        conf[rebuy == True] = self.p['dmi_conf']
-        conf[resell == True] = -self.p['dmi_conf']
-        conf[close_trade == True] = 0
+        conf[sig == 1] = self.p['dmi_conf']
+        conf[sig == -1] = -self.p['dmi_conf']
+        conf[sig == 0] = 0
 
         # tmp = pd.Series(np.nan, index=ohlcv.index)
         # tmp[buy == True] = 1
@@ -499,6 +505,19 @@ class Indicator():
 
         return _check(d, hierarchy)
 
+    @staticmethod
+    def clean_repeat_sig(sig):
+        """ Clean repeated signals, keep the first one. """
+        sig = sig.copy()
+        last_sig = None
+
+        for i in range(len(sig)):
+            if last_sig == sig.iloc[i] or np.isnan(sig.iloc[i]):
+                sig.iloc[i] = np.nan
+            else:
+                last_sig = sig.iloc[i]
+
+        return sig
 
 
 ##################################

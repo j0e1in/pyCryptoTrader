@@ -51,7 +51,7 @@ class PatternStrategy(SingleExchangeStrategy):
         """ Main algorithm which calculates signals.
             Returns {signal, timeframe}
         """
-        wvf = self.ind.wvf_sig(self.ohlcvs[market][self.p['wvf_tf']])
+        # wvf = self.ind.wvf_sig(self.ohlcvs[market][self.p['wvf_tf']])
         # rsi = self.ind.rsi_sig(self.ohlcvs[market][self.p['rsi_tf']])
         # ann = self.ind.ann_v3_sig(self.ohlcvs[market][self.p['ann_tf']])
         # vwma = self.ind.vwma_sig(self.ohlcvs[market][self.p['vwma_tf']])
