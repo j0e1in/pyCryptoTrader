@@ -302,25 +302,72 @@ class Indicator():
     def dmi_sig(self, ohlcv):
         adx, pdi, mdi = self.dmi(ohlcv)
 
-        start_thresh = self.p['dmi_start_threshold']
-        end_thresh = self.p['dmi_end_threshold']
+        base_thresh = self.p['dmi_base_thresh']
+        adx_thresh = self.p['dmi_adx_thresh']
+        di_thresh = self.p['dmi_di_thresh']
 
-        peak_diff = self.last_peak(adx) - self.p['dmi_adx_peak_diff']
-        adx_thresh = adx >= start_thresh
-        adx_reverse = (adx <= peak_diff) & (adx.shift(1) > peak_diff) # opposite trade
-        adx_rebound = (adx.shift(2) >= adx.shift(1)) & (adx.shift(1) < adx) # same trade
+        adx_top_peak_diff = self.p['dmi_adx_top_peak_diff']
+        adx_bot_peak_diff = self.p['dmi_adx_bot_peak_diff']
+        di_diff = self.p['dmi_di_diff']
 
-        open_trade = adx_thresh & (adx.shift(1) < start_thresh)
-        close_trade = (adx < end_thresh) & (adx.shift(1) >= end_thresh)
+        # Calculate top_peak and bot_peak
+        top_peak = pd.Series(np.nan, index=adx.index)
+        bot_peak = pd.Series(np.nan, index=adx.index)
 
-        buy  = (pdi > mdi) & open_trade
-        sell = (pdi < mdi) & open_trade
+        for i in range(len(adx)):
+            if (adx.iloc[i] < adx.shift(1).iloc[i]) & (adx.shift(1).iloc[i] > adx.shift(2).iloc[i]):
+                top_peak.iloc[i] = adx.shift(1).iloc[i]
+            else:
+                top_peak.iloc[i] = top_peak.shift(1).iloc[i]
 
-        buy_reverse  = (pdi > mdi) & (np.abs(pdi - mdi) < self.p['dmi_di_diff']) & adx_reverse & adx_thresh
-        sell_reverse = (pdi < mdi) & (np.abs(pdi - mdi) < self.p['dmi_di_diff']) & adx_reverse & adx_thresh
+            if (adx.iloc[i] > adx.shift(1).iloc[i]) & (adx.shift(1).iloc[i] < adx.shift(2).iloc[i]):
+                bot_peak.iloc[i] = adx.shift(1).iloc[i]
+            else:
+                bot_peak.iloc[i] = bot_peak.shift(1).iloc[i]
 
-        rebuy = (pdi > mdi) & adx_rebound & adx_thresh
-        resell = (pdi < mdi) & adx_rebound & adx_thresh
+        # Calculate top_peak_trend and bot_peak_trend
+        top_peak_trend = pd.Series(np.nan, index=adx.index)
+        bot_peak_trend = pd.Series(np.nan, index=adx.index)
+
+        for i in range(len(adx)):
+            if (adx.iloc[i] < adx.shift(1).iloc[i]) & (adx.shift(1).iloc[i] > adx.shift(2).iloc[i]):
+                top_peak_trend.iloc[i] = 1 if pdi.shift(1).iloc[i] > mdi.shift(1).iloc[i] else -1
+            else:
+                top_peak_trend.iloc[i] = top_peak_trend.shift(1).iloc[i]
+
+            if (adx.iloc[i] > adx.shift(1).iloc[i]) & (adx.shift(1).iloc[i] < adx.shift(2).iloc[i]):
+                bot_peak_trend.iloc[i] = 1 if pdi.shift(1).iloc[i] > mdi.shift(1).iloc[i] else -1
+            else:
+                bot_peak_trend.iloc[i] = bot_peak_trend.shift(1).iloc[i]
+
+        top_peak_diff = top_peak - adx_top_peak_diff
+        bot_peak_diff = bot_peak + adx_bot_peak_diff
+
+        adx_reverse = (adx <= top_peak_diff) & (adx.shift(1) > top_peak_diff)
+        adx_rebound = (adx >= bot_peak_diff) & (adx.shift(1) < bot_peak_diff)
+
+        match_base_thresh = adx >= base_thresh
+        match_adx_thresh = adx >= adx_thresh
+        match_di_thresh = (pdi >= di_thresh) | (mdi >= di_thresh)
+        match_di_diff = np.abs(pdi - mdi) >= di_diff
+        cross_base_thresh = (adx.shift(1) < base_thresh) & (adx >= base_thresh)
+
+        below_base = (adx.shift(1) >= base_thresh) & ~match_base_thresh
+        no_trend = ~match_adx_thresh & ~match_di_thresh
+
+        buy  = (pdi > mdi) & (adx_rebound | cross_base_thresh) & match_base_thresh & ~no_trend
+        sell = (pdi < mdi) & (adx_rebound | cross_base_thresh) & match_base_thresh & ~no_trend
+
+        rebuy  = (top_peak_trend == 1) & adx_rebound & match_adx_thresh & match_base_thresh & ~no_trend
+        resell = (top_peak_trend == -1) & adx_rebound & match_adx_thresh & match_base_thresh & ~no_trend
+
+        buy_reverse = (top_peak_trend == -1) & adx_reverse & (match_adx_thresh) & match_base_thresh & ~no_trend
+        sell_reverse = (top_peak_trend == 1) & adx_reverse & (match_adx_thresh) & match_base_thresh & ~no_trend
+
+        buy_di_turn  = (pdi > mdi) & (pdi.shift(1) < mdi.shift(1)) & (pdi > di_thresh) & match_base_thresh & ~no_trend
+        sell_di_turn = (pdi < mdi) & (pdi.shift(1) > mdi.shift(1)) & (mdi > di_thresh) & match_base_thresh & ~no_trend
+
+        close_trade = below_base | no_trend
 
         sig = pd.Series(np.nan, index=ohlcv.index)
         sig[buy == True] = 1
