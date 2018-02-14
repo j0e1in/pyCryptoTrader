@@ -358,9 +358,6 @@ class Indicator():
         buy  = (pdi > mdi) & (adx_rebound | cross_base_thresh) & match_base_thresh & ~no_trend
         sell = (pdi < mdi) & (adx_rebound | cross_base_thresh) & match_base_thresh & ~no_trend
 
-        rebuy  = (top_peak_trend == 1) & adx_rebound & match_adx_thresh & match_base_thresh & ~no_trend
-        resell = (top_peak_trend == -1) & adx_rebound & match_adx_thresh & match_base_thresh & ~no_trend
-
         buy_reverse = (top_peak_trend == -1) & adx_reverse & (match_adx_thresh) & match_base_thresh & ~no_trend
         sell_reverse = (top_peak_trend == 1) & adx_reverse & (match_adx_thresh) & match_base_thresh & ~no_trend
 
@@ -372,10 +369,10 @@ class Indicator():
         sig = pd.Series(np.nan, index=ohlcv.index)
         sig[buy == True] = 1
         sig[sell == True] = -1
-        sig[buy_reverse == True] = -1
-        sig[sell_reverse == True] = 1
-        sig[rebuy == True] = 1
-        sig[resell == True] = -1
+        sig[buy_reverse == True] = 1
+        sig[sell_reverse == True] = -1
+        sig[buy_di_turn == True] = 1
+        sig[sell_di_turn == True] = -1
         sig[close_trade == True] = 0
         sig = self.clean_repeat_sig(sig)
 
