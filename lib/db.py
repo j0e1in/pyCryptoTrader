@@ -1,3 +1,4 @@
+from asyncio import ensure_future
 from datetime import datetime
 from pymongo.errors import BulkWriteError
 import motor.motor_asyncio
@@ -6,9 +7,7 @@ import numpy as np
 import pandas as pd
 import pymongo
 
-from utils import INF, ms_dt, dt_ms, sec_ms, ex_name, config, rsym
-
-from ipdb import set_trace as trace
+from utils import INF, ms_dt, dt_ms, sec_ms, ex_name, config, rsym, execute_mongo_ops
 
 pd.options.mode.chained_assignment = None
 
@@ -107,6 +106,7 @@ class EXMongo():
                                              index_col='timestamp',
                                              date_col='timestamp',
                                              date_parser=ms_dt)
+        ohlcv.sort_index(inplace=True)
 
         if compress:
             # Covert all float colums to minimum float type, which is float32
@@ -130,6 +130,7 @@ class EXMongo():
                                              index_col='timestamp',
                                              date_col='timestamp',
                                              date_parser=ms_dt)
+        trade.sort_index(inplace=True)
 
         if compress:
             # Covert types to significantly reduce memory usage
@@ -186,15 +187,17 @@ class EXMongo():
 
         records = ohlcv_df.to_dict(orient='records')
 
-        try:
-            await coll.insert_many(records, ordered=False)
-        except BulkWriteError as error:
-            for msg in err.details['writeErrors']:
-                if 'duplicate' in msg['errmsg']:
-                    continue
-                else:
-                    pprint("Mongo BulkWriteError:\n", err.details)
-                    raise BulkWriteError(err)
+        ops = []
+        for rec in records:
+            ops.append(ensure_future(
+                coll.update_one({'timestamp': rec['timestamp']}, {'$set': rec}, upsert=True)
+            ))
+
+            if len(ops) % 10000 == 0:
+                await execute_mongo_ops(ops)
+                ops = []
+
+        await execute_mongo_ops(ops)
 
     async def _read_to_dataframe(self, db, collection, condition={}, *,
                                 fields_condition={},
