@@ -1,7 +1,5 @@
-import ccxt.async as ccxt
-from ccxt.base.exchange import Exchange
-from datetime import timedelta
-import asyncio
+from datetime import datetime
+
 import logging
 import time
 import pandas as pd
@@ -12,10 +10,10 @@ from utils import sec_ms, ms_sec,\
     dt_ms,\
     timeframe_to_freq,\
     config, \
-    handle_ccxt_request
+    handle_ccxt_request, \
+    ohlcv_to_interval
 
 from db import EXMongo
-
 
 logger = logging.getLogger()
 
@@ -30,17 +28,20 @@ async def fetch_ohlcv(exchange, symbol, start, end, timeframe='1m', log=True):
 
     now = sec_ms(time.time())
     wait = config['ccxt']['wait']
-    params = {
-        'end': end,
-        'limit': 1000,
-        'sort': 1
-    }
+    params = {'end': end, 'limit': 1000, 'sort': 1}
 
     while start < end:
         if log:
-            logger.info(f'Fetching {symbol}_{timeframe} ohlcv from {ms_dt(start)} to {ms_dt(end)}')
+            logger.info(
+                f'Fetching {symbol}_{timeframe} ohlcv from {ms_dt(start)} to {ms_dt(end)}'
+            )
 
-        ohlcv = await handle_ccxt_request(exchange.fetch_ohlcv, symbol, timeframe=timeframe, since=start, params=params)
+        ohlcv = await handle_ccxt_request(
+            exchange.fetch_ohlcv,
+            symbol,
+            timeframe=timeframe,
+            since=start,
+            params=params)
 
         if len(ohlcv) is 0 or ohlcv[-1][0] == start:  # no ohlcv in the period
             start = end
@@ -51,13 +52,12 @@ async def fetch_ohlcv(exchange, symbol, start, end, timeframe='1m', log=True):
 
 
 async def fetch_trades(exchange, symbol, start, end, log=True):
-
     def remove_last_timestamp(records):
         _last_timestamp = records[-1]['timestamp']
         ts = ms_sec(_last_timestamp)
 
         i = -1
-        for _ in range(1, len(records)-1):
+        for _ in range(1, len(records) - 1):
             if ms_sec(records[i]['timestamp']) == ts:
                 del records[i]
             else:
@@ -70,18 +70,15 @@ async def fetch_trades(exchange, symbol, start, end, log=True):
 
     now = sec_ms(time.time())
     wait = config['ccxt']['wait']
-    params = {
-        'start': start,
-        'end': end,
-        'limit': 1000,
-        'sort': 1
-    }
+    params = {'start': start, 'end': end, 'limit': 1000, 'sort': 1}
 
     while start < end:
         if log:
-            logger.info(f'Fetching {symbol} trades starting from {ms_dt(start)}')
+            logger.info(
+                f'Fetching {symbol} trades starting from {ms_dt(start)}')
 
-        trades = await handle_ccxt_request(exchange.fetch_trades, symbol, params=params)
+        trades = await handle_ccxt_request(
+            exchange.fetch_trades, symbol, params=params)
 
         if len(trades) is 0:
             break
@@ -103,7 +100,12 @@ async def fetch_trades(exchange, symbol, start, end, log=True):
         yield trades
 
 
-async def fetch_my_trades(exchange, symbol, start, end=None, parser=None, log=True):
+async def fetch_my_trades(exchange,
+                          symbol,
+                          start,
+                          end=None,
+                          parser=None,
+                          log=True):
     """ Fetch all trades in a period. """
     if end and start >= end:
         raise ValueError(f"start {start} should < end {end}.")
@@ -119,9 +121,11 @@ async def fetch_my_trades(exchange, symbol, start, end=None, parser=None, log=Tr
 
     while True:
         if log:
-            logger.info(f'Fetching account trades starting from {ms_dt(start)}')
+            logger.info(
+                f'Fetching account trades starting from {ms_dt(start)}')
 
-        res = await handle_ccxt_request(exchange.fetch_my_trades, symbol, start, limit, params)
+        res = await handle_ccxt_request(exchange.fetch_my_trades, symbol,
+                                        start, limit, params)
         trades = []
 
         for trade in res:
@@ -134,7 +138,7 @@ async def fetch_my_trades(exchange, symbol, start, end=None, parser=None, log=Tr
         if len(trades) is 0:
             break
         else:
-            start = trades[-1]['timestamp'] + 1 # +1 ms because many trades may occur within 1 sec
+            start = trades[-1]['timestamp'] + 1  # +1 ms because many trades may occur within 1 sec
 
         yield trades
 
@@ -148,7 +152,8 @@ async def find_missing_ohlcv(coll, start, end, timeframe):
     start = dt_ms(start)
     end = dt_ms(end)
 
-    if not await EXMongo.check_columns(coll, ['timestamp', 'open', 'close', 'high', 'low', 'volume']):
+    if not await EXMongo.check_columns(
+            coll, ['timestamp', 'open', 'close', 'high', 'low', 'volume']):
         raise ValueError('Collection\'s fields do not match candle\'s.')
 
     td = timeframe_timedelta(timeframe)
@@ -157,27 +162,31 @@ async def find_missing_ohlcv(coll, start, end, timeframe):
     prev_ts = start - td
     ts = None
 
-    res = coll.find({'timestamp': {'$gte': start, '$lt': end}}).sort('timestamp', 1)
+    res = coll.find({
+        'timestamp': {
+            '$gte': start,
+            '$lt': end
+        }
+    }).sort('timestamp', 1)
 
     missing_ohlcv = []
     async for ohlcv in res:
         ts = ohlcv['timestamp']
-        while prev_ts+td <= ts:
-            if prev_ts+td != ts:
-                missing_ohlcv.append(prev_ts+td)
+        while prev_ts + td <= ts:
+            if prev_ts + td != ts:
+                missing_ohlcv.append(prev_ts + td)
             prev_ts += td
 
     ts = end - 1
-    while prev_ts+td <= ts:
-        if prev_ts+td != ts:
-            missing_ohlcv.append(prev_ts+td)
+    while prev_ts + td <= ts:
+        if prev_ts + td != ts:
+            missing_ohlcv.append(prev_ts + td)
         prev_ts += td
 
     return missing_ohlcv
 
 
 async def fill_missing_ohlcv(mongo, exchange, symbol, start, end, timeframe):
-
     def fill_ohlcv(df):
         for i in range(len(df)):
             row = df.iloc[i]
@@ -185,7 +194,7 @@ async def fill_missing_ohlcv(mongo, exchange, symbol, start, end, timeframe):
                 if i == 0:
                     raise ValueError("Starting ohlcv is empty.")
 
-                c = df.iloc[i-1].close
+                c = df.iloc[i - 1].close
                 row.open = row.close = c
                 row.high = row.low = c
                 row.volume = 0
@@ -195,3 +204,15 @@ async def fill_missing_ohlcv(mongo, exchange, symbol, start, end, timeframe):
 
     fill_ohlcv(df)
     return df
+
+
+async def build_ohlcv(mongo, exchange, symbol, src_tf, target_tf, coll_prefix=''):
+    start = datetime(2017, 1, 1)
+    end = datetime(9999, 1, 1)
+
+    src_df = await mongo.get_ohlcv(exchange, symbol, src_tf, start, end)
+    target_td = timeframe_timedelta(target_tf)
+    target_df = ohlcv_to_interval(src_df, target_td)
+
+    await mongo.insert_ohlcv(
+        target_df, exchange, symbol, target_tf, coll_prefix=coll_prefix)

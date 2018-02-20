@@ -12,7 +12,9 @@ from analysis.hist_data import fetch_ohlcv, \
                                fetch_trades, \
                                fetch_my_trades, \
                                find_missing_ohlcv, \
-                               fill_missing_ohlcv
+                               fill_missing_ohlcv, \
+                               build_ohlcv
+
 from trading.exchanges import Bitfinex
 
 
@@ -43,7 +45,8 @@ async def test_fetch_my_trades():
     exchange = init_ccxt_exchange('bitfinex', key['apiKey'], key['secret'])
     start = datetime(2017, 1, 1)
 
-    async for trades in fetch_my_trades(exchange, 'BTC/USD', start, parser=Bitfinex.parse_my_trade):
+    async for trades in fetch_my_trades(
+            exchange, 'BTC/USD', start, parser=Bitfinex.parse_my_trade):
         pprint(trades)
         print('----------------')
 
@@ -76,11 +79,21 @@ async def test_fill_ohlcv_missing_timestamp():
     start = datetime(2017, 10, 1)
     end = datetime(2017, 11, 1)
 
-    filled_df = await fill_missing_ohlcv(
-        mongo, exchange, symbol, start, end, timeframe)
+    filled_df = await fill_missing_ohlcv(mongo, exchange, symbol, start, end,
+                                         timeframe)
 
     missing_ohlcv = filled_df[filled_df.volume == 0]
     print('#missing_ohlcv', len(missing_ohlcv))
+
+
+async def test_build_ohlcv():
+    src_tf = '1h'
+    target_tf = '5h'
+    symbol = 'BTC/USD'
+    exchange = 'bitfinex'
+    mongo = EXMongo()
+
+    await build_ohlcv(mongo, exchange, symbol, src_tf, target_tf, coll_prefix='test_')
 
 
 async def main():
@@ -94,8 +107,9 @@ async def main():
     await test_find_missing_ohlcv()
     print('-----------------------------')
     await test_fill_ohlcv_missing_timestamp()
+    print('-----------------------------')
+    await test_build_ohlcv()
 
 
 if __name__ == '__main__':
     run(main)
-
