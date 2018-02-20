@@ -9,6 +9,7 @@ import inspect
 import logging
 import json
 import pandas as pd
+import numpy as np
 import uuid
 import math
 import os
@@ -520,6 +521,44 @@ def alert_sound(duration, words, n=1):
         else:
             logger.warn(f"Platform {sys.platform} is not supported.")
 
+
+def ohlcv_to_interval(ohlcv, target_td):
+    """ Convert ohlcv to higher interval (timeframe). """
+    ohlcv = ohlcv.copy()
+    ohlcv_td = ohlcv.index[1] - ohlcv.index[0]
+
+    if target_td < ohlcv_td:
+        raise ValueError(f"Target interval {target_td} < original interval {ohlcv_td}")
+
+    if (target_td % ohlcv_td).seconds != 0:
+        raise ValueError(f"Target interval {target_td} is not a multiple of original interval {ohlcv_td}")
+
+    if target_td == ohlcv_td:
+        return ohlcv
+
+    mult = int(target_td / ohlcv_td)
+
+    for i in range(int(len(ohlcv) / mult)):
+        ohlcv[mult*i : mult*(i+1)].open   = ohlcv.iloc[mult*i].open
+        ohlcv[mult*i : mult*(i+1)].close  = ohlcv.iloc[mult*(i+1)-1].close
+        ohlcv[mult*i : mult*(i+1)].high   = ohlcv[mult*i : mult*(i+1)].high.max()
+        ohlcv[mult*i : mult*(i+1)].low    = ohlcv[mult*i : mult*(i+1)].low.min()
+        ohlcv[mult*i : mult*(i+1)].volume = np.sum(ohlcv[mult*i : mult*(i+1)].volume)
+
+    ohlcv[-(len(ohlcv)%mult):].open   = ohlcv.iloc[-(len(ohlcv)%mult)].open
+    ohlcv[-(len(ohlcv)%mult):].close  = ohlcv.iloc[-1].close
+    ohlcv[-(len(ohlcv)%mult):].high   = ohlcv[-(len(ohlcv)%mult):].high.max()
+    ohlcv[-(len(ohlcv)%mult):].low    = ohlcv[-(len(ohlcv)%mult):].low.min()
+    ohlcv[-(len(ohlcv)%mult):].volume = np.sum(ohlcv[-(len(ohlcv)%mult):].volume)
+
+    index_to_drop = []
+    for dt in ohlcv.index:
+        dtd = timedelta(hours=dt.hour, minutes=dt.minute, seconds=dt.second)
+        if (dtd % target_td).seconds != 0:
+            index_to_drop.append(dt)
+
+    ohlcv = ohlcv.drop(index_to_drop)
+    return ohlcv
 
 class Timer():
 
