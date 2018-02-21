@@ -13,11 +13,13 @@ async def main():
         '2h',
         '4h',
         '5h',
+        '6h',
         '7h',
         '8h',
         '9h',
         '10h',
         '11h',
+        '12h',
         '15h',
         '18h',
     ]
@@ -39,8 +41,8 @@ async def main():
     exchange = 'bitfinex'
     mongo = EXMongo()
 
-    for target_tf in target_tfs:
-        for symbol in symbols:
+    for symbol in symbols:
+        for target_tf in target_tfs:
             logger.info(f"Building {exchange} {symbol} {target_tf} ohlcv")
             await build_ohlcv(
                 mongo, exchange, symbol, src_tf, target_tf)

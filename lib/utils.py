@@ -522,43 +522,69 @@ def alert_sound(duration, words, n=1):
             logger.warn(f"Platform {sys.platform} is not supported.")
 
 
-def ohlcv_to_interval(ohlcv, target_td):
+def ohlcv_to_interval(ohlcv, src_tf, target_td):
     """ Convert ohlcv to higher interval (timeframe). """
-    ohlcv = ohlcv.copy()
-    ohlcv_td = ohlcv.index[1] - ohlcv.index[0]
+    src_td = timeframe_timedelta(src_tf)
 
-    if target_td < ohlcv_td:
-        raise ValueError(f"Target interval {target_td} < original interval {ohlcv_td}")
+    if target_td < timedelta(hours=1):
+        tmax = 60 # timeframe is under 1 hour
+    elif target_td < timedelta(days=1):
+        tmax = 24 #  timeframe is under 1 day
 
-    if (target_td % ohlcv_td).seconds != 0:
-        raise ValueError(f"Target interval {target_td} is not a multiple of original interval {ohlcv_td}")
+    if target_td < src_td:
+        raise ValueError(f"Target interval {target_td} < original interval {src_td}")
 
-    if target_td == ohlcv_td:
+    if (target_td % src_td).seconds != 0:
+        raise ValueError(f"Target interval {target_td} is not a multiple of original interval {src_td}")
+
+    if target_td == src_td:
         return ohlcv
 
-    mult = int(target_td / ohlcv_td)
+    def gen_target_dt_index(ohlcv, target_td):
+        start = ohlcv.index[0]
+        end = ohlcv.index[-1]
+        std = timedelta(hours=start.hour, minutes=start.minute, seconds=start.second)
+        etd = timedelta(hours=end.hour, minutes=end.minute, seconds=end.second)
 
-    for i in range(int(len(ohlcv) / mult)):
-        ohlcv[mult*i : mult*(i+1)].open   = ohlcv.iloc[mult*i].open
-        ohlcv[mult*i : mult*(i+1)].close  = ohlcv.iloc[mult*(i+1)-1].close
-        ohlcv[mult*i : mult*(i+1)].high   = ohlcv[mult*i : mult*(i+1)].high.max()
-        ohlcv[mult*i : mult*(i+1)].low    = ohlcv[mult*i : mult*(i+1)].low.min()
-        ohlcv[mult*i : mult*(i+1)].volume = np.sum(ohlcv[mult*i : mult*(i+1)].volume)
+        start = start - (std % target_td)
+        end = end - (etd % target_td)
+        cur = start
 
-    ohlcv[-(len(ohlcv)%mult):].open   = ohlcv.iloc[-(len(ohlcv)%mult)].open
-    ohlcv[-(len(ohlcv)%mult):].close  = ohlcv.iloc[-1].close
-    ohlcv[-(len(ohlcv)%mult):].high   = ohlcv[-(len(ohlcv)%mult):].high.max()
-    ohlcv[-(len(ohlcv)%mult):].low    = ohlcv[-(len(ohlcv)%mult):].low.min()
-    ohlcv[-(len(ohlcv)%mult):].volume = np.sum(ohlcv[-(len(ohlcv)%mult):].volume)
+        index = []
+        while cur <= end:
+            index.append(cur)
+            prev = cur
+            cur += target_td
 
-    index_to_drop = []
-    for dt in ohlcv.index:
-        dtd = timedelta(hours=dt.hour, minutes=dt.minute, seconds=dt.second)
-        if (dtd % target_td).seconds != 0:
-            index_to_drop.append(dt)
+            if tmax == 60 and (prev.minute + target_td.seconds/60) > tmax:
+                cur -= timedelta(minutes=cur.minute)
+            elif tmax == 24 and (prev.hour + target_td.seconds/60/60) > tmax:
+                cur -= timedelta(hours=cur.hour)
 
-    ohlcv = ohlcv.drop(index_to_drop)
-    return ohlcv
+        return index
+
+    target_index = gen_target_dt_index(ohlcv, target_td)
+    target_ohlcv = pd.DataFrame(columns=ohlcv.columns, index=target_index, dtype=float)
+    target_ohlcv.index.name = ohlcv.index.name
+
+    for start in target_ohlcv.index:
+        end = start + target_td
+
+        if tmax == 60 and (start.minute + target_td.seconds/60) > tmax:
+            end -= timedelta(minutes=end.minute)
+        elif tmax == 24 and (start.hour + target_td.seconds/60/60) > tmax:
+            end -= timedelta(hours=end.hour)
+
+        end -= timedelta(seconds=1)
+
+        target_ohlcv.loc[start].open    = ohlcv[start:end].open[0]
+        target_ohlcv.loc[start].close   = ohlcv[start:end].close[-1]
+        target_ohlcv.loc[start].high    = ohlcv[start:end].high.max()
+        target_ohlcv.loc[start].low     = ohlcv[start:end].low.min()
+        target_ohlcv.loc[start].volume  = ohlcv[start:end].volume.sum()
+
+    return target_ohlcv
+
 
 class Timer():
 
@@ -619,5 +645,3 @@ class EXPeriod():
 
     def datetime_period(self, dt):
         return pd.Period(dt, self.freq)
-
-

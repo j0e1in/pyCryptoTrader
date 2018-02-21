@@ -26,8 +26,6 @@ async def fetch_ohlcv(exchange, symbol, start, end, timeframe='1m', log=True):
     start = dt_ms(start)
     end = dt_ms(end)
 
-    now = sec_ms(time.time())
-    wait = config['ccxt']['wait']
     params = {'end': end, 'limit': 1000, 'sort': 1}
 
     while start < end:
@@ -68,8 +66,6 @@ async def fetch_trades(exchange, symbol, start, end, log=True):
     start = dt_ms(start)
     end = dt_ms(end)
 
-    now = sec_ms(time.time())
-    wait = config['ccxt']['wait']
     params = {'start': start, 'end': end, 'limit': 1000, 'sort': 1}
 
     while start < end:
@@ -212,7 +208,7 @@ async def build_ohlcv(mongo, exchange, symbol, src_tf, target_tf, coll_prefix=''
 
     src_df = await mongo.get_ohlcv(exchange, symbol, src_tf, start, end)
     target_td = timeframe_timedelta(target_tf)
-    target_df = ohlcv_to_interval(src_df, target_td)
+    target_df = ohlcv_to_interval(src_df, src_tf, target_td)
 
     await mongo.insert_ohlcv(
         target_df, exchange, symbol, target_tf, coll_prefix=coll_prefix)
