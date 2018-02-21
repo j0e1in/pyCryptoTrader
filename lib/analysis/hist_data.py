@@ -202,13 +202,14 @@ async def fill_missing_ohlcv(mongo, exchange, symbol, start, end, timeframe):
     return df
 
 
-async def build_ohlcv(mongo, exchange, symbol, src_tf, target_tf, coll_prefix=''):
-    start = datetime(2017, 1, 1)
-    end = datetime(9999, 1, 1)
+async def build_ohlcv(mongo, exchange, symbol, src_tf, target_tf, *,
+                      start=None, end=None, coll_prefix='', upsert=False):
+    start = datetime(1970, 1, 1) if not start else start
+    end = datetime(9999, 1, 1) if not end else end
 
     src_df = await mongo.get_ohlcv(exchange, symbol, src_tf, start, end)
     target_td = timeframe_timedelta(target_tf)
     target_df = ohlcv_to_interval(src_df, src_tf, target_td)
 
     await mongo.insert_ohlcv(
-        target_df, exchange, symbol, target_tf, coll_prefix=coll_prefix)
+        target_df, exchange, symbol, target_tf, coll_prefix=coll_prefix, upsert=upsert)

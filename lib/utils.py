@@ -590,7 +590,6 @@ def ohlcv_to_interval(ohlcv, src_tf, target_td):
             target_ohlcv.loc[start].low     = ohlcv[start:end].low.min()
             target_ohlcv.loc[start].volume  = ohlcv[start:end].volume.sum()
 
-    from ipdb import set_trace; set_trace()
     return target_ohlcv
 
 
