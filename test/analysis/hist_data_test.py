@@ -93,7 +93,11 @@ async def test_build_ohlcv():
     exchange = 'bitfinex'
     mongo = EXMongo()
 
-    await build_ohlcv(mongo, exchange, symbol, src_tf, target_tf, coll_prefix='test_')
+    start = None
+    end = None
+
+    await build_ohlcv(mongo, exchange, symbol, src_tf, target_tf,
+                      coll_prefix='test_', upsert=False)
 
 
 async def main():

@@ -577,12 +577,20 @@ def ohlcv_to_interval(ohlcv, src_tf, target_td):
 
         end -= timedelta(seconds=1)
 
-        target_ohlcv.loc[start].open    = ohlcv[start:end].open[0]
-        target_ohlcv.loc[start].close   = ohlcv[start:end].close[-1]
-        target_ohlcv.loc[start].high    = ohlcv[start:end].high.max()
-        target_ohlcv.loc[start].low     = ohlcv[start:end].low.min()
-        target_ohlcv.loc[start].volume  = ohlcv[start:end].volume.sum()
+        if len(ohlcv[start:end]) == 0:
+            target_ohlcv.loc[start].open    = 0.0
+            target_ohlcv.loc[start].close   = 0.0
+            target_ohlcv.loc[start].high    = 0.0
+            target_ohlcv.loc[start].low     = 0.0
+            target_ohlcv.loc[start].volume  = 0.0
+        else:
+            target_ohlcv.loc[start].open    = ohlcv[start:end].open[0]
+            target_ohlcv.loc[start].close   = ohlcv[start:end].close[-1]
+            target_ohlcv.loc[start].high    = ohlcv[start:end].high.max()
+            target_ohlcv.loc[start].low     = ohlcv[start:end].low.min()
+            target_ohlcv.loc[start].volume  = ohlcv[start:end].volume.sum()
 
+    from ipdb import set_trace; set_trace()
     return target_ohlcv
 
 
