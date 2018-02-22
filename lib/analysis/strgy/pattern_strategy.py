@@ -20,22 +20,27 @@ class PatternStrategy(SingleExchangeStrategy):
         self.margin = self._config['backtest']['margin']
 
     def fast_strategy(self):
+        stop_loss = True
+        stop_profit = True
+
         for market in self.markets:
             sig = self.calc_signal(market)
-            self.execute_signal(sig, market)
+            self.execute_signal(sig, market, stop_loss, stop_profit)
 
-    def execute_signal(self, sig, market):
+    def execute_signal(self, sig, market, stop_loss=False, stop_profit=False):
+        stop_loss = self.p['stop_loss_percent'] if stop_loss else None
+        stop_profit = self.p['stop_loss_percent'] if stop_profit else None
+
         sig = sig.dropna()
+
         for dt, ss in sig.items():
-            self.stop_loss(market, dt)
-            self.stop_profit(market, dt)
 
             if ss > 0: # buy
                 ss = abs(ss)
                 self.op_clean_orders('sell', dt)
                 curr = self.trader.quote_balance(market)
                 cost = ss / 100 * self.trader.op_wallet[self.ex][curr] * self.p['trade_portion']
-                self.op_buy(dt, market, cost, margin=self.margin)
+                self.op_buy(dt, market, cost, margin=self.margin, stop_loss=stop_loss, stop_profit=stop_profit)
 
             elif ss < 0: # sell
                 ss = abs(ss)
@@ -47,7 +52,7 @@ class PatternStrategy(SingleExchangeStrategy):
                     curr = self.trader.base_balance(market)
 
                 cost = ss / 100 * self.trader.op_wallet[self.ex][curr] * self.p['trade_portion']
-                self.op_sell(dt, market, cost, margin=self.margin)
+                self.op_sell(dt, market, cost, margin=self.margin, stop_loss=stop_loss, stop_profit=stop_profit)
 
             else:  # ss == 0
                 # Close all positions and cancel all orders

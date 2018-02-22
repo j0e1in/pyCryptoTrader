@@ -16,7 +16,8 @@ from utils import not_implemented,\
     roundup_dt,\
     dt_max,\
     Timer,\
-    to_ordered_dict
+    to_ordered_dict, \
+    timeframe_timedelta
 
 # TODO: Use different configs (fee etc.) for different exchanges
 # TODO: Add different order types
@@ -286,7 +287,7 @@ class SimulatedTrader():
                     raise ValueError(f"trade feed's timestamp exceeds timer's. :: {trades.index[-1]} > {cur_time}")
 
     @staticmethod
-    def generate_order(ex, market, side, order_type, amount, price=None, *, margin=False):
+    def generate_order(ex, market, side, order_type, amount, price=None, *, margin=False, stop_loss=None, stop_profit=None):
         """ Helper function for generating order dict for `open`. """
         if order_type == 'limit' and not price:
             raise ValueError("limit orders must provide a price.")
@@ -298,7 +299,9 @@ class SimulatedTrader():
             'order_type': order_type,
             'amount': amount,
             'open_price': price,
-            'margin': margin
+            'margin': margin,
+            'stop_loss': stop_loss,
+            'stop_profit': stop_profit,
         }
 
     def open(self, order):
@@ -786,6 +789,10 @@ class SimulatedTrader():
     def is_sell(order):
         return True if order['side'] == 'sell' else False
 
+    @staticmethod
+    def is_up_bar(bar):
+        return (bar.close > bar.open)
+
 
 class FastTrader(SimulatedTrader):
 
@@ -951,6 +958,8 @@ class FastTrader(SimulatedTrader):
         """ Roughly calculate balance and maintain op_wallet. """
         now = op['time']
 
+        self.op_execute_position_stop(now)
+
         # Execute previous limit orders
         executed = {}
         for ex, orders in self.op_orders.items():
@@ -982,9 +991,13 @@ class FastTrader(SimulatedTrader):
         elif op['name'] == 'close_position':
             order = op['order']
             curr = self.trading_currency(order=order)
-            # trace()
+
             if order['op_#'] in self.op_positions[order['ex']]:
-                price = self.cur_price(order['ex'], order['market'], now)
+                if 'op_stop_dt' in order:
+                    price = order['op_stop_price']
+                else:
+                    price = self.cur_price(order['ex'], order['market'], now)
+
                 _, earn = self.op_calc_cost_earn(order, price)
 
                 self.op_wallet[order['ex']][curr] += earn
@@ -1086,5 +1099,138 @@ class FastTrader(SimulatedTrader):
             return True
 
         return False
+
+    def op_calc_order_stop(self, order):
+        if not order['stop_loss'] or not order['stop_profit']:
+            return 0
+
+        start = pos['op_open_time'] + timedelta(minutes=1)
+
+        ohlcv = self.ohlcvs[order['ex']][order['market']][self.config['indicator_tf']][start:end]
+
+        if len(ohlcv) == 0:
+            return 0
+
+    def op_execute_position_stop(self, market, end):
+        """" Execute stop loss or stop profit(trailing stop), if matches. """
+        def is_stop_loss(stop_loss_dt, stop_profit_dt):
+            return (stop_loss_dt < stop_profit_dt)
+
+        def calc_stop_step(order, bar, type=None):
+            price = order['op_open_price']
+
+            if type == 'stop_loss':
+                if self.is_up_bar(bar):
+                    if price <= bar.open:
+                        return 1
+                    else:
+                        logger.warn(f"price > open price")
+                else:
+                    pass
+
+            elif type == 'stop_profit':
+                pass
+            else:
+                raise ValueError("Type must be specified")
+
+
+        for ex, positions in self.op_positions.items():
+            for id, pos in positions.items():
+                stop_loss_dt = datetime(9999, 1, 1)
+                stop_profit_dt = datetime(9999, 1, 1)
+                stop_loss_price = 0
+                stop_profit_price = 0
+
+                if pos['stop_loss']:
+
+                    start = pos['op_open_time'] + timedelta(minutes=1)
+                    ohlcv = self.ohlcvs[self.ex][market][self.config['indicator_tf']][start:end]
+                    if start == end:
+                        logger.warn('start == end')
+
+                    if len(ohlcv) > 0:
+                        target_low  = pos['op_open_price'] * (1 - pos['stop_loss'])
+                        target_high = pos['op_open_price'] * (1 + pos['stop_loss'])
+
+                        if pos['side'] == 'buy' \
+                        and ohlcv.low.min() < target_low:
+                            bar = ohlcv[ohlcv.low < target_low].iloc[0]
+
+                            # ???????
+                            add_dt = timeframe_timedelta(self.config['indicator_tf'])
+                            stop_loss_dt = bar.name + add_dt
+
+
+
+
+                #         elif pos['side'] == 'sell' \
+                #         and ohlcv.high.max() > target_high:
+                #             dt = ohlcv[ohlcv.high > target_high].iloc[0].name
+                #             self.append_op(self.op_close_position(pos, dt))
+
+                #             if self._config['mode'] == 'debug':
+                #                 logger.debug(f"Stop sell loss @ {ohlcv.loc[dt].close} ({dt})")
+
+                # elif pos['stop_profit']:
+
+                # else:
+                #     continue
+
+                # sl = is_stop_loss(stop_loss_dt, stop_profit_dt)
+                # pos['op_stop_dt'] = stop_loss_dt if sl else stop_profit_dt
+                # pos['op_stop_price'] = stop_loss_price if sl else stop_profit_price
+
+                # dt = pos['op_stop_dt']
+                # price = pos['op_stop_price']
+                # self.append_op(self.op_close_position(pos, dt))
+
+                # if self._config['mode'] == 'debug':
+                #     if sl:
+                #         logger.debug(f"Stop {pos['side']} loss @ {price} ({dt})")
+                #     else:
+                #         logger.debug(f"Stop {pos['side']} profit @ {price} ({dt})")
+
+
+    def op_execute_stop_profit(self, market, end):
+        for id, pos in self.op_positions[self.ex].items():
+            if pos['market'] != market:
+                continue
+
+            start = pos['op_open_time'] + timedelta(minutes=1)
+            ohlcv = self.ohlcvs[self.ex][market][self.config['indicator_tf']][start:end]
+            if start == end:
+                logger.warn('start == end')
+
+            if len(ohlcv) > 0:
+                if pos['side'] == 'buy':
+                    for dt, oh in ohlcv.iterrows():
+                        cur_high = ohlcv[:dt + timedelta(minutes=1)].close.max()
+                        target_low = cur_high * (1 - self.p['stop_profit_percent'])
+
+                        if target_low > pos['op_open_price'] and oh.close < target_low:
+                            self.append_op(self.op_close_position(pos, dt))
+
+                            if self._config['mode'] == 'debug':
+                                logger.debug(f"Stop buy profit @ {ohlcv.loc[dt].close} ({dt})")
+
+                            break
+
+                elif pos['side'] == 'sell':
+                    for dt, oh in ohlcv.iterrows():
+                        cur_low = ohlcv[:dt + timedelta(minutes=1)].close.min()
+                        target_high = cur_low * (1 + self.p['stop_profit_percent'])
+
+                        if target_high < pos['op_open_price'] and oh.close > target_high:
+                            self.append_op(self.op_close_position(pos, dt))
+
+                            if self._config['mode'] == 'debug':
+                                logger.debug(f"Stop sell profit @ {ohlcv.loc[dt].close} ({dt})")
+
+                            break
+
+
+
+
+
 
 

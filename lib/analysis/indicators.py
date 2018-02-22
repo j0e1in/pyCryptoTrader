@@ -309,6 +309,12 @@ class Indicator():
         adx_bot_peak_diff = self.p['dmi_adx_bot_peak_diff']
         di_diff = self.p['dmi_di_diff']
 
+        ema_length = self.p['dmi_ema_length']
+
+        ema = self.talib_s(talib.EMA, ohlcv.close, ema_length)
+        ema_up = ema > ema.shift(1)
+        ema_down = ema < ema.shift(1)
+
         # Calculate top_peak and bot_peak
         top_peak = pd.Series(np.nan, index=adx.index)
         bot_peak = pd.Series(np.nan, index=adx.index)
@@ -378,7 +384,7 @@ class Indicator():
         conf = pd.Series(np.nan, index=ohlcv.index)
         conf[sig == 1] = self.p['dmi_conf']
         conf[sig == -1] = -self.p['dmi_conf']
-        conf[sig == 0] = 0
+        # conf[sig == 0] = 0
 
         # tmp = pd.Series(np.nan, index=ohlcv.index)
         # tmp[buy == True] = 1

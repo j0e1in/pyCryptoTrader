@@ -81,7 +81,7 @@
   "analysis": {
     "fee": 0.002,
     "margin_fee": 0.0005,
-    "margin_rate": 1,
+    "margin_rate": 3.33,
     "force_liquidate_percentage": 0.85,
     "indicator_tf": "3h",
 
@@ -223,8 +223,8 @@
       "dmi_di_thresh": 30,
       "dmi_adx_top_peak_diff": 1,
       "dmi_adx_bot_peak_diff": 0.8,
-      "dmi_di_diff": 13
-
+      "dmi_di_diff": 13,
+      "dmi_ema_length": 9
     },
 
     "unused_params": {

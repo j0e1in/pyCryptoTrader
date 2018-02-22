@@ -32,16 +32,19 @@ async def test_single_period(mongo, market):
     sp = backtest.ohlcvs['bitfinex'][backtest.markets['bitfinex'][0]]['1m'].iloc[0].open
     ep = backtest.ohlcvs['bitfinex'][backtest.markets['bitfinex'][0]]['1m'].iloc[-1].close
     ch = ep / sp if ep >= sp else ((ep / sp) - 1)
-    print(f"# Starting price: {sp}\n"
+    print(f"# {market}\n"
+          f"# Starting price: {sp}\n"
           f"# Ending price:   {ep}\n"
           f"# Change(%):      {ch * 100}")
 
     report = backtest.run()
 
     print('-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n')
-    pprint(report)
+    # pprint(report)
+    pprint(report['PL(%)'])
     print('\n-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n')
-    # pprint(backtest.margin_PLs)
+    pprint(backtest.margin_PLs)
+    # pprint(backtest.trader.wallet_history)
 
     hist = backtest.trader.order_history['bitfinex']
 
@@ -57,9 +60,9 @@ async def test_special_periods_of_markets(mongo):
 
     markets = [
         # "BTC/USD",
-        "ETH/USD",
+        # "ETH/USD",
         # "XRP/USD",
-        # "BCH/USD",
+        "BCH/USD",
         # "ETC/USD",
         # "DASH/USD",
         # "LTC/USD",
