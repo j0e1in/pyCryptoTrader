@@ -610,42 +610,6 @@ def na(ss):
         ss = np.nan if ss == 0 else ss
     return ss
 
-
-def ohlcv_to_interval(ohlcv, min):
-    """ Convert ohlcv to higher interval (timeframe). """
-    ohlcv = ohlcv.copy()
-    td = timedelta(minutes=min)
-    ohlcv_td = ohlcv.index[1] - ohlcv.index[0]
-
-    if td < ohlcv_td:
-        raise ValueError(f"Target interval {td} < original interval {ohlcv_td}")
-
-    if (td % ohlcv_td).seconds != 0:
-        raise ValueError(f"Target interval {td} is not a multiple of original interval {ohlcv_td}")
-
-    if td == ohlcv_td:
-        return ohlcv
-
-    mult = int(td / ohlcv_td)
-
-    for i in range(int(len(ohlcv) / mult)):
-        ohlcv[mult*i : mult*(i+1)].open   = ohlcv.iloc[mult*i].open
-        ohlcv[mult*i : mult*(i+1)].close  = ohlcv.iloc[mult*(i+1)-1].close
-        ohlcv[mult*i : mult*(i+1)].high   = ohlcv[mult*i : mult*(i+1)].high.max()
-        ohlcv[mult*i : mult*(i+1)].low    = ohlcv[mult*i : mult*(i+1)].low.min()
-        ohlcv[mult*i : mult*(i+1)].volume = np.sum(ohlcv[mult*i : mult*(i+1)].volume)
-
-    ohlcv[-(len(ohlcv)%mult):].open   = ohlcv.iloc[-(len(ohlcv)%mult)].open
-    ohlcv[-(len(ohlcv)%mult):].close  = ohlcv.iloc[-1].close
-    ohlcv[-(len(ohlcv)%mult):].high   = ohlcv[-(len(ohlcv)%mult):].high.max()
-    ohlcv[-(len(ohlcv)%mult):].low    = ohlcv[-(len(ohlcv)%mult):].low.min()
-    ohlcv[-(len(ohlcv)%mult):].volume = np.sum(ohlcv[-(len(ohlcv)%mult):].volume)
-
-    # tmp = pd.Series(np.arange(len(ohlcv)), index=ohlcv.index)
-    # ohlcv = ohlcv[tmp % mult == 0]
-
-    return ohlcv
-
 ###################################
 # END END END END END END END END #
 ###################################
