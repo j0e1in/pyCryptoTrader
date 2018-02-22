@@ -174,7 +174,7 @@ class EXMongo():
             trades[sym] = await self.get_trades(ex, sym, start, end, fields_condition, compress)
         return trades
 
-    async def insert_ohlcv(self, ohlcv_df, ex, symbol, timeframe, *, coll_prefix='', upsert=False):
+    async def insert_ohlcv(self, ohlcv_df, ex, symbol, timeframe, *, coll_prefix=''):
         """ Insert ohlcv dateframe to mongodb. """
         db = self.config['dbname_exchange']
         ex = ex_name(ex)
@@ -187,24 +187,18 @@ class EXMongo():
 
         records = ohlcv_df.to_dict(orient='records')
 
-        if upsert:
-            # Insert/update one ohlcv per op, very slow
-            ops = []
-            for rec in records:
-                ops.append(ensure_future(
-                    coll.update_one({'timestamp': rec['timestamp']}, {'$set': rec}, upsert=True)
-                ))
+        ops = []
+        for rec in records:
+            ops.append(
+                pymongo.UpdateOne(
+                    {'timestamp': rec['timestamp']},
+                    {'$set': rec},
+                    upsert=True))
 
-                if len(ops) % 100000 == 0:
-                    await execute_mongo_ops(ops)
-                    ops = []
+            if len(ops) % 100000 == 0:
+                await execute_mongo_ops(coll.bulk_write(ops))
 
-            await execute_mongo_ops(ops)
-        else:
-            # Only insert non-existed ohlcv, faster
-            op = coll.insert_many(records)
-            await execute_mongo_ops(op)
-
+        await execute_mongo_ops(coll.bulk_write(ops))
 
     async def _read_to_dataframe(self, db, collection, condition={}, *,
                                 fields_condition={},

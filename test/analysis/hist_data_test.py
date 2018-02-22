@@ -87,17 +87,14 @@ async def test_fill_ohlcv_missing_timestamp():
 
 
 async def test_build_ohlcv():
-    src_tf = '1h'
-    target_tf = '5h'
+    src_tf = '1m'
+    target_tf = '3h'
     symbol = 'BTC/USD'
     exchange = 'bitfinex'
     mongo = EXMongo()
 
-    start = None
-    end = None
-
     await build_ohlcv(mongo, exchange, symbol, src_tf, target_tf,
-                      coll_prefix='test_', upsert=False)
+                      coll_prefix='test_')
 
 
 async def main():
