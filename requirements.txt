@@ -4,5 +4,6 @@ matplotlib
 motor
 numpy
 pandas
+pymongo
 TA-Lib
 ipdb
