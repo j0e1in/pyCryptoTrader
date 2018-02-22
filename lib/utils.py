@@ -412,13 +412,17 @@ async def handle_ccxt_request(func, *args, **kwargs):
             and not (str(err).find("Web server is returning an unknown error") >= 0
             or       str(err).find("Ratelimit") >= 0
             or       str(err).find("Cannot connect to host") >= 0):
-                logger.warn(f"raised at ExchangeError, {type(err)} {str(err)}")
+                logger.warn(f"ExchangeError, {type(err)} {str(err)}")
                 raise err
+
+            elif isinstance(err, ccxt.ExchangeNotAvailable) \
+            and (str(err).find("time_interval: invalid") >= 0):
+                logger.warn(f"ExchangeNotAvailable, {type(err)} {str(err)}")
 
             # caused by ccxt.bitfinex handle_errors in bitfinex.py line 634
             elif isinstance(err, KeyError) \
                     and not str(err).find('message') >= 0:
-                logger.warn(f"raised at KeyError, {str(err)}")
+                logger.warn(f"KeyError, {str(err)}")
                 raise err
 
             logger.info(f'# {type(err).__name__} # retry {func.__name__} in {wait} seconds...')
