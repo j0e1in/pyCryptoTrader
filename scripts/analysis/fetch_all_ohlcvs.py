@@ -19,8 +19,8 @@ from ipdb import set_trace as trace
 logger = logging.getLogger()
 
 
-start = datetime(2017, 10, 30)
-end = datetime(2018, 2, 20)
+start = datetime(2018, 2, 19)
+end = datetime(2018, 2, 22)
 
 
 async def fetch_ohlcv_to_mongo(coll, exchange, symbol, timeframe):
@@ -72,14 +72,6 @@ async def main():
     for sym in symbols:
         ohlcv_pairs = [
             (sym, '1m'),
-            (sym, '5m'),
-            (sym, '15m'),
-            (sym, '30m'),
-            (sym, '1h'),
-            (sym, '3h'),
-            (sym, '6h'),
-            (sym, '12h'),
-            (sym, '1d')
         ]
 
         ohlcv_pairs = ohlcv_pairs[::-1]  # reverse the order
