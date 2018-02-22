@@ -14,8 +14,6 @@ import logging
 from analysis.hist_data import fetch_ohlcv
 from utils import init_ccxt_exchange, execute_mongo_ops, config
 
-from ipdb import set_trace as trace
-
 logger = logging.getLogger()
 
 

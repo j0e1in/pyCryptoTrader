@@ -14,8 +14,6 @@ from utils import ms_dt, \
                   utc_now, \
                   handle_ccxt_request
 
-from ipdb import set_trace as trace
-
 logger = logging.getLogger()
 
 

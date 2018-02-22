@@ -15,8 +15,6 @@ import math
 import os
 import sys
 
-from ipdb import set_trace as trace
-
 logger = logging.getLogger()
 
 INF = 9999999

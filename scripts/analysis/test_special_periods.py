@@ -11,12 +11,11 @@ from analysis.strategy import PatternStrategy
 from db import EXMongo
 from utils import config
 
-from ipdb import set_trace as trace
-
 
 async def test_single_period(mongo, market):
     # dt = (datetime(2017, 1, 1), datetime(2018, 1, 1))
-    dt = (datetime(2018, 1, 1), datetime(2018, 2, 1))
+    # dt = (datetime(2017, 11, 1), datetime(2018, 1, 1))
+    dt = (datetime(2017, 12, 1), datetime(2018, 2, 1))
 
     _config = copy.deepcopy(config)
     _config['analysis']['exchanges']['bitfinex']['markets'] = [market]

@@ -23,8 +23,6 @@ from utils import combine, \
     sec_ms, \
     handle_ccxt_request
 
-from ipdb import set_trace as trace
-
 logger = logging.getLogger()
 
 

@@ -6,8 +6,6 @@ from datetime import timedelta
 from pprint import pprint
 from collections import OrderedDict
 
-from ipdb import set_trace as trace
-
 from utils import not_implemented,\
     config,\
     gen_id,\

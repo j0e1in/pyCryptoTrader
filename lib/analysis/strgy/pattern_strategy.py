@@ -7,8 +7,6 @@ import matplotlib.pyplot as plt
 from analysis.indicators import Indicator
 from analysis.strgy.base_strategy import SingleExchangeStrategy
 
-from ipdb import set_trace as trace
-
 logger = logging.getLogger()
 
 

@@ -17,8 +17,6 @@ from utils import config, \
                   is_within, \
                   timeframe_timedelta
 
-from ipdb import set_trace as trace
-
 logger = logging.getLogger()
 
 

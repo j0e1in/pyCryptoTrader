@@ -9,8 +9,6 @@ import math
 from analysis.backtest_trader import SimulatedTrader
 from utils import set_options, config, format_value
 
-from ipdb import set_trace as trace
-
 logger = logging.getLogger()
 
 

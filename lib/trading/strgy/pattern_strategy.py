@@ -7,7 +7,6 @@ from trading.strgy.base_strategy import SingleEXStrategy
 from trading.indicators import Indicator
 from utils import timeframe_timedelta
 
-from ipdb import set_trace as trace
 import pprint
 
 logger = logging.getLogger()

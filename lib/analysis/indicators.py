@@ -8,7 +8,6 @@ import math
 
 from utils import config
 
-from ipdb import set_trace as trace
 from pprint import pprint
 
 BUY = 1

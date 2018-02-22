@@ -16,7 +16,6 @@ from analysis.plot import Plot
 from db import EXMongo
 
 from pprint import pprint
-from ipdb import set_trace as trace
 
 logger = logging.getLogger()
 
