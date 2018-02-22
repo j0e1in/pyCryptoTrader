@@ -1,15 +1,17 @@
 from setup import run, setup
 setup()
 
-from db import EXMongo
 import logging
+import os
 
+from db import EXMongo
 from analysis.hist_data import build_ohlcv
 
 logger = logging.getLogger()
 
 async def main():
     target_tfs = [
+        '1h',
         '2h',
         '4h',
         '5h',
@@ -37,7 +39,7 @@ async def main():
         "ZEC/USD",
     ]
 
-    src_tf = '1h'
+    src_tf = '1m'
     exchange = 'bitfinex'
     mongo = EXMongo()
 
@@ -46,6 +48,10 @@ async def main():
             logger.info(f"Building {exchange} {symbol} {target_tf} ohlcv")
             await build_ohlcv(
                 mongo, exchange, symbol, src_tf, target_tf)
+
+    # Starting from 'lib/'
+    file = '../scripts/mongodb/create_index.js'
+    os.system(f"mongo < {file}")
 
 
 if __name__ == '__main__':

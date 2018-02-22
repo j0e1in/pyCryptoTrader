@@ -32,7 +32,7 @@ for (i = 0; i < coll.length; i++) {
 }
 
 
-// Create timestamp index for trades
+// Create unique id index and timestamp index for trades
 for (i = 0; i < coll.length; i++) {
   if(coll[i].includes('_trades_')) {
     collection = db.getCollection(coll[i])

@@ -1,16 +1,12 @@
 from setup import run, setup
 setup()
 
-from asyncio import ensure_future
 from datetime import datetime
-from pymongo.errors import BulkWriteError
-from pprint import pprint
 
-import asyncio
-import ccxt.async as ccxt
-import motor.motor_asyncio as motor
 import logging
+import pymongo
 
+from db import EXMongo
 from analysis.hist_data import fetch_ohlcv
 from utils import init_ccxt_exchange, execute_mongo_ops, config
 
@@ -34,7 +30,7 @@ async def fetch_ohlcv_to_mongo(coll, exchange, symbol, timeframe):
 
         # [ MTS, OPEN, CLOSE, HIGH, LOW, VOLUME ]
         for oh in ohlcv:
-            tmp = {
+            rec = {
                 'timestamp': oh[0],
                 'open':      oh[1],
                 'high':      oh[2],
@@ -42,18 +38,28 @@ async def fetch_ohlcv_to_mongo(coll, exchange, symbol, timeframe):
                 'close':     oh[4],
                 'volume':    oh[5]
             }
-            ops.append(ensure_future(coll.update_one({'timestamp': tmp['timestamp']}, {'$set': tmp}, upsert=True)))
+            ops.append(
+                pymongo.UpdateOne(
+                    {'timestamp': rec['timestamp']},
+                    {'$set': rec},
+                    upsert=True))
 
-        await execute_mongo_ops(ops)
+            if len(ops) % 100000 == 0:
+                await execute_mongo_ops(coll.bulk_write(ops))
+                ops = []
+
+        await execute_mongo_ops(coll.bulk_write(ops))
 
 
 async def main():
+    mongo = EXMongo()
+
+    db = config['database']['dbname_exchange']
     ex = 'bitfinex'
     coll_tamplate = '{}_ohlcv_{}_{}'
 
     exchange = init_ccxt_exchange(ex + '2')
 
-    mongo = motor.AsyncIOMotorClient('localhost', 27017)
     symbols = [
         "BTC/USD",
         "BCH/USD",
@@ -73,11 +79,10 @@ async def main():
         ]
 
         ohlcv_pairs = ohlcv_pairs[::-1]  # reverse the order
-        db = mongo.get_database(config['database']['dbname_exchange'])
 
         for symbol, timeframe in ohlcv_pairs:
             _symbol = ''.join(symbol.split('/'))  # remove '/'
-            coll = getattr(db, coll_tamplate.format(ex, _symbol, timeframe))
+            coll = mongo.get_collection(db, coll_tamplate.format(ex, _symbol, timeframe))
 
             await fetch_ohlcv_to_mongo(coll, exchange, symbol, timeframe)
 

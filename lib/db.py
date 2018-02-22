@@ -1,7 +1,7 @@
 from asyncio import ensure_future
 from datetime import datetime
 from pymongo.errors import BulkWriteError
-import motor.motor_asyncio
+from motor import motor_asyncio
 import logging
 import numpy as np
 import pandas as pd
@@ -22,10 +22,10 @@ class EXMongo():
     def __init__(self, *, host='localhost', port=27017, uri=None, custom_config=None):
         if uri:
             logger.info(f"Connecting mongo client to {uri}")
-            self.client = motor.motor_asyncio.AsyncIOMotorClient(uri)
+            self.client = motor_asyncio.AsyncIOMotorClient(uri)
         else:
             logger.info(f"Connecting mongo client to {host}:{port}")
-            self.client = motor.motor_asyncio.AsyncIOMotorClient(host, port)
+            self.client = motor_asyncio.AsyncIOMotorClient(host, port)
 
         _config = custom_config if custom_config else config
         self.config = _config['database']
@@ -101,6 +101,10 @@ class EXMongo():
 
         ex = ex_name(ex)
         collection = f"{ex}_ohlcv_{rsym(symbol)}_{timeframe}"
+
+        coll = self.get_collection(db, collection)
+        if not await self.coll_exist(coll):
+            raise ValueError(f"Collection {collection} does not exist.")
 
         ohlcv = await self._read_to_dataframe(db, collection, condition,
                                              index_col='timestamp',
@@ -197,6 +201,8 @@ class EXMongo():
 
             if len(ops) % 100000 == 0:
                 await execute_mongo_ops(coll.bulk_write(ops))
+                del ops
+                ops = []
 
         await execute_mongo_ops(coll.bulk_write(ops))
 
@@ -239,7 +245,6 @@ class EXMongo():
             raise ValueError('date_parser is provided but date_col is not.')
         elif date_col and not date_parser:
             raise ValueError('date_col is provided but date_parser is not.')
-
         if index_col:
             df.set_index(index_col, inplace=True)
 
@@ -288,6 +293,13 @@ class EXMongo():
     def cond_timestamp_range(start, end):
         """ Returns mongo command condition of a timestmap range. """
         return {'timestamp': {'$gte': dt_ms(start), '$lt': dt_ms(end)}}
+
+    @staticmethod
+    async def coll_exist(coll):
+        if not isinstance(coll, motor_asyncio.AsyncIOMotorCollection):
+            raise ValueError("Requries an instance of AsyncIOMotorCollection")
+
+        return False if not await coll.find_one() else True
 
     async def create_empty_df_of_coll(self, coll):
         """ Fetch fields in the collection and create an empty df with columns. """
