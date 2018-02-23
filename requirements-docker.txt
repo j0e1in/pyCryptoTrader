@@ -1,9 +1,7 @@
 ccxt==1.10.990
 chromalog
-matplotlib
 motor
 numpy
 pandas
 pymongo
-TA-Lib
-ipdb
+# ta-lib

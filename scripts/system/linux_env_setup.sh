@@ -19,7 +19,7 @@ sudo make install
 sudo apt install sox # to play sound alert
 
 # Install python requirements
-pip install -r ../../../requirements.txt
+pip install -r ../../../requirements-dev.txt
 
 
 # Install mpl_finance
