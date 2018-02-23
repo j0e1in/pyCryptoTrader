@@ -57,8 +57,17 @@ class EXMongo():
     async def get_first_ohclv(self, ex, sym, tf):
         collname = f"{ex}_ohlcv_{rsym(sym)}_{tf}"
         coll = self.get_collection(self.config['dbname_exchange'], collname)
-        res = await coll.find_one({}, {'_id': 0})
-        return res
+        res = await coll.find({}) \
+            .sort([('timestamp', 1)]) \
+            .limit(1) \
+            .to_list(length=INF)
+
+        if not res:
+            raise logger.warn(
+                f"Empty response, maybe {ex} {sym} {tf}'s data does not exist."
+            )
+
+        return res[0]
 
     async def get_ohlcv_end(self, ex, sym, tf):
         """ Get datetime of last ohlcv in a collection. """
@@ -68,7 +77,16 @@ class EXMongo():
     async def get_last_ohclv(self, ex, sym, tf):
         collname = f"{ex}_ohlcv_{rsym(sym)}_{tf}"
         coll = self.get_collection(self.config['dbname_exchange'], collname)
-        res = await coll.find({}).sort([('_id', -1)]).limit(1).to_list(length=INF)
+        res = await coll.find({}) \
+            .sort([('timestamp', -1)]) \
+            .limit(1) \
+            .to_list(length=INF)
+
+        if not res:
+            raise logger.warn(
+                f"Empty response, maybe {ex} {sym} {tf}'s data does not exist."
+            )
+
         return res[0]
 
     async def get_trades_start(self, ex, sym):
@@ -82,7 +100,7 @@ class EXMongo():
         """ Get datetime of last trades in a collection. """
         collname = f"{ex}_trades_{rsym(sym)}"
         coll = self.get_collection(self.config['dbname_exchange'], collname)
-        res = await coll.find({}).sort([('_id', -1)]).limit(1).to_list(length=INF)
+        res = await coll.find({}).sort([('id', -1)]).limit(1).to_list(length=INF)
         return ms_dt(res[0]['timestamp'])
 
     async def get_ohlcv(self, ex, symbol, timeframe, start, end, fields_condition={}, compress=False):
