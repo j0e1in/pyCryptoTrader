@@ -13,6 +13,7 @@ async def main():
     target_tfs = [
         '1h',
         '2h',
+        '3h',
         '4h',
         '5h',
         '6h',
