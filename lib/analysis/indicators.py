@@ -299,11 +299,10 @@ class Indicator():
         return adx, pdi, mdi
 
     def dmi_sig(self, ohlcv):
-        adx, pdi, mdi = self.dmi(ohlcv)
-
         base_thresh = self.p['dmi_base_thresh']
         adx_thresh = self.p['dmi_adx_thresh']
-        di_thresh = self.p['dmi_di_thresh']
+        di_top_thresh = self.p['dmi_di_top_thresh']
+        di_bot_thresh = self.p['dmi_di_bot_thresh']
 
         adx_top_peak_diff = self.p['dmi_adx_top_peak_diff']
         adx_bot_peak_diff = self.p['dmi_adx_bot_peak_diff']
@@ -311,6 +310,7 @@ class Indicator():
 
         ema_length = self.p['dmi_ema_length']
 
+        adx, pdi, mdi = self.dmi(ohlcv)
         ema = self.talib_s(talib.EMA, ohlcv.close, ema_length)
         ema_up = ema > ema.shift(1)
         ema_down = ema < ema.shift(1)
@@ -348,52 +348,41 @@ class Indicator():
         top_peak_diff = top_peak - adx_top_peak_diff
         bot_peak_diff = bot_peak + adx_bot_peak_diff
 
-        adx_reverse = (adx <= top_peak_diff) & (adx.shift(1) > top_peak_diff)
-        adx_rebound = (adx >= bot_peak_diff) & (adx.shift(1) < bot_peak_diff)
+        adx_reverse = (adx <= top_peak_diff) & (adx.shift(1) > top_peak_diff) & (adx > adx_thresh + 5)
+        adx_rebound = (adx >= bot_peak_diff) & (adx.shift(1) < bot_peak_diff) & (adx < adx_thresh + 10)
 
         match_base_thresh = adx >= base_thresh
         match_adx_thresh = adx >= adx_thresh
-        match_di_thresh = (pdi >= di_thresh) | (mdi >= di_thresh)
+        match_di_top_thresh = (pdi >= di_top_thresh) | (mdi >= di_top_thresh)
         match_di_diff = np.abs(pdi - mdi) >= di_diff
         cross_base_thresh = (adx.shift(1) < base_thresh) & (adx >= base_thresh)
 
         below_base = (adx.shift(1) >= base_thresh) & ~match_base_thresh
-        no_trend = ~match_adx_thresh & ~match_di_thresh
+        no_trend = ~match_adx_thresh & ~match_di_top_thresh
 
         buy  = (pdi > mdi) & (adx_rebound | cross_base_thresh) & match_base_thresh & ~no_trend
         sell = (pdi < mdi) & (adx_rebound | cross_base_thresh) & match_base_thresh & ~no_trend
 
-        buy_reverse = (top_peak_trend == -1) & adx_reverse & (match_adx_thresh) & match_base_thresh & ~no_trend
-        sell_reverse = (top_peak_trend == 1) & adx_reverse & (match_adx_thresh) & match_base_thresh & ~no_trend
+        buy_reverse = (top_peak_trend == -1) & (pdi > di_bot_thresh) & adx_reverse & match_adx_thresh & match_base_thresh & ~no_trend
+        sell_reverse = (top_peak_trend == 1) & (mdi > di_bot_thresh) & adx_reverse & match_adx_thresh & match_base_thresh & ~no_trend
 
-        buy_di_turn  = (pdi > mdi) & (pdi.shift(1) < mdi.shift(1)) & (pdi > di_thresh) & match_base_thresh & ~no_trend
-        sell_di_turn = (pdi < mdi) & (pdi.shift(1) > mdi.shift(1)) & (mdi > di_thresh) & match_base_thresh & ~no_trend
+        buy_di_turn  = (pdi > mdi) & (pdi.shift(1) < mdi.shift(1)) & (pdi > di_top_thresh) & match_base_thresh & ~no_trend
+        sell_di_turn = (pdi < mdi) & (pdi.shift(1) > mdi.shift(1)) & (mdi > di_top_thresh) & match_base_thresh & ~no_trend
 
-        close_trade = below_base | no_trend
+        buy_sig = (buy | buy_reverse | buy_di_turn) & ema_up
+        sell_sig = (sell | sell_reverse | sell_di_turn) & ema_down
+        close_sig = below_base | no_trend
 
         sig = pd.Series(np.nan, index=ohlcv.index)
-        sig[buy == True] = 1
-        sig[sell == True] = -1
-        sig[buy_reverse == True] = 1
-        sig[sell_reverse == True] = -1
-        sig[buy_di_turn == True] = 1
-        sig[sell_di_turn == True] = -1
-        sig[close_trade == True] = 0
+        sig[buy_sig == True] = 1
+        sig[sell_sig == True] = -1
+        sig[close_sig == True] = 0
         sig = self.clean_repeat_sig(sig)
 
         conf = pd.Series(np.nan, index=ohlcv.index)
         conf[sig == 1] = self.p['dmi_conf']
         conf[sig == -1] = -self.p['dmi_conf']
-        # conf[sig == 0] = 0
-
-        # tmp = pd.Series(np.nan, index=ohlcv.index)
-        # tmp[buy == True] = 1
-        # tmp[sell == True] = -1
-        # tmp[buy_reverse == True] = 2
-        # tmp[sell_reverse == True] = -2
-        # tmp[rebuy == True] = 3
-        # tmp[resell == True] = -3
-        # tmp[close == True] = 0
+        conf[sig == 0] = 0
 
         return conf
 
