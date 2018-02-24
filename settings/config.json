@@ -117,7 +117,7 @@
           "EDO/USD",
           "EOS/USD",
           "ETP/USD",
-          "IOT/USD",
+          "IOTA/USD",
           "OMG/USD",
           "QTUM/USD",
           "RRT/USD",
@@ -144,7 +144,7 @@
           "EDO",
           "EOS",
           "ETP",
-          "IOT",
+          "IOTA",
           "OMG",
           "QTUM",
           "RRT",
@@ -233,7 +233,11 @@
   },
 
   "database":{
-    "dbname_exchange": "exchange"
+    "_comment_default_host": "localhost or mongo (docker) or an external IP",
+    "default_host": "localhost",
+    "dbname_exchange": "exchange",
+    "username": "admin",
+    "password": "vv112358"
   }
 }
 

@@ -19,17 +19,21 @@ logger = logging.getLogger()
 
 class EXMongo():
 
-    def __init__(self, *, host='localhost', port=27017, uri=None, custom_config=None):
-        if uri:
-            logger.info(f"Connecting mongo client to {uri}")
-            self.client = motor_asyncio.AsyncIOMotorClient(uri)
-        else:
-            logger.info(f"Connecting mongo client to {host}:{port}")
-            self.client = motor_asyncio.AsyncIOMotorClient(host, port)
-
+    def __init__(self, *, host=None, port=27017, uri=None, custom_config=None):
         _config = custom_config if custom_config else config
         self.config = _config['database']
         self._config = _config
+
+        if not host:
+            host = self.config['default_host']
+
+        user = self.config['username']
+        passwd = self.config['password']
+        dbname =  self.config['dbname_exchange']
+        uri = f"mongodb://{user}:{passwd}@{host}:27017/{dbname}"
+
+        logger.info(f"Connecting mongo client to {uri}")
+        self.client = motor_asyncio.AsyncIOMotorClient(uri)
 
     async def get_exchanges_info(self):
         self.update_exchanges_info()
