@@ -112,6 +112,7 @@ class Backtest():
             self.slow_run()
 
         self._analyze_orders()
+        self.clean_order_history()
 
         if self.enable_plot:
             self.plot_result()
@@ -259,6 +260,14 @@ class Backtest():
                     end = dt
 
         return start, end
+
+    def clean_order_history(self):
+        for _, orders in self.trader.order_history.items():
+            for _, order in orders.items():
+                fields = list(order.keys())
+                for field in fields:
+                    if field.find('op_') >= 0:
+                        del order[field]
 
 
 class BacktestRunner():
