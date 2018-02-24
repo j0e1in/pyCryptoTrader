@@ -4,6 +4,7 @@ from datetime import timedelta
 from multiprocess import Process, Queue
 import asyncio
 import copy
+import itertools
 import random
 import logging
 import queue
@@ -556,7 +557,7 @@ def gen_combinations(arrays, columns=None, types=None):
             columns: list of column names
             types: list of types for each column
     """
-    combs = np.array(np.meshgrid(*arrays)).T.reshape(-1, len(arrays))
+    combs = list(itertools.product(*arrays))
     df = pd.DataFrame(combs, columns=columns)
 
     for k, t in types.items():

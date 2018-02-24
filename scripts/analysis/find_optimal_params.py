@@ -9,8 +9,7 @@ from analysis.backtest import ParamOptimizer
 from analysis.strategy import PatternStrategy
 from db import EXMongo
 
-tf = '1h'
-
+tf = '3h'
 
 def calc_eta(combs, periods):
     eta_per_day = 3.8 / 90
@@ -46,19 +45,16 @@ async def find_optimal_paramters(mongo):
         # (datetime(2017, 5, 1), datetime(2017, 9, 1)),
         # (datetime(2017, 9, 1), datetime(2018, 1, 1)),
 
-        (datetime(2017, 1, 1), datetime(2017, 4, 1)),
-        (datetime(2017, 4, 1), datetime(2017, 7, 1)),
         (datetime(2017, 7, 1), datetime(2017, 10, 1)),
-        (datetime(2017, 10, 1), datetime(2018, 1, 1)),
+        (datetime(2017, 10, 1), datetime(2018, 2, 1)),
     ]
 
     with open(f'../data/combs_{tf}.pkl', 'rb') as f:
         combs = pickle.load(f)
 
     ## Change section to test manually ##
-    start = 5000
+    start = 5001
     end = 10000
-    ## Total 70560
     #####################################
 
     print(f"Running optimization for {tf} {start}-{end}...(total {len(combs)})")
@@ -83,19 +79,19 @@ def save_combinations(mongo):
     strategy = PatternStrategy('bitfinex')
     optimizer = ParamOptimizer(mongo, strategy)
 
-    optimizer.optimize_selection('wvf_tf', [tf])
-    optimizer.optimize_range('wvf_conf', 30, 80, 10)
-    optimizer.optimize_range('wvf_lbsdh', 10, 40, 5)
-    optimizer.optimize_range('wvf_bbl', 10, 40, 5)
-    optimizer.optimize_range('wvf_bbsd', 1, 5, 1)
-    optimizer.optimize_range('wvf_lbph', 30, 80, 10)
-    optimizer.optimize_range('wvf_ph', 0.3, 1, 0.1)
-
-    # optimizer.optimize_range('wvf_ltLB', 30, 80, 25)
-    # optimizer.optimize_range('wvf_mtLB', 7, 20, 6)
-    # optimizer.optimize_range('wvf_strg', 1, 10, 5)
+    optimizer.optimize_range('dmi_adx_length', 30, 46, 3)
+    optimizer.optimize_range('dmi_di_length', 10, 14, 1)
+    optimizer.optimize_range('dmi_base_thresh', 16, 26, 2)
+    optimizer.optimize_range('dmi_adx_thresh', 25, 40, 3)
+    optimizer.optimize_range('dmi_di_top_thresh', 25, 40, 3)
+    optimizer.optimize_range('dmi_di_bot_thresh', 13, 19, 2)
+    optimizer.optimize_range('dmi_adx_top_peak_diff', 0.6, 1.2, 0.2)
+    optimizer.optimize_range('dmi_adx_bot_peak_diff', 0.6, 1.2, 0.2)
+    optimizer.optimize_range('dmi_di_diff', 10, 20, 2)
+    optimizer.optimize_range('dmi_ema_length', 7, 13, 2)
 
     combs = optimizer.get_combinations()
+    print(f"Generated {len(combs)} sets of parameter settings.")
 
     with open(f'../data/combs_{tf}.pkl', 'wb') as f:
         pickle.dump(combs, f)

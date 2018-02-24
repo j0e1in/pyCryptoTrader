@@ -41,9 +41,9 @@ async def test_single_period(mongo, market):
 
     print('-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n')
     # pprint(report)
-    pprint(report['PL(%)'])
+    pprint(f"{market}: {report['PL(%)']}")
     print('\n-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n')
-    pprint(backtest.margin_PLs)
+    # pprint(backtest.margin_PLs)
     # pprint(backtest.trader.wallet_history)
 
     hist = backtest.trader.order_history['bitfinex']
@@ -59,16 +59,16 @@ async def test_single_period(mongo, market):
 async def test_special_periods_of_markets(mongo):
 
     markets = [
-        # "BTC/USD",
-        # "ETH/USD",
-        # "XRP/USD",
+        "BTC/USD",
+        "ETH/USD",
+        "XRP/USD",
         "BCH/USD",
-        # "ETC/USD",
-        # "DASH/USD",
-        # "LTC/USD",
-        # "NEO/USD",
-        # "XMR/USD",
-        # "ZEC/USD",
+        "ETC/USD",
+        "DASH/USD",
+        "LTC/USD",
+        "NEO/USD",
+        "XMR/USD",
+        "ZEC/USD",
     ]
 
     total_pl = 0
