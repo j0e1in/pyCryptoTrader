@@ -1,4 +1,11 @@
+from datetime import timedelta
+
+import copy
+import logging
+
 from utils import config
+
+logger = logging.getLogger()
 
 
 class SingleExchangeStrategy():
@@ -24,9 +31,9 @@ class SingleExchangeStrategy():
         self.prefeed_days = 1 # time period for pre-feed data,
                               # default is 1, child class can set to different ones in `init_vars()`
 
-    def set_config(self, config):
-        self._config = config
-        self.p = config['analysis']['params']
+    def set_config(self, cfg):
+        self._config = cfg
+        self.p = cfg['analysis']['params']
         self.init_vars()
 
     def init(self, trader):
@@ -103,7 +110,7 @@ class SingleExchangeStrategy():
         self.trader.close_all_positions(self.ex, side=side)
 
     def trade(self, side, market, spend, margin=False, stop_loss=None, stop_profit=None):
-        price = self.trader.cur_price(self.ex, market, now)
+        price = self.trader.cur_price(self.ex, market)
         curr = self.trader.trading_currency(market, side, margin)
         value = spend * price if curr != 'USD' else spend
 
@@ -170,4 +177,81 @@ class SingleExchangeStrategy():
         if not self.fast_mode:
             raise RuntimeError("Wrong method is called in slow mode.")
         self.ops.append(op)
+
+    def op_execute_position_stop(self, end):
+        """" Execute stop loss or stop profit(trailing stop), if matches. """
+
+        op_positions = copy.deepcopy(self.trader.op_positions)
+        for _, positions in op_positions.items():
+            for _, pos in positions.items():
+
+                if pos['stop_loss']:
+
+                    start = pos['op_open_time'] + timedelta(seconds=1)
+                    ohlcv = self.trader.ohlcvs[self.ex][pos['market']][self.trader.config['indicator_tf']][start:end]
+                    if start == end:
+                        logger.warn('start == end')
+
+                    if len(ohlcv) > 0:
+
+                        stop_loss = ()
+                        target_low  = pos['op_open_price'] * (1 - pos['stop_loss']) # for buy
+                        target_high = pos['op_open_price'] * (1 + pos['stop_loss']) # for sell
+
+                        # Check buy stop loss
+                        if pos['side'] == 'buy' \
+                        and ohlcv.low.min() <= target_low:
+                            bar = ohlcv[ohlcv.low <= target_low].iloc[0]
+                            stop_loss = (bar.name, target_low)
+
+                        # Check sell stop loss
+                        elif pos['side'] == 'sell' \
+                        and ohlcv.high.max() >= target_high:
+                            bar = ohlcv[ohlcv.high >= target_high].iloc[0]
+                            stop_loss = (bar.name, target_high)
+
+                        if stop_loss:
+                            pos['op_close_time'] = stop_loss[0]
+                            pos['op_close_price'] = stop_loss[1]
+                            self.append_op(self.trader.op_close_position(pos, pos['op_close_time']))
+
+                            if self._config['mode'] == 'debug':
+                                logger.debug(f"Stop {pos['side']} loss @ {pos['op_close_price']:.3f} ({pos['op_close_time']})")
+
+                        else: # If stop_loss is not applied, check stop profit
+                            stop_profit = ()
+
+                            if pos['side'] == 'buy':
+                                for dt, oh in ohlcv.iterrows():
+                                    cur_high = ohlcv[:dt + timedelta(seconds=1)].high.max()
+                                    target_low = cur_high * (1 - pos['stop_profit'])
+
+                                    if target_low > pos['op_open_price'] and oh.low < target_low:
+                                        # if stop_profit is not set
+                                        # if the close datetime (dt) is earlier, use that dt
+                                        if not stop_profit \
+                                        or (stop_profit and stop_profit[0] > dt):
+                                            stop_profit = (dt, target_low)
+
+                            elif pos['side'] == 'sell':
+                                for dt, oh in ohlcv.iterrows():
+                                    cur_low = ohlcv[:dt + timedelta(seconds=1)].low.min()
+                                    target_high = cur_low * (1 + pos['stop_profit'])
+
+                                    if target_high < pos['op_open_price'] and oh.high > target_high:
+                                        # if stop_profit is not set
+                                        # if the close datetime (dt) is earlier, use that dt
+                                        if not stop_profit \
+                                        or (stop_profit and stop_profit[0] > dt):
+                                            stop_profit = (dt, target_high)
+
+                            if stop_profit:
+                                pos['op_close_time'] = stop_profit[0]
+                                pos['op_close_price'] = stop_profit[1]
+                                self.append_op(self.trader.op_close_position(pos, pos['op_close_time']))
+
+                                if self._config['mode'] == 'debug':
+                                    logger.debug(f"Stop {pos['side']} profit @ {pos['op_close_price']:.3f} ({pos['op_close_time']})")
+
+
 
