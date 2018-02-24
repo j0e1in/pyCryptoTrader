@@ -208,7 +208,7 @@
       "vwma_ma_length": 8,
 
       "dmi_conf": 100,
-      "dmi_adx_length": 46,
+      "dmi_adx_length": 40,
       "dmi_di_length": 12,
 
       "_comment_dmi_1": "ver. 1",
@@ -220,7 +220,8 @@
       "_comment_dmi_2": "ver. 2",
       "dmi_base_thresh": 20,
       "dmi_adx_thresh": 30,
-      "dmi_di_thresh": 30,
+      "dmi_di_top_thresh": 30,
+      "dmi_di_bot_thresh": 15,
       "dmi_adx_top_peak_diff": 1,
       "dmi_adx_bot_peak_diff": 0.8,
       "dmi_di_diff": 13,
