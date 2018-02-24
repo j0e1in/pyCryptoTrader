@@ -514,7 +514,7 @@ class SimulatedTrader():
         copy_orders = deepcopy(self.orders)
         for ex, orders in copy_orders.items():
             for id, order in orders.items():
-                print(self.wallet['bitfinex']['USD'])
+
                 # Close margin position, all margin orders are closed at market price
                 if self.is_margin_close(order):
                     execute_close_position(order)
@@ -653,9 +653,10 @@ class SimulatedTrader():
                 F = self.config['fee']
                 MF = self.config['margin_fee']
                 MR = self.config['margin_rate']
+                mf = MF / (MR - 1) if MR > 1 else 0
 
                 order['cost'] = order['amount'] / MR * P
-                order['amount'] = order['cost'] / (1 / MR + F + MF / (MR - 1)) / P
+                order['amount'] = order['cost'] / (1 / MR + F + mf) / P
                 order['margin_fund'] = order['amount'] / MR * (MR - 1) * P
                 order['margin_fee'] = order['margin_fund'] * MF
                 order['fee'] = P * order['amount'] * F
@@ -1084,11 +1085,12 @@ class FastTrader(SimulatedTrader):
                 F = self.config['fee']
                 MF = self.config['margin_fee']
                 MR = self.config['margin_rate']
+                mf = MF / (MR - 1) if MR > 1 else 0
 
                 order['op_open_price'] = price
 
                 cost = amount / MR * P
-                order['op_amount'] = cost / (1 / MR + F + MF / (MR - 1)) / P
+                order['op_amount'] = cost / (1 / MR + F + mf) / P
 
             else: # closing a margin position, cost = 0
                 amount = order['op_amount']
