@@ -222,9 +222,11 @@ class SingleExchangeStrategy():
                             stop_profit = ()
 
                             if pos['side'] == 'buy':
+                                diff_low = pos['op_open_price'] * pos['stop_profit']
+
                                 for dt, oh in ohlcv.iterrows():
                                     cur_high = ohlcv[:dt + timedelta(seconds=1)].high.max()
-                                    target_low = cur_high * (1 - pos['stop_profit'])
+                                    target_low = cur_high - diff_low
 
                                     if target_low > pos['op_open_price'] and oh.low < target_low:
                                         # if stop_profit is not set
@@ -234,9 +236,11 @@ class SingleExchangeStrategy():
                                             stop_profit = (dt, target_low)
 
                             elif pos['side'] == 'sell':
+                                diff_high = pos['op_open_price'] * pos['stop_profit']
+
                                 for dt, oh in ohlcv.iterrows():
                                     cur_low = ohlcv[:dt + timedelta(seconds=1)].low.min()
-                                    target_high = cur_low * (1 + pos['stop_profit'])
+                                    target_high = cur_low + diff_high
 
                                     if target_high < pos['op_open_price'] and oh.high > target_high:
                                         # if stop_profit is not set
