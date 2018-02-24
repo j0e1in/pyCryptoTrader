@@ -2,6 +2,7 @@ ccxt==1.10.990
 chromalog
 matplotlib
 motor
+multiprocess
 numpy
 pandas
 pymongo
