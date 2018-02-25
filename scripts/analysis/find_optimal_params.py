@@ -12,7 +12,7 @@ from db import EXMongo
 tf = '3h'
 
 def calc_eta(combs, periods):
-    eta_per_day = 3.8 / 90
+    eta_per_day = 4.2 / 90
     eta = 0
 
     if len(periods) == 2:
