@@ -185,15 +185,15 @@ class SingleExchangeStrategy():
         for _, positions in op_positions.items():
             for _, pos in positions.items():
 
-                if pos['stop_loss']:
 
-                    start = pos['op_open_time'] + timedelta(seconds=1)
-                    ohlcv = self.trader.ohlcvs[self.ex][pos['market']][self.trader.config['indicator_tf']][start:end]
-                    if start == end:
-                        logger.warn('start == end')
+                start = pos['op_open_time'] + timedelta(seconds=1)
+                ohlcv = self.trader.ohlcvs[self.ex][pos['market']][self.trader.config['indicator_tf']][start:end]
+                if start == end:
+                    logger.warn('start == end')
 
-                    if len(ohlcv) > 0:
+                if len(ohlcv) > 0:
 
+                    if pos['stop_loss']:
                         stop_loss = ()
                         target_low  = pos['op_open_price'] * (1 - pos['stop_loss']) # for buy
                         target_high = pos['op_open_price'] * (1 + pos['stop_loss']) # for sell
@@ -218,44 +218,46 @@ class SingleExchangeStrategy():
                             if self._config['mode'] == 'debug':
                                 logger.debug(f"Stop {pos['side']} loss @ {pos['op_close_price']:.3f} ({pos['op_close_time']})")
 
-                        else: # If stop_loss is not applied, check stop profit
-                            stop_profit = ()
+                            continue
 
-                            if pos['side'] == 'buy':
-                                diff_low = pos['op_open_price'] * pos['stop_profit']
+                    if pos['stop_profit']: # If stop_loss is not applied, check stop profit
+                        stop_profit = ()
 
-                                for dt, oh in ohlcv.iterrows():
-                                    cur_high = ohlcv[:dt + timedelta(seconds=1)].high.max()
-                                    target_low = cur_high - diff_low
+                        if pos['side'] == 'buy':
+                            diff_low = pos['op_open_price'] * pos['stop_profit']
 
-                                    if target_low > pos['op_open_price'] and oh.low < target_low:
-                                        # if stop_profit is not set
-                                        # if the close datetime (dt) is earlier, use that dt
-                                        if not stop_profit \
-                                        or (stop_profit and stop_profit[0] > dt):
-                                            stop_profit = (dt, target_low)
+                            for dt, oh in ohlcv.iterrows():
+                                cur_high = ohlcv[:dt + timedelta(seconds=1)].high.max()
+                                target_low = cur_high - diff_low
 
-                            elif pos['side'] == 'sell':
-                                diff_high = pos['op_open_price'] * pos['stop_profit']
+                                if target_low > pos['op_open_price'] and oh.low < target_low:
+                                    # if stop_profit is not set
+                                    # if the close datetime (dt) is earlier, use that dt
+                                    if not stop_profit \
+                                    or (stop_profit and stop_profit[0] > dt):
+                                        stop_profit = (dt, target_low)
 
-                                for dt, oh in ohlcv.iterrows():
-                                    cur_low = ohlcv[:dt + timedelta(seconds=1)].low.min()
-                                    target_high = cur_low + diff_high
+                        elif pos['side'] == 'sell':
+                            diff_high = pos['op_open_price'] * pos['stop_profit']
 
-                                    if target_high < pos['op_open_price'] and oh.high > target_high:
-                                        # if stop_profit is not set
-                                        # if the close datetime (dt) is earlier, use that dt
-                                        if not stop_profit \
-                                        or (stop_profit and stop_profit[0] > dt):
-                                            stop_profit = (dt, target_high)
+                            for dt, oh in ohlcv.iterrows():
+                                cur_low = ohlcv[:dt + timedelta(seconds=1)].low.min()
+                                target_high = cur_low + diff_high
 
-                            if stop_profit:
-                                pos['op_close_time'] = stop_profit[0]
-                                pos['op_close_price'] = stop_profit[1]
-                                self.append_op(self.trader.op_close_position(pos, pos['op_close_time']))
+                                if target_high < pos['op_open_price'] and oh.high > target_high:
+                                    # if stop_profit is not set
+                                    # if the close datetime (dt) is earlier, use that dt
+                                    if not stop_profit \
+                                    or (stop_profit and stop_profit[0] > dt):
+                                        stop_profit = (dt, target_high)
 
-                                if self._config['mode'] == 'debug':
-                                    logger.debug(f"Stop {pos['side']} profit @ {pos['op_close_price']:.3f} ({pos['op_close_time']})")
+                        if stop_profit:
+                            pos['op_close_time'] = stop_profit[0]
+                            pos['op_close_price'] = stop_profit[1]
+                            self.append_op(self.trader.op_close_position(pos, pos['op_close_time']))
+
+                            if self._config['mode'] == 'debug':
+                                logger.debug(f"Stop {pos['side']} profit @ {pos['op_close_price']:.3f} ({pos['op_close_time']})")
 
 
 
