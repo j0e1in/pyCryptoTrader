@@ -19,7 +19,6 @@ end = datetime(2018, 2, 22)
 
 async def fetch_ohlcv_to_mongo(coll, exchange, symbol, timeframe):
     ops = []
-    count = 0
 
     res = fetch_ohlcv(exchange, symbol, start, end, timeframe)
 
@@ -44,11 +43,11 @@ async def fetch_ohlcv_to_mongo(coll, exchange, symbol, timeframe):
                     {'$set': rec},
                     upsert=True))
 
-            if len(ops) % 100000 == 0:
-                await execute_mongo_ops(coll.bulk_write(ops))
-                ops = []
+        if len(ops) % 10000 == 0:
+            await execute_mongo_ops(coll.bulk_write(ops))
+            ops = []
 
-        await execute_mongo_ops(coll.bulk_write(ops))
+    await execute_mongo_ops(coll.bulk_write(ops))
 
 
 async def main():
