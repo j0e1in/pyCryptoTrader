@@ -359,6 +359,8 @@ def check_periods(periods):
 async def execute_mongo_ops(ops):
     if not isinstance(ops, list):
         ops = [ops]
+    elif len(ops) == 0:
+        return True
 
     if not isinstance(ops[0], asyncio.Future):
         raise ValueError("ops must be asyncio.Future(s)")
