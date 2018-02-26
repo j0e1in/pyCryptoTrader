@@ -20,8 +20,8 @@ class PatternStrategy(SingleExchangeStrategy):
         self.margin = self._config['backtest']['margin']
 
     def fast_strategy(self):
-        stop_loss = True
-        stop_profit = True
+        stop_loss = False
+        stop_profit = False
 
         for market in self.markets:
             sig = self.calc_signal(market)
@@ -72,6 +72,7 @@ class PatternStrategy(SingleExchangeStrategy):
         # sig = self.ind.vwma_ma_sig(ohlcv)
         # sig = self.ind.hma_sig(ohlcv)
         # sig = self.ind.hma_ma_sig(ohlcv)
-        sig = self.ind.dmi_sig(ohlcv)
+        # sig = self.ind.dmi_sig(ohlcv)
+        sig = self.ind.mom_sig(ohlcv)
 
         return sig

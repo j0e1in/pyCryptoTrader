@@ -386,6 +386,53 @@ class Indicator():
 
         return conf
 
+    def mom(self, ss, length=None, ma='wma', ma_length=None):
+        """ Momentum """
+        if not length:
+            length = self.p['mom_length']
+        if not ma_length:
+            ma_length = self.p['mom_ma_length']
+
+        # mom = self.talib_s(talib.MOM, ss, length)
+        mom = ss - ss.shift(length)
+
+        if ma:
+            MA = getattr(talib, ma.upper())
+            mom = self.talib_s(MA, mom, ma_length)
+
+        return mom
+
+    def mom_sig(self, ohlcv):
+        past_length = 90 # previous N bars to find high low
+        if len(ohlcv) < past_length:
+            raise ValueError('mom_sig requires at least 90 bars of ohlcv')
+
+        mom = self.mom(ohlcv.close)
+
+        mom_mid_zone = pd.Series(np.nan, index=ohlcv.index)
+        for i in range(past_length, len(mom)):
+            high = mom[max(i-past_length, 0):i].max()
+            low = mom[max(i-past_length, 0):i].min()
+            mom_mid_zone.iloc[i] = (mom.iloc[i] / (high-low)) < self.p['mom_mid_zone_percent']
+
+        mom_peak = ((mom > mom[1]) & (mom[1] < mom[2])) | ((mom < mom[1]) & (mom[1] > mom[2]))
+        buy_sig = (mom > mom.shift(1))
+        sell_sig = (mom < mom.shift(1))
+        close_sig = mom_mid_zone & mom_peak
+
+        sig = pd.Series(np.nan, index=ohlcv.index)
+        sig[buy_sig == True] = 1
+        sig[sell_sig == True] = -1
+        sig[close_sig == True] = 0
+        sig = self.clean_repeat_sig(sig)
+
+        conf = pd.Series(np.nan, index=ohlcv.index)
+        conf[sig == 1] = self.p['mom_conf']
+        conf[sig == -1] = -self.p['mom_conf']
+        conf[sig == 0] = 0
+
+        return conf
+
     def rma(self, ss, length):
         """ Exponentially weighted moving average with alpha = 1 / (length - 1)
             Smoothness: RMA > EMA
