@@ -1,116 +1,62 @@
 #!/bin/bash
 
-colls=(
-  "bitfinex_ohlcv_BCHUSD_12h"
-  "bitfinex_ohlcv_BCHUSD_15m"
-  "bitfinex_ohlcv_BCHUSD_1d"
-  "bitfinex_ohlcv_BCHUSD_1h"
-  "bitfinex_ohlcv_BCHUSD_1m"
-  "bitfinex_ohlcv_BCHUSD_30m"
-  "bitfinex_ohlcv_BCHUSD_3h"
-  "bitfinex_ohlcv_BCHUSD_5m"
-  "bitfinex_ohlcv_BCHUSD_6h"
-  "bitfinex_ohlcv_BTCUSD_12h"
-  "bitfinex_ohlcv_BTCUSD_15m"
-  "bitfinex_ohlcv_BTCUSD_1d"
-  "bitfinex_ohlcv_BTCUSD_1h"
-  "bitfinex_ohlcv_BTCUSD_1m"
-  "bitfinex_ohlcv_BTCUSD_30m"
-  "bitfinex_ohlcv_BTCUSD_3h"
-  "bitfinex_ohlcv_BTCUSD_5m"
-  "bitfinex_ohlcv_BTCUSD_6h"
-  "bitfinex_ohlcv_DASHUSD_12h"
-  "bitfinex_ohlcv_DASHUSD_15m"
-  "bitfinex_ohlcv_DASHUSD_1d"
-  "bitfinex_ohlcv_DASHUSD_1h"
-  "bitfinex_ohlcv_DASHUSD_1m"
-  "bitfinex_ohlcv_DASHUSD_30m"
-  "bitfinex_ohlcv_DASHUSD_3h"
-  "bitfinex_ohlcv_DASHUSD_5m"
-  "bitfinex_ohlcv_DASHUSD_6h"
-  "bitfinex_ohlcv_ETCUSD_12h"
-  "bitfinex_ohlcv_ETCUSD_15m"
-  "bitfinex_ohlcv_ETCUSD_1d"
-  "bitfinex_ohlcv_ETCUSD_1h"
-  "bitfinex_ohlcv_ETCUSD_1m"
-  "bitfinex_ohlcv_ETCUSD_30m"
-  "bitfinex_ohlcv_ETCUSD_3h"
-  "bitfinex_ohlcv_ETCUSD_5m"
-  "bitfinex_ohlcv_ETCUSD_6h"
-  "bitfinex_ohlcv_ETHUSD_12h"
-  "bitfinex_ohlcv_ETHUSD_15m"
-  "bitfinex_ohlcv_ETHUSD_1d"
-  "bitfinex_ohlcv_ETHUSD_1h"
-  "bitfinex_ohlcv_ETHUSD_1m"
-  "bitfinex_ohlcv_ETHUSD_30m"
-  "bitfinex_ohlcv_ETHUSD_3h"
-  "bitfinex_ohlcv_ETHUSD_5m"
-  "bitfinex_ohlcv_ETHUSD_6h"
-  "bitfinex_ohlcv_LTCUSD_12h"
-  "bitfinex_ohlcv_LTCUSD_15m"
-  "bitfinex_ohlcv_LTCUSD_1d"
-  "bitfinex_ohlcv_LTCUSD_1h"
-  "bitfinex_ohlcv_LTCUSD_1m"
-  "bitfinex_ohlcv_LTCUSD_30m"
-  "bitfinex_ohlcv_LTCUSD_3h"
-  "bitfinex_ohlcv_LTCUSD_5m"
-  "bitfinex_ohlcv_LTCUSD_6h"
-  "bitfinex_ohlcv_NEOUSD_12h"
-  "bitfinex_ohlcv_NEOUSD_15m"
-  "bitfinex_ohlcv_NEOUSD_1d"
-  "bitfinex_ohlcv_NEOUSD_1h"
-  "bitfinex_ohlcv_NEOUSD_1m"
-  "bitfinex_ohlcv_NEOUSD_30m"
-  "bitfinex_ohlcv_NEOUSD_3h"
-  "bitfinex_ohlcv_NEOUSD_5m"
-  "bitfinex_ohlcv_NEOUSD_6h"
-  "bitfinex_ohlcv_XMRUSD_12h"
-  "bitfinex_ohlcv_XMRUSD_15m"
-  "bitfinex_ohlcv_XMRUSD_1d"
-  "bitfinex_ohlcv_XMRUSD_1h"
-  "bitfinex_ohlcv_XMRUSD_1m"
-  "bitfinex_ohlcv_XMRUSD_30m"
-  "bitfinex_ohlcv_XMRUSD_3h"
-  "bitfinex_ohlcv_XMRUSD_5m"
-  "bitfinex_ohlcv_XMRUSD_6h"
-  "bitfinex_ohlcv_XRPUSD_12h"
-  "bitfinex_ohlcv_XRPUSD_15m"
-  "bitfinex_ohlcv_XRPUSD_1d"
-  "bitfinex_ohlcv_XRPUSD_1h"
-  "bitfinex_ohlcv_XRPUSD_1m"
-  "bitfinex_ohlcv_XRPUSD_30m"
-  "bitfinex_ohlcv_XRPUSD_3h"
-  "bitfinex_ohlcv_XRPUSD_5m"
-  "bitfinex_ohlcv_XRPUSD_6h"
-  "bitfinex_ohlcv_ZECUSD_12h"
-  "bitfinex_ohlcv_ZECUSD_15m"
-  "bitfinex_ohlcv_ZECUSD_1d"
-  "bitfinex_ohlcv_ZECUSD_1h"
-  "bitfinex_ohlcv_ZECUSD_1m"
-  "bitfinex_ohlcv_ZECUSD_30m"
-  "bitfinex_ohlcv_ZECUSD_3h"
-  "bitfinex_ohlcv_ZECUSD_5m"
-  "bitfinex_ohlcv_ZECUSD_6h"
+tfs=(
+  "1m"
 )
 
-colls2=(
-  "bitfinex_trades_BCHUSD"
+ohlcvs=(
+  "bitfinex_ohlcv_BTCUSD"
+  "bitfinex_ohlcv_BCHUSD"
+  "bitfinex_ohlcv_ETHUSD"
+  "bitfinex_ohlcv_ETCUSD"
+  "bitfinex_ohlcv_EOSUSD"
+  "bitfinex_ohlcv_DASHUSD"
+  "bitfinex_ohlcv_IOTAUSD"
+  "bitfinex_ohlcv_LTCUSD"
+  "bitfinex_ohlcv_NEOUSD"
+  "bitfinex_ohlcv_OMGUSD"
+  "bitfinex_ohlcv_XMRUSD"
+  "bitfinex_ohlcv_XRPUSD"
+  "bitfinex_ohlcv_ZECUSD"
+)
+
+trades=(
   "bitfinex_trades_BTCUSD"
-  "bitfinex_trades_DASHUSD"
-  "bitfinex_trades_ETCUSD"
+  "bitfinex_trades_BCHUSD"
   "bitfinex_trades_ETHUSD"
+  "bitfinex_trades_ETCUSD"
+  "bitfinex_trades_EOSUSD"
+  "bitfinex_trades_DASHUSD"
+  "bitfinex_trades_IOTAUSD"
   "bitfinex_trades_LTCUSD"
   "bitfinex_trades_NEOUSD"
+  "bitfinex_trades_OMGUSD"
   "bitfinex_trades_XMRUSD"
   "bitfinex_trades_XRPUSD"
   "bitfinex_trades_ZECUSD"
 )
 
-dest="$HOME/mongo_backup/exchange"
+data_type="ohlcv"
+dest="$HOME/mongo_backup/exchange/$data_type"
 
 mkdir -p $dest
 
-for c in ${colls[@]}
-do
-  mongodump -d exchange -c $c --gzip --archive="$dest/$c.gzip"
-done
+if [ $data_type = "ohlcv" ]; then
+
+  for c in ${ohlcvs[@]}
+  do
+    for tf in ${tfs[@]}
+    do
+      coll=$c"_"$tf
+      mongodump -d exchange_new -c $coll --gzip --archive="$dest/$coll.gzip"
+    done
+  done
+
+elif [ $data_type = "trades" ]; then
+
+  for c in ${trades[@]}
+  do
+    mongodump -d exchange_new -c $coll --gzip --archive="$dest/$coll.gzip"
+  done
+
+fi
