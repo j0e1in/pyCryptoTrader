@@ -19,18 +19,25 @@ logger = logging.getLogger()
 
 class EXMongo():
 
-    def __init__(self, *, host=None, port=27017, uri=None, custom_config=None):
+    def __init__(self, *, host=None, port=None, uri=None, custom_config=None):
         _config = custom_config if custom_config else config
         self.config = _config['database']
         self._config = _config
 
         if not host:
             host = self.config['default_host']
+        if not port:
+            port = self.config['default_port']
 
-        user = self.config['username']
-        passwd = self.config['password']
-        dbname =  self.config['dbname_exchange']
-        uri = f"mongodb://{user}:{passwd}@{host}:27017/{dbname}"
+        if not uri:
+            if self.config['auth']:
+                user = self.config['username']
+                passwd = self.config['password']
+                auth = f"{user}:{passwd}@"
+                db = self.config['auth_db']
+                uri = f"mongodb://{auth}{host}:27017/{db}"
+            else:
+                uri = f"mongodb://{host}:27017/"
 
         logger.info(f"Connecting mongo client to {uri}")
         self.client = motor_asyncio.AsyncIOMotorClient(uri)
@@ -42,7 +49,7 @@ class EXMongo():
     async def update_exchanges_info(self):
         pass
 
-    async def build_exchanges_info():
+    async def build_exchanges_info(self):
         pass
 
     async def export_to_csv(self, db, collection, path):
@@ -273,20 +280,11 @@ class EXMongo():
         return df
 
     def get_database(self, dbname):
-        if dbname == 'exchange':
-            return self.client.get_database(self.config['dbname_exchange'])
+        return getattr(self.client, dbname)
 
     def get_collection(self, dbname, collname):
-        db = self.get_database(dbname)
-
-        if db is None:
-            raise RuntimeError(f"Database `{dbname}` doesn't exist.")
-
-        coll = db.get_collection(collname)
-
-        if coll is None:
-            raise RuntimeError(f"Collection `{collname}` doesn't exist.")
-
+        db = getattr(self.client, dbname)
+        coll = getattr(db, collname)
         return coll
 
     async def get_my_trades(self, ex, start, end):
