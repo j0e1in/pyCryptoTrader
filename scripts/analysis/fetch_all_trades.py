@@ -38,7 +38,7 @@ async def fetch_trades_to_mongo(coll, exchange, symbol):
         ops.append(ensure_future(coll.insert_many(processed_trades)))
 
         # insert ~1000 trades per op, clean up task stack periodically
-        if len(ops) > 50:
+        if len(ops) > 10:
             await execute_mongo_ops(ops)
             ops = []
 

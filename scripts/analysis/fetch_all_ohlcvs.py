@@ -21,6 +21,7 @@ end = datetime(2018, 2, 22)
 async def fetch_ohlcv_to_mongo(coll, exchange, symbol, timeframe, upsert=True):
 
     res = fetch_ohlcv(exchange, symbol, start, end, timeframe)
+    bulk_ops = []
 
     async for ohlcv in res:
         ops = []
@@ -58,8 +59,13 @@ async def fetch_ohlcv_to_mongo(coll, exchange, symbol, timeframe, upsert=True):
             ]
             await execute_mongo_ops(bulk_ops)
         else:
-            bulk_ops = ensure_future(coll.insert_many(ops))
-            await execute_mongo_ops(bulk_ops)
+            bulk_ops.append(ensure_future(coll.insert_many(ops)))
+            if len(bulk_ops) > 10:
+                await execute_mongo_ops(bulk_ops)
+                ops = []
+
+    if not upsert:
+        await execute_mongo_ops(bulk_ops)
 
 
 async def main():
