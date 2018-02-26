@@ -11,7 +11,7 @@ from db import EXMongo
 
 async def test_run(backtest):
     strategy = PatternStrategy('bitfinex')
-    start = datetime(2017, 1, 1)
+    start = datetime(2017, 4, 1)
     end = datetime(2017, 2, 5)
     options = {
         'strategy': strategy,
@@ -47,7 +47,7 @@ async def test_backtest_runner_run_multi_periods(mongo):
 
 
 async def test_backtest_runner_run_random_periods(mongo):
-    start = datetime(2017, 1, 1)
+    start = datetime(2017, 4, 1)
     end = datetime(2017, 3, 1)
     period_size_range = (15, 29)
 

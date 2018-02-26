@@ -38,10 +38,10 @@ def get_num_combs():
 async def find_optimal_paramters(mongo):
 
     test_periods = [
-        # (datetime(2017, 1, 1), datetime(2017, 7, 1)),
+        # (datetime(2017, 4, 1), datetime(2017, 7, 1)),
         # (datetime(2017, 7, 1), datetime(2018, 1, 1)),
 
-        # (datetime(2017, 1, 1), datetime(2017, 5, 1)),
+        # (datetime(2017, 4, 1), datetime(2017, 5, 1)),
         # (datetime(2017, 5, 1), datetime(2017, 9, 1)),
         # (datetime(2017, 9, 1), datetime(2018, 1, 1)),
 

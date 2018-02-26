@@ -15,8 +15,8 @@ from pprint import pprint as pp
 async def test_get_ohlcv(mongo):
     exchange = init_ccxt_exchange('bitfinex2')
 
-    start = datetime(2017, 1, 1)
-    end = datetime(2017, 1, 2)
+    start = datetime(2017, 4, 1)
+    end = datetime(2017, 4, 2)
 
     res = await mongo.get_ohlcv(exchange, 'BTC/USD', '1h', start, end)
     print('BTC/USD ohlcv')
@@ -30,8 +30,8 @@ async def test_get_ohlcv(mongo):
 async def test_get_trades(mongo):
     exchange = init_ccxt_exchange('bitfinex2')
 
-    start = datetime(2017, 1, 1)
-    end = datetime(2017, 1, 2)
+    start = datetime(2017, 4, 1)
+    end = datetime(2017, 4, 2)
     res = await mongo.get_trades(exchange, 'BTC/USD', start, end)
     pp(res)
 

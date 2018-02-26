@@ -20,8 +20,8 @@ from db import EXMongo
 async def test_pattern_strategy(mongo):
     options = {
         'strategy': PatternStrategy('bitfinex'),
-        'start': datetime(2017, 1, 2),
-        'end': datetime(2017, 1, 17)
+        'start': datetime(2017, 4, 2),
+        'end': datetime(2017, 4, 17)
     }
 
     backtest = await Backtest(mongo).init(**options)

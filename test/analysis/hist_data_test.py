@@ -43,7 +43,7 @@ async def test_fetch_trades():
 async def test_fetch_my_trades():
     key = load_keys()['bitfinex']
     exchange = init_ccxt_exchange('bitfinex', key['apiKey'], key['secret'])
-    start = datetime(2017, 1, 1)
+    start = datetime(2017, 4, 1)
 
     async for trades in fetch_my_trades(
             exchange, 'BTC/USD', start, parser=Bitfinex.parse_my_trade):

@@ -13,9 +13,9 @@ from utils import config
 
 
 async def test_single_period(mongo, market):
-    # dt = (datetime(2017, 1, 1), datetime(2018, 1, 1))
+    # dt = (datetime(2017, 4, 1), datetime(2018, 1, 1))
     # dt = (datetime(2017, 11, 1), datetime(2018, 1, 1))
-    dt = (datetime(2017, 12, 1), datetime(2018, 2, 1))
+    dt = (datetime(2018, 1, 1), datetime(2018, 2, 1))
 
     _config = copy.deepcopy(config)
     _config['analysis']['exchanges']['bitfinex']['markets'] = [market]
@@ -45,8 +45,8 @@ async def test_single_period(mongo, market):
     print('\n-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n')
     # pprint(backtest.margin_PLs)
     # pprint(backtest.trader.wallet_history)
-
     hist = backtest.trader.order_history['bitfinex']
+    # from ipdb import set_trace; set_trace()
 
     # Print orders with PL < -30
     # for _, order in hist.items():
@@ -59,16 +59,16 @@ async def test_single_period(mongo, market):
 async def test_special_periods_of_markets(mongo):
 
     markets = [
-        "BTC/USD",
-        "ETH/USD",
-        "XRP/USD",
-        "BCH/USD",
-        "ETC/USD",
+        # "BTC/USD",
+        # "ETH/USD",
+        # "XRP/USD",
+        # "BCH/USD",
+        # "ETC/USD",
         "DASH/USD",
-        "LTC/USD",
-        "NEO/USD",
-        "XMR/USD",
-        "ZEC/USD",
+        # "LTC/USD",
+        # "NEO/USD",
+        # "XMR/USD",
+        # "ZEC/USD",
     ]
 
     total_pl = 0
