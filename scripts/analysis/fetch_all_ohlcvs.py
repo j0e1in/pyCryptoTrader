@@ -1,6 +1,7 @@
 from setup import run, setup
 setup()
 
+from asyncio import ensure_future
 from datetime import datetime
 
 import logging
@@ -13,16 +14,16 @@ from utils import init_ccxt_exchange, execute_mongo_ops, config
 logger = logging.getLogger()
 
 
-start = datetime(2018, 2, 19)
+start = datetime(2017, 8, 1)
 end = datetime(2018, 2, 22)
 
 
-async def fetch_ohlcv_to_mongo(coll, exchange, symbol, timeframe):
-    ops = []
+async def fetch_ohlcv_to_mongo(coll, exchange, symbol, timeframe, upsert=True):
 
     res = fetch_ohlcv(exchange, symbol, start, end, timeframe)
 
     async for ohlcv in res:
+        ops = []
 
         if len(ohlcv) is 0:
             break
@@ -37,17 +38,28 @@ async def fetch_ohlcv_to_mongo(coll, exchange, symbol, timeframe):
                 'close':     oh[4],
                 'volume':    oh[5]
             }
-            ops.append(
-                pymongo.UpdateOne(
-                    {'timestamp': rec['timestamp']},
-                    {'$set': rec},
-                    upsert=True))
 
-        if len(ops) % 10000 == 0:
-            await execute_mongo_ops(coll.bulk_write(ops))
-            ops = []
+            if upsert:
+                ops.append(
+                    pymongo.UpdateOne(
+                        {'timestamp': rec['timestamp']},
+                        {'$set': rec},
+                        upsert=True))
+            else:
+                ops.append(rec)
 
-    await execute_mongo_ops(coll.bulk_write(ops))
+        if upsert:
+            # Divide ops into 3 threads
+            div = int(len(ops) / 3)
+            bulk_ops = [
+                coll.bulk_write(ops[:div]),
+                coll.bulk_write(ops[div:div*2]),
+                coll.bulk_write(ops[div*2:]),
+            ]
+            await execute_mongo_ops(bulk_ops)
+        else:
+            bulk_ops = ensure_future(coll.insert_many(ops))
+            await execute_mongo_ops(bulk_ops)
 
 
 async def main():
@@ -58,6 +70,8 @@ async def main():
     coll_tamplate = '{}_ohlcv_{}_{}'
 
     exchange = init_ccxt_exchange(ex + '2')
+
+    upsert = False
 
     symbols = [
         "BTC/USD",
@@ -86,7 +100,7 @@ async def main():
             _symbol = ''.join(symbol.split('/'))  # remove '/'
             coll = mongo.get_collection(db, coll_tamplate.format(ex, _symbol, timeframe))
 
-            await fetch_ohlcv_to_mongo(coll, exchange, symbol, timeframe)
+            await fetch_ohlcv_to_mongo(coll, exchange, symbol, timeframe, upsert=upsert)
 
             logger.info(f"Finished fetching {symbol} {timeframe}.")
 
