@@ -53,7 +53,7 @@ async def main():
 
     db = config['database']['dbname_exchange']
     ex = 'bitfinex'
-    coll_tamplate = 'test_{}_trades_{}'
+    coll_tamplate = '{}_trades_{}'
 
     exchange = init_ccxt_exchange(ex + '2')
 
