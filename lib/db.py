@@ -33,11 +33,10 @@ class EXMongo():
             if self.config['auth']:
                 user = self.config['username']
                 passwd = self.config['password']
-                auth = f"{user}:{passwd}@"
                 db = self.config['auth_db']
-                uri = f"mongodb://{auth}{host}:27017/{db}"
+                uri = f"mongodb://{user}:{passwd}@{host}:{port}/{db}"
             else:
-                uri = f"mongodb://{host}:27017/"
+                uri = f"mongodb://{host}:{port}/"
 
         logger.info(f"Connecting mongo client to {uri}")
         self.client = motor_asyncio.AsyncIOMotorClient(uri)

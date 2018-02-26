@@ -10,7 +10,10 @@ import motor.motor_asyncio as motor
 import logging
 
 from analysis.hist_data import fetch_trades
-from utils import init_ccxt_exchange, execute_mongo_ops
+from db import EXMongo
+from utils import init_ccxt_exchange, \
+                  execute_mongo_ops, \
+                  config
 
 
 logger = logging.getLogger()
@@ -46,12 +49,14 @@ async def fetch_trades_to_mongo(coll, exchange, symbol):
 
 
 async def main():
+    mongo = EXMongo()
+
+    db = config['database']['dbname_exchange']
     ex = 'bitfinex'
+    coll_tamplate = 'test_{}_trades_{}'
+
     exchange = init_ccxt_exchange(ex + '2')
 
-    coll_tamplate = '{}_trades_{}'
-
-    mongo = motor.AsyncIOMotorClient('localhost', 27017)
     symbols = [
         "BTC/USD",
         "BCH/USD",
@@ -70,8 +75,10 @@ async def main():
 
     for symbol in symbols:
         _symbol = ''.join(symbol.split('/')) # remove '/'
-        coll = getattr(mongo.exchange, coll_tamplate.format(ex, _symbol))
+        coll = mongo.get_collection(db, coll_tamplate.format(ex, _symbol))
+
         await fetch_trades_to_mongo(coll, exchange, symbol)
+
         logger.info(f"Finished fetching {symbol}.")
 
 
