@@ -20,12 +20,9 @@ class Indicator():
         _config = custom_config if custom_config else config
         self.p = _config['analysis']['params']
 
-    def rsi(self, ohlcv):
-        return talib_abstract.RSI(ohlcv, timeperiod=self.p['rsi_period'])
-
     def rsi_sig(self, ohlcv):
-        rsi = self.rsi(ohlcv)
-        # plot(rsi)
+        rsi = self.talib_s(talib.RSI, ohlcv.close, self.p['rsi_period'])
+
         adx, pdi, mdi = self.dmi(ohlcv, self.p['rsi_adx_length'], self.p['rsi_di_length'])
 
         upper = pd.Series(np.nan, index=ohlcv.index)
@@ -51,7 +48,6 @@ class Indicator():
         # sell = (sell == True) & (price_diff > 0) & (adx > self.p['rsi_adx_threshold'])
         # conf[buy]  = self.p['rsi_conf']
         # conf[sell] = -self.p['rsi_conf']
-
 
         buy  = (buy  == True) & (price_diff < 0) & (adx > self.p['rsi_adx_threshold']) & (price_diff_prct < 0.17)
         sell = (sell == True) & (price_diff > 0) & (adx > self.p['rsi_adx_threshold']) & (price_diff_prct < 0.17)
@@ -242,7 +238,7 @@ class Indicator():
 
     def vwma_ma(self, ss, vol, vwma_length=None, ma='wma', ma_length=None):
         if not ma_length:
-             ma_length = self.p['vwma_ma_length']
+            ma_length = self.p['vwma_ma_length']
 
         MA = getattr(talib, ma.upper())
         vwma = self.vwma(ss, vol, vwma_length)
@@ -309,11 +305,12 @@ class Indicator():
         di_diff = self.p['dmi_di_diff']
 
         ema_length = self.p['dmi_ema_length']
+        rsi_length = self.p['dmi_rsi_length']
 
         adx, pdi, mdi = self.dmi(ohlcv)
         ema = self.talib_s(talib.EMA, ohlcv.close, ema_length)
-        ema_up = ema > ema.shift(1)
-        ema_down = ema < ema.shift(1)
+        rsi = self.talib_s(talib.RSI, ohlcv.close, rsi_length)
+        mom = self.mom(ohlcv.close, ma='wma', normalize=True)
 
         # Calculate top_peak and bot_peak
         top_peak = pd.Series(np.nan, index=adx.index)
@@ -369,8 +366,14 @@ class Indicator():
         buy_di_turn  = (pdi > mdi) & (pdi.shift(1) < mdi.shift(1)) & (pdi > di_top_thresh) & match_base_thresh & ~no_trend
         sell_di_turn = (pdi < mdi) & (pdi.shift(1) > mdi.shift(1)) & (mdi > di_top_thresh) & match_base_thresh & ~no_trend
 
-        buy_sig = (buy | buy_reverse | buy_di_turn) & ema_up
-        sell_sig = (sell | sell_reverse | sell_di_turn) & ema_down
+        ema_up = ema > ema.shift(1)
+        ema_down = ema < ema.shift(1)
+
+        rsi_buy = (rsi <= 25) & (mom <= -self.p['dmi_rsi_mom_thresh'])
+        rsi_sell = (rsi >= 70) & (mom >= self.p['dmi_rsi_mom_thresh'])
+
+        buy_sig = ((buy | buy_reverse | buy_di_turn) & ema_up) | (rsi_buy & ema_down)
+        sell_sig = ((sell | sell_reverse | sell_di_turn) & ema_down) | (rsi_sell & ema_up)
         close_sig = below_base | no_trend
 
         sig = pd.Series(np.nan, index=ohlcv.index)
@@ -386,7 +389,7 @@ class Indicator():
 
         return conf
 
-    def mom(self, ss, length=None, ma='wma', ma_length=None):
+    def mom(self, ss, length=None, ma='wma', ma_length=None, normalize=False):
         """ Momentum """
         if not length:
             length = self.p['mom_length']
@@ -400,20 +403,31 @@ class Indicator():
             MA = getattr(talib, ma.upper())
             mom = self.talib_s(MA, mom, ma_length)
 
+        if normalize:
+            mom = mom / ss * 100
+
         return mom
 
     def mom_sig(self, ohlcv):
         past_length = 90 # previous N bars to find high low
+        norm = True
+
         if len(ohlcv) < past_length:
             raise ValueError('mom_sig requires at least 90 bars of ohlcv')
 
-        mom = self.mom(ohlcv.close)
+        if norm:
+            mid_zone_range = self.p['mom_norm_mid_zone_range']
+        else:
+            mid_zone_range = self.p['mom_mid_zone_percent']
 
-        mom_mid_zone = pd.Series(np.nan, index=ohlcv.index)
+        mom = self.mom(ohlcv.close, normalize=norm)
+        mom = self.hma(mom, length=self.p['mom_second_ma_length'])
+
+        mom_mid_zone = pd.Series(np.nan, index=ohlcv.index, dtype=bool)
         for i in range(past_length, len(mom)):
             high = mom[max(i-past_length, 0):i].max()
             low = mom[max(i-past_length, 0):i].min()
-            mom_mid_zone.iloc[i] = (mom.iloc[i] / (high-low)) < self.p['mom_mid_zone_percent']
+            mom_mid_zone.iloc[i] = (mom.iloc[i] / (high-low)) < mid_zone_range
 
         mom_peak = ((mom > mom[1]) & (mom[1] < mom[2])) | ((mom < mom[1]) & (mom[1] > mom[2]))
         buy_sig = (mom > mom.shift(1))
@@ -430,7 +444,7 @@ class Indicator():
         conf[sig == 1] = self.p['mom_conf']
         conf[sig == -1] = -self.p['mom_conf']
         conf[sig == 0] = 0
-
+        from ipdb import set_trace; set_trace()
         return conf
 
     def rma(self, ss, length):
@@ -658,5 +672,3 @@ def na(ss):
 def plot(ss):
     ss.plot()
     plt.show()
-
-

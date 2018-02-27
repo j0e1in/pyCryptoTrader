@@ -9,13 +9,12 @@ import pickle
 from analysis.backtest import Backtest, BacktestRunner
 from analysis.strategy import PatternStrategy
 from db import EXMongo
-from utils import config
+from utils import config, print_to_file
 
 
 async def test_single_period(mongo, market):
-    # dt = (datetime(2017, 4, 1), datetime(2018, 1, 1))
-    # dt = (datetime(2017, 11, 1), datetime(2018, 1, 1))
-    dt = (datetime(2018, 1, 1), datetime(2018, 2, 1))
+    dt = (datetime(2017, 8, 1), datetime(2018, 2, 20))
+    # dt = (datetime(2018, 1, 1), datetime(2018, 2, 1))
 
     _config = copy.deepcopy(config)
     _config['analysis']['exchanges']['bitfinex']['markets'] = [market]
@@ -41,12 +40,12 @@ async def test_single_period(mongo, market):
 
     print('-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n')
     # pprint(report)
-    pprint(f"{market}: {report['PL(%)']}")
+    print(market, ':', report['PL(%)'])
     print('\n-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n')
-    # pprint(backtest.margin_PLs)
-    # pprint(backtest.trader.wallet_history)
-    hist = backtest.trader.order_history['bitfinex']
-    # from ipdb import set_trace; set_trace()
+
+    print_to_file(backtest.margin_PLs, '../log/margin_pl.out')
+    print_to_file(backtest.trader.wallet_history, '../log/wallet_history.out')
+    print_to_file(backtest.trader.order_history['bitfinex'], '../log/order_history.out')
 
     # Print orders with PL < -30
     # for _, order in hist.items():
@@ -59,16 +58,19 @@ async def test_single_period(mongo, market):
 async def test_special_periods_of_markets(mongo):
 
     markets = [
-        # "BTC/USD",
-        # "ETH/USD",
-        # "XRP/USD",
+        "BTC/USD",
         # "BCH/USD",
+        # "ETH/USD",
         # "ETC/USD",
-        "DASH/USD",
+        # "EOS/USD",
+        # "DASH/USD",
+        # "IOTA/USD",
         # "LTC/USD",
         # "NEO/USD",
+        # "OMG/USD",
         # "XMR/USD",
-        # "ZEC/USD",
+        # "XRP/USD",
+        # "ZEC/USD"
     ]
 
     total_pl = 0

@@ -1,5 +1,4 @@
 from pprint import pprint
-from datetime import timedelta
 
 import logging
 import matplotlib.pyplot as plt
@@ -36,6 +35,7 @@ class PatternStrategy(SingleExchangeStrategy):
         for dt, ss in sig.items():
 
             self.op_execute_position_stop(dt)
+            self.op_force_liquidate_positions(dt)
 
             if ss > 0: # buy
                 ss = abs(ss)
@@ -72,7 +72,7 @@ class PatternStrategy(SingleExchangeStrategy):
         # sig = self.ind.vwma_ma_sig(ohlcv)
         # sig = self.ind.hma_sig(ohlcv)
         # sig = self.ind.hma_ma_sig(ohlcv)
-        # sig = self.ind.dmi_sig(ohlcv)
-        sig = self.ind.mom_sig(ohlcv)
+        sig = self.ind.dmi_sig(ohlcv)
+        # sig = self.ind.mom_sig(ohlcv)
 
         return sig
