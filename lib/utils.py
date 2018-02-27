@@ -593,6 +593,25 @@ def ohlcv_to_interval(ohlcv, src_tf, target_td):
     return target_ohlcv
 
 
+def print_to_file(data, path):
+    import os, os.path
+    import errno
+
+    def mkdir_p(path):
+        try:
+            os.makedirs(path)
+        except OSError as exc:  # Python >2.5
+            if exc.errno == errno.EEXIST and os.path.isdir(path):
+                pass
+            else:
+                raise
+
+    mkdir_p(os.path.dirname(path))
+
+    with open(path, 'w+') as f:
+        pprint(data, stream=f)
+
+
 class Timer():
 
     def __init__(self, start, interval):
