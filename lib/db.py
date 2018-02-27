@@ -206,7 +206,7 @@ class EXMongo():
             trades[sym] = await self.get_trades(ex, sym, start, end, fields_condition, compress)
         return trades
 
-    async def insert_ohlcv(self, ohlcv_df, ex, symbol, timeframe, *, coll_prefix=''):
+    async def insert_ohlcv(self, ohlcv_df, ex, symbol, timeframe, *, coll_prefix='', upsert=True):
         """ Insert ohlcv dateframe to mongodb. """
         db = self.config['dbname_exchange']
         ex = ex_name(ex)
@@ -227,9 +227,8 @@ class EXMongo():
                     {'$set': rec},
                     upsert=True))
 
-            if len(ops) % 100000 == 0:
+            if len(ops) > 10000:
                 await execute_mongo_ops(coll.bulk_write(ops))
-                del ops
                 ops = []
 
         await execute_mongo_ops(coll.bulk_write(ops))
