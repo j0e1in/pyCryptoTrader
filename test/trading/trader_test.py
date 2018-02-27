@@ -43,6 +43,18 @@ async def test_strategy(trader):
     await asyncio.gather(trader.start())
 
 
+def test_gen_scale_orders(trader):
+    print('-- gen_scale_orders --')
+    orders = trader.gen_scale_orders('BTC/USD', 'limit', 'buy', 1, 1000)
+    pprint(orders)
+
+    amount = 0
+    for order in orders:
+        amount += order['amount']
+
+    print('Total amount:', amount)
+
+
 async def main():
     mongo = EXMongo()
     trader = SingleEXTrader(mongo, 'bitfinex', 'pattern', log=True)
@@ -52,7 +64,10 @@ async def main():
     # await asyncio.gather(test_cancel_all_orders(trader))
     # await asyncio.gather(test_long(trader))
     # await asyncio.gather(test_short(trader))
-    await asyncio.gather(test_strategy(trader))
+    # await asyncio.gather(test_strategy(trader))
+    # test_gen_scale_orders(trader)
+
+    await trader.ex.ex.close()
 
 
 if __name__ == '__main__':

@@ -3,6 +3,7 @@ from pprint import pprint
 import asyncio
 import logging
 import pandas as pd
+import random
 
 from trading import strategy
 from trading import exchanges
@@ -123,19 +124,21 @@ class SingleEXTrader():
                     self.ohlcvs[symbol][tf] = self.ohlcvs[symbol][tf][:-1] # drop the last row
             self.fill_ohlcv_with_small_tf(self.ohlcvs[symbol])
 
-    async def long(self, symbol, confidence, type='market'):
+    async def long(self, symbol, confidence, type='market', scale_order=True):
         """ Cancel all orders, close sell positions
             and open a buy margin order (if has enough balance).
         """
-        return await self._do_long_short('long', symbol, confidence, type)
+        return await self._do_long_short(
+            'long', symbol, confidence, type, scale_order=scale_order)
 
-    async def short(self, symbol, confidence, type='market'):
+    async def short(self, symbol, confidence, type='market', scale_order=True):
         """ Cancel all orders, close buy positions
             and open a sell margin order (if has enough balance).
         """
-        return await self._do_long_short('short', symbol, confidence, type)
+        return await self._do_long_short(
+            'short', symbol, confidence, type, scale_order=scale_order)
 
-    async def _do_long_short(self, action, symbol, confidence, type='market'):
+    async def _do_long_short(self, action, symbol, confidence, type='limit', scale_order=True):
 
         side = 'buy' if action == 'long' else 'sell'
 
@@ -184,9 +187,9 @@ class SingleEXTrader():
                 return False
 
             if action == 'long':
-                price = orderbook['bids'][0][0] * (1 - self.config['limit_price_diff'])
+                price = orderbook['bids'][0][0] * (1 - self.config['scale_order_near_percent'])
             else:
-                price = orderbook['asks'][0][0] * (1 + self.config['limit_price_diff'])
+                price = orderbook['asks'][0][0] * (1 + self.config['scale_order_near_percent'])
 
             amount = self.calc_order_amount(symbol, type, side, spend, orderbook,
                                             price=price, margin=True)
@@ -195,19 +198,39 @@ class SingleEXTrader():
             if cond:
                 amount += abs(symbol_amount)  # plus the opposite side position amount
 
-            order = None
-            # Uncomment this to create order
-            order = await self.ex.create_order(symbol, type, side, amount, price=price)
+            orders = None
+
+            if type == 'limit' and scale_order:
+                orders = self.gen_scale_orders(symbol, type, side, amount, price=price)
+                orders = await self.ex.create_order_multi(orders)
+            else:
+                orders = await self.ex.create_order(symbol, type, side, amount, price=price)
 
             alert_sound(0.2, 'Order created', 3)
 
-            if order:
-                logger.info(f"Created an margin {side} order: "
-                            f"id: {order['id']} price: {order['price']} amount: {order['amount']}")
+            if orders:
+                if isinstance(orders, list):
+                    price = 0
+                    amount = 0
+
+                    for order in orders:
+                        price += order['price'] * order['amount']
+                        amount += order['amount']
+
+                    price /= amount
+
+                    logger.info(f"Created scaled margin {side} order: "
+                                f"avg price: {price} amount: {amount}")
+
+                else:
+                    price = order['price']
+                    amount = order['amount']
+                    logger.info(f"Created margin {side} order: "
+                                f"price: {price} amount: {amount}")
 
                 return True
 
-            elif order is None:
+            elif orders is None:
                 logger.warn(f"Order is not submitted, uncomment the create_order line to enable.")
         else:
             logger.info(f"Spendable balance is < 0, unable to {action}.")
@@ -387,3 +410,38 @@ class SingleEXTrader():
         }
 
         return self._summary
+
+    def gen_scale_orders(self, symbol, type, side, amount, price=0):
+        """ Scale one order to multiple orders with different prices. """
+        orders = []
+        count = self.config['scale_order_count']
+
+        if side == 'buy':
+            price_end = price * (1 - self.config['scale_order_far_percent'])
+        elif side == 'sell':
+            price_end = price * (1 + self.config['scale_order_far_percent'])
+
+        amount_diff_base = amount / ((count + 1) * count / 2)
+
+        cur_price = price
+        dec = 100000000
+
+        for i in range(count):
+            cur_amount = amount_diff_base * (i + 1)
+            cur_price *= random.randint(0.9999 * dec, 1.0001 * dec) / dec
+            cur_amount *= random.randint(0.9999 * dec, 1.0001 * dec) / dec
+
+            orders.append({
+                "symbol": symbol,
+                "type": type,
+                "side": side,
+                "amount": cur_amount,
+                "price": cur_price,
+            })
+
+            if side == 'buy':
+                cur_price = cur_price - abs(price_end - price) / count
+            elif side == 'sell':
+                cur_price = cur_price + abs(price_end - price) / count
+
+        return orders

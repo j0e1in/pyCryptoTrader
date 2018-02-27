@@ -34,13 +34,15 @@
   "trading": {
     "margin": true,
     "indicator_tf": "3h",
-    "trade_portion": 0.7,
+    "trade_portion": 0.8,
 
     "_conmment_maintain_portion": "ratio of balance in wallet and balance in markets",
     "maintain_portion": 0.1,
 
     "_comment_limit_price_diff": "price difference (buffer) to the top price in orderbook",
-    "limit_price_diff": 0.005,
+    "scale_order_near_percent": 0.003,
+    "scale_order_far_percent": 0.10,
+    "scale_order_count": 15,
 
     "summary_delay": 300,
 
