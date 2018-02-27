@@ -1,13 +1,11 @@
-from asyncio import ensure_future
 from datetime import datetime
 from pymongo.errors import BulkWriteError
 from motor import motor_asyncio
 import logging
-import numpy as np
 import pandas as pd
 import pymongo
 
-from utils import INF, ms_dt, dt_ms, sec_ms, ex_name, config, rsym, execute_mongo_ops
+from utils import INF, ms_dt, dt_ms, ex_name, config, rsym, execute_mongo_ops
 
 pd.options.mode.chained_assignment = None
 
@@ -41,14 +39,14 @@ class EXMongo():
         logger.info(f"Connecting mongo client to {uri}")
         self.client = motor_asyncio.AsyncIOMotorClient(uri)
 
-    async def get_exchanges_info(self):
-        self.update_exchanges_info()
-        coll_names = await self.client.get_database(self.config['dbname_exchange']).collection_names()
-
-    async def update_exchanges_info(self):
+    async def get_exchanges_info(self, ex):
+        # TODO: Read exchange summary
+        # self.update_exchanges_info()
+        # coll_names = await self.client.get_database(self.config['dbname_exchange']).collection_names()
         pass
 
-    async def build_exchanges_info(self):
+    async def update_exchanges_info(self):
+        # TODO: Update exchange summary
         pass
 
     async def export_to_csv(self, db, collection, path):

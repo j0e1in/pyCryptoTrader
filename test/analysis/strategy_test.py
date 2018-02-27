@@ -1,8 +1,6 @@
 from setup import run, setup
 setup()
 
-import asyncio
-import matplotlib.pyplot as plt
 from datetime import datetime
 from pprint import pprint
 
