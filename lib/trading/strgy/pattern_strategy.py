@@ -1,13 +1,15 @@
-from utils import config, is_within, near_end
-
 import logging
 import numpy as np
+import pprint
 
 from trading.strgy.base_strategy import SingleEXStrategy
 from trading.indicators import Indicator
-from utils import timeframe_timedelta
-
-import pprint
+from utils import \
+    is_within, \
+    near_end, \
+    near_start, \
+    timeframe_timedelta, \
+    utc_now
 
 logger = logging.getLogger()
 
@@ -28,8 +30,8 @@ class PatternStrategy(SingleEXStrategy):
 
     async def strategy(self):
 
-        async def exec_sig(sig, prev=False):
-            conf = await self.execute_sig(sig, prev=prev)
+        async def exec_sig(sig, market, use_prev_sig=False):
+            conf = await self.execute_sig(sig, market, use_prev_sig=use_prev_sig)
             self.last_sig_execution['conf'] = conf
             self.last_sig_execution['time'] = utc_now()
 
@@ -39,56 +41,54 @@ class PatternStrategy(SingleEXStrategy):
 
         market_ranks = self.rank_markets(signals)
         for market in market_ranks:
-            sig = signals[market]['sig']
-            tf = signals[market]['tf']
-
-            trace()
+            sig = signals[market]
+            tf = self.trader.config['indicator_tf']
 
             td = timeframe_timedelta(tf)
+
+            from ipdb import set_trace; set_trace()
 
             # Ensure ohlcv is up-to-date
             if is_within(sig.index[-1], td):
 
                 if not self.last_sig_execution['conf']:
 
-                    # case 1: No sig has been executed
+                    # case 1: No sig has been executed in current interval
                     if near_end(sig.index[-1], td):
-                        await exec_sig(sig)
+                        await exec_sig(sig, market)
 
                     # case 2: Sig is not executed on last period (activated at last second)
                     elif near_start(sig.index[-1], td):
-                        await exec_sig(sig, prev=True)
+                        await exec_sig(sig, market, use_prev_sig=True)
 
                 # case 3: A sig of the period has already been executed but it changed
                 else:
                     conf = None
-                    prev = False
+                    use_prev_sig = False
 
                     # If last execution is more than 5 min (in 1h timeframe) ago, than execute
                     if near_end(sig.index[-1], td) \
                     and not is_within(self.last_sig_execution['time'], td / 12):
                         conf = sig[-1]
-                        prev = False
+                        use_prev_sig = False
 
+                    # If at a new interval but the last change has not been executed
                     elif near_start(sig.index[-1], td):
                         conf = sig[-2]
-                        prev = True
+                        use_prev_sig = True
 
                     if conf and conf != self.last_sig_execution['conf']:
-                        await exec_sig(sig)
-
-                    # Or starting a new period but the last change has not been executed
-                        await exec_sig(sig, prev=True)
+                        await exec_sig(sig, market, use_prev_sig=use_prev_sig)
 
             # Reset last_sig_execution on new period
             if near_start(sig.index[-1], td):
                 self.last_sig_execution['conf'] = None
                 self.last_sig_execution['time'] = None
 
-    async def execute_sig(self, sig, prev=False):
+    async def execute_sig(self, sig, market, use_prev_sig=False):
         action = None
         succ = False
-        conf = sig[-1] if not prev else sig[-2]
+        conf = sig[-1] if not use_prev_sig else sig[-2]
 
         if conf > 0:
             logger.debug(pprint.pformat(sig[-10:]))
@@ -105,25 +105,10 @@ class PatternStrategy(SingleEXStrategy):
         """ Main algorithm which calculates signals.
             Returns {signal, timeframe}
         """
-        # sig = self.wvf_sig(market)
-        # tf = self.p['wvf_tf']
+        ohlcv = self.trader.ohlcvs[market][self.trader.config['indicator_tf']]
+        sig = self.ind.dmi_sig(ohlcv)
 
-        sig = self.hma_sig(market)
-        tf = self.p['hma_tf']
-
-        return {
-            'sig': sig,
-            'tf': tf
-        }
-
-    def rsi_sig(self, market):
-        return self.ind.rsi_sig(self.trader.ohlcvs[market][self.p['rsi_tf']])
-
-    def wvf_sig(self, market):
-        return self.ind.william_vix_fix_v3_sig(self.trader.ohlcvs[market][self.p['wvf_tf']])
-
-    def hma_sig(self, market):
-        return self.ind.hull_moving_average_sig(self.trader.ohlcvs[market][self.p['hma_tf']])
+        return sig
 
     def rank_markets(self, signals):
         """ Rank markets' profitability.
@@ -131,9 +116,8 @@ class PatternStrategy(SingleEXStrategy):
         """
         # TODO: (HIGH PRIOR)
 
-        # Idea 1: calculate smoothness in past 1-4 days
-        #         lower the smoothness higher the rank
+        # Idea 1: calculate trend strength in past 1-4 days
+        #         higher the strength higher the rank
 
         # Current method: no ranking, by the order of self.trader.markets
         return self.trader.markets
-

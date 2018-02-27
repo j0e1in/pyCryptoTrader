@@ -1,13 +1,12 @@
 from pprint import pprint
 from asyncio import ensure_future
 import asyncio
-import copy
 import ccxt.async as ccxt
 import logging
 import inspect
 
 from analysis.hist_data import fetch_ohlcv
-from utils import combine, \
+from utils import \
     config, \
     utc_now, \
     roundup_dt, \
@@ -16,11 +15,9 @@ from utils import combine, \
     timeframe_timedelta, \
     rsym, \
     ms_dt, \
-    dt_ms, \
     not_implemented, \
     init_ccxt_exchange, \
     execute_mongo_ops, \
-    sec_ms, \
     handle_ccxt_request
 
 logger = logging.getLogger()
@@ -139,7 +136,6 @@ class EXBase():
 
         async def fetch_ohlcv_to_mongo(symbol, start, end, timeframe):
             ops = []
-            count = 0
 
             collname = f"{self.exname}_ohlcv_{rsym(symbol)}_{timeframe}"
             coll = self.mongo.get_collection('exchange', collname)
@@ -160,17 +156,21 @@ class EXBase():
                         'close':     oh[4],
                         'volume':    oh[5]
                     }
-                    ops.append(ensure_future(coll.update_one({'timestamp': tmp['timestamp']}, {'$set': tmp}, upsert=True)))
+                    ops.append(
+                        ensure_future(
+                            coll.update_one(
+                                {'timestamp': tmp['timestamp']},
+                                {'$set': tmp},
+                                upsert=True)))
 
                 await execute_mongo_ops(ops)
 
-        async def is_uptodate(ohlcv_start_end):
+        async def is_uptodate():
             await self.update_ohlcv_start_end()
 
             for market in self.markets:
                 for tf in self.timeframes:
 
-                    td = timeframe_timedelta(tf)
                     end = self.ohlcv_start_end[market][tf][1]
 
                     if end < cur_time:
@@ -196,7 +196,7 @@ class EXBase():
                         # than gather all tasks at once
                         await fetch_ohlcv_to_mongo(market, end, cur_time, tf)
 
-            if await is_uptodate(self.ohlcv_start_end):
+            if await is_uptodate():
                 self.ready['ohlcv'] = True
                 countdown = roundup_dt(utc_now(), min=1) - utc_now()
 
@@ -204,7 +204,7 @@ class EXBase():
                 # Add extra seconds because exchange server data preperation may delay
                 await asyncio.sleep(countdown.seconds + 8)
 
-    async def _start_trade_stream(self, symbol):
+    async def _start_trade_stream(self):
         # TODO
         not_implemented()
 
@@ -371,7 +371,7 @@ class EXBase():
     async def fetch_closed_orders(self,  symbol=None):
         not_implemented()
 
-    async def fetch_order(self, id):
+    async def fetch_order(self):
         """ Fetch a single order using order known id. """
         not_implemented()
 
@@ -384,10 +384,13 @@ class EXBase():
     async def create_order(self):
         not_implemented()
 
+    async def create_order_multi(self):
+        not_implemented()
+
     async def cancel_order(self):
         not_implemented()
 
-    async def cancel_order_multi(self, ids):
+    async def cancel_order_multi(self):
         not_implemented()
 
     async def cancel_order_all(self):
@@ -396,10 +399,10 @@ class EXBase():
     async def withdraw(self):
         not_implemented()
 
-    async def withdraw_fees(self):
+    async def update_trade_fees(self):
         not_implemented()
 
-    async def trade_fees(self):
+    async def update_withdraw_fees(self):
         not_implemented()
 
     ##############################
@@ -416,6 +419,7 @@ class EXBase():
     async def update_ohlcv_start_end(self):
         # Get available ohlcv start / end datetime in db
         self.ohlcv_start_end = {}
+
         for market in self.markets:
             self.ohlcv_start_end[market] = {}
 
