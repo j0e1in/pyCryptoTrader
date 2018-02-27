@@ -473,20 +473,72 @@ class Bitfinex(EXBase):
         params['type'] = type
 
         try:
-            res = await handle_ccxt_request(self.ex.create_order,
-                                          symbol=symbol,
-                                          type=type,
-                                          side=side,
-                                          amount=amount,
-                                          price=price,
-                                          params=params)
+            res = await handle_ccxt_request(
+                self.ex.create_order,
+                symbol=symbol,
+                type=type,
+                side=side,
+                amount=amount,
+                price=price,
+                params=params)
+
         except ccxt.InvalidOrder as err:
             logger.warn(f"{str(err)}")
-            # TODO: pass invalid order msg to client: MessengerServer.handle_invalid_error(err, order)
+            # TODO: pass invalid order msg to client: MessengerServer.notify_error(err, order)
             return {}
 
         order = self.parse_order(res)
         return order
+
+    async def create_order_multi(self, orders):
+
+        def is_valid_order(order):
+            valid = True
+            if 'symbol' not in order or not isinstance(order['symbol'], str):
+                valid = False
+            if 'type' not in order or not isinstance(order['type'], str):
+                valid = False
+            if 'side' not in order or not isinstance(order['side'], str):
+                valid = False
+            if 'amount' not in order or not isinstance(order['amount'], str):
+                valid = False
+            if 'price' not in order \
+            or (not isinstance(order['price'], int)\
+            and not isinstance(order['price'], float)):
+                valid = False
+            if not valid:
+                logger.warn(f"create_order_multi orders are invalid: {order}")
+            return valid
+
+        self._check_auth()
+
+        for order in orders:
+            if not is_valid_order(order):
+                return {}
+
+        params = {
+            'orders': orders,
+        }
+
+        try:
+            res = await handle_ccxt_request(
+                self.ex.private_post_order_new_multi,
+                params=params)
+
+        except ccxt.InvalidOrder as err:
+            logger.warn(f"{str(err)}")
+            # TODO: pass invalid order msg to client: MessengerServer.notify_error(err, order)
+            return {}
+
+        orders = []
+        if res['status'] == 'success':
+            for order in res['order_ids']:
+                market = {'symbol': order['symbol']}
+                orders.append(
+                    self.parse_order(
+                        self.ex.parse_order(order, market)))
+
+        return orders
 
     async def cancel_order(self, id):
         self._check_auth()
@@ -656,5 +708,3 @@ class Bitfinex(EXBase):
         sym = curr + '/USD'
         price = self.mongo.get_last_ohclv(self, self.exname, sym, '1m').close
         return price * amount
-
-

@@ -12,19 +12,19 @@ from utils import get_project_root, load_keys
 
 async def test_update_wallet(ex):
     print('-- Update wallet --')
-    res = await asyncio.gather(ex.update_wallet())
+    res = await ex.update_wallet()
     pprint(res)
 
 
 async def test_update_ticker(ex):
     print('-- Update ticker --')
-    res = await asyncio.gather(ex.update_ticker())
+    res = await ex.update_ticker()
     pprint(res)
 
 
 async def test_update_markets(ex):
     print('-- Market info --')
-    res = await asyncio.gather(ex.update_markets())
+    res = await ex.update_markets()
     pprint(res)
 
 
@@ -58,78 +58,99 @@ async def test_data_streams(ex):
 
 async def test_get_orderbook(ex):
     print('-- Get orderbook --')
-    res = await asyncio.gather(ex.get_orderbook('BTC/USD'))
+    res = await ex.get_orderbook('BTC/USD')
     pprint(res)
 
 
 async def test_fetch_open_orders(ex):
     print('-- Fetch open orders --')
-    res = await asyncio.gather(ex.fetch_open_orders())
+    res = await ex.fetch_open_orders()
     pprint(res)
 
 
 async def test_fetch_closed_orders(ex):
     print('-- Fetch closed orders --')
-    res = await asyncio.gather(ex.fetch_closed_orders())
+    res = await ex.fetch_closed_orders()
     pprint(res)
 
 
 async def test_fetch_order(ex):
     print('-- Fetch order --')
-    res = await asyncio.gather(ex.fetch_order('7126033276'))
+    res = await ex.fetch_order('7126033276')
     pprint(res)
 
 
 async def test_fetch_my_recent_trades(ex):
     print('-- Fetch my recent trades --')
-    res = await asyncio.gather(ex.fetch_my_recent_trades('BTC/USD', start=datetime(2018, 1, 15), limit=3))
+    res = await ex.fetch_my_recent_trades('BTC/USD', start=datetime(2018, 1, 15), limit=3)
     pprint(res)
 
 
 async def test_get_deposit_address(ex):
     print('-- Get deposit address --')
     curr = 'BTC'
-    res = await asyncio.gather(ex.get_deposit_address(curr, 'margin'))
+    res = await ex.get_deposit_address(curr, 'margin')
     pprint(f"Old {curr} address: {res}")
-    res = await asyncio.gather(ex.get_new_deposit_address(curr, 'margin'))
+    res = await ex.get_new_deposit_address(curr, 'margin')
     pprint(f"New {curr} address: {res}")
 
 
 async def test_create_order(ex):
     print('-- Create order --')
-    res = await asyncio.gather(
-        ex.create_order('BTC/USD', 'market', 'buy', amount=0.002, price=99999)
-    )
+    res = await ex.create_order('BTC/USD', 'limit', 'sell', amount=0.002, price=99999)
+    pprint(res)
+
+
+async def test_create_order_multi(ex):
+    print('-- Create order multi --')
+
+    orders = [
+        {
+            "symbol": 'BTCUSD',
+            "type": 'limit',
+            "side": 'sell',
+            "amount": '0.002',
+            "price": 99999,
+        },
+        {
+            "symbol": 'BTCUSD',
+            "type": 'limit',
+            "side": 'sell',
+            "amount": '0.002',
+            "price": 88888,
+        },
+    ]
+    res = await ex.create_order_multi(orders)
     pprint(res)
 
 
 async def test_cancel_order(ex):
     print('-- Cancel order --')
-    res = await asyncio.gather(ex.cancel_order('134256839'))
+    res = await ex.cancel_order('134256839')
     pprint(res)
 
 
 async def test_fetch_open_positions(ex):
     print('-- Fetch open positions --')
-    res = await asyncio.gather(ex.fetch_positions())
+    res = await ex.fetch_positions()
     pprint(res)
 
 
 async def test_cancel_order_multi(ex):
     print('-- Cancel order multi --')
-    res = await asyncio.gather(ex.cancel_order_multi(['7178212463', '7178244233']))
+    res = await ex.cancel_order_multi(['7178212463', '7178244233'])
     pprint(res)
 
 
 async def test_cancel_order_all(ex):
     print('-- Cancel order all --')
-    res = await asyncio.gather(ex.cancel_order_all())
+    res = await ex.cancel_order_all()
     pprint(res)
 
 
 async def test_get_market_price(ex):
     print('-- Get market price --')
-    res = await asyncio.gather(ex.get_market_price('BTC/USD'))
+    res = await ex.get_market_price('BTC/USD')
     pprint(res)
 
 
@@ -142,7 +163,7 @@ async def main():
     mongo = EXMongo()
 
     key = load_keys(get_project_root() + '/private/keys.json')['bitfinex']
-    ex = Bitfinex(mongo, key['apiKey'], key['secret'], verbose=False, log=True)
+    ex = Bitfinex(mongo, key['apiKey'], key['secret'], ccxt_verbose=False, log=True)
 
     # await test_ex_start(ex)
     # await test_data_streams(ex)
@@ -156,6 +177,7 @@ async def main():
     # await test_get_market_price(ex)
 
     # await test_create_order(ex)
+    # await test_create_order_multi(ex)
     # await test_cancel_order(ex)
     # await test_cancel_order_multi(ex)
     # await test_cancel_order_all(ex)
@@ -167,6 +189,8 @@ async def main():
     # await test_fetch_my_recent_trades(ex)
 
     # await test_update_fees(ex)
+
+    await ex.ex.close()
 
 
 if __name__ == '__main__':
