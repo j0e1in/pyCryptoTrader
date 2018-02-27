@@ -18,6 +18,7 @@ async def main():
     trader = SingleEXTrader(mongo, 'bitfinex', 'pattern', log=True)
 
     await asyncio.gather(trader.start())
+    await trader.ex.ex.close()
 
 
 if __name__ == '__main__':

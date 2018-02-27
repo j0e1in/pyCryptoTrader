@@ -81,6 +81,8 @@ async def main():
 
         logger.info(f"Finished fetching {symbol}.")
 
+    exchange.close()
+
 
 if __name__ == '__main__':
     run(main)
