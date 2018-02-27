@@ -328,6 +328,8 @@ class SimulatedTrader():
                 self.orders[ex][order['#']] = order
                 return order
             else:
+                curr = order['currency']
+                cost = order['cost']
                 logger.warn(f"Not enough balance to open order => "
                             f"{curr}--{self.wallet[ex][curr]}<{cost}")
                 return None
@@ -510,10 +512,11 @@ class SimulatedTrader():
             del self.orders[ex][order['#']]
             self.order_history[ex][order['#']] = order
 
-        self.force_liquidate_positions()
         copy_orders = deepcopy(self.orders)
         for ex, orders in copy_orders.items():
             for id, order in orders.items():
+
+                # print(self.wallet['bitfinex']['USD'])
 
                 # Close margin position, all margin orders are closed at market price
                 if self.is_margin_close(order):
@@ -671,7 +674,7 @@ class SimulatedTrader():
         if order['side'] == 'sell':
             price_diff *= -1
 
-        pl = price_diff * self.config['margin_rate'] - order['fee'] - order['margin_fee']
+        pl = price_diff * order['amount'] - order['fee'] - order['margin_fee']
         return pl
 
     def _calc_margin_return(self, order):
@@ -682,7 +685,7 @@ class SimulatedTrader():
 
         close_fee = order['close_price'] * order['amount'] * self.config['fee']
         result = order['open_price'] * order['amount'] / self.config['margin_rate'] \
-               + price_diff * self.config['margin_rate'] - close_fee
+               + price_diff * order['amount'] - close_fee
 
         return result
 
@@ -710,49 +713,6 @@ class SimulatedTrader():
             self.close_all_positions(ex)
 
         self.tick(last=True)  # force execution of all close position orders
-
-    def force_liquidate_positions(self):
-
-        # TODO: no force liquidation occurred in backtest
-
-        def close_position(order, liq_price, liq_time):
-            order['close_price'] = liq_price
-            order['close_time'] = liq_time
-            self._calc_order(order)
-            order['active'] = False
-            ex = order['ex']
-            self.wallet[ex][order['currency']] += self._calc_margin_return(order)
-            del self.positions[ex][order['#']]
-
-            if order['#'] in self.orders:
-                del self.orders[ex][order['#']]
-
-            self.order_history[ex][order['#']] = order
-
-        cur_time = self.timer.now()
-        for ex in self.markets:
-            poses = copy.deepcopy(self.positions[ex])
-            for id, pos in poses.items():
-
-                if pos['open_time'] >= cur_time:
-                    logger.debug(f"wrong cur_time")
-
-                ohlcv = self.ohlcvs[ex][pos['market']][self.config['indicator_tf']][pos['open_time']:cur_time]
-                liq_time = None
-
-                if pos['side'] == 'buy':
-                    liq_price = pos['open_price'] * (1 - self.config['force_liquidate_percentage'])
-                    liq_time = ohlcv[ohlcv.low <= liq_price].index
-
-                else:  # sell
-                    liq_price = pos['open_price'] * (1 + self.config['force_liquidate_percentage'])
-                    liq_time = ohlcv[ohlcv.high >= liq_price].index
-
-                if len(liq_time) > 0:
-                    close_position(pos, liq_price, liq_time[0])
-
-                    if self._config['mode'] == 'debug':
-                        logger.debug(f'Position was forced to liquidated at {liq_price}, {liq_time}')
 
     def get_last_ohlcv(self, ex, market, now=None):
         """ Find latest ohlcv from all timeframes. """
@@ -848,6 +808,8 @@ class FastTrader(SimulatedTrader):
         real_orders = {}
         self.timer.reset()
         cur_time = self.timer.now()
+
+        # print('---------------------------')
 
         while cur_time < end:
 
@@ -1070,6 +1032,8 @@ class FastTrader(SimulatedTrader):
         earn = 0
         amount = order['amount']
 
+        # print(self.op_wallet['bitfinex']['USD'])
+
         if not order['margin']:
             if self.is_buy(order):
                 cost = price * amount
@@ -1101,7 +1065,7 @@ class FastTrader(SimulatedTrader):
                     price_diff *= -1
 
                 earn = order['op_open_price'] * amount / self.config['margin_rate'] \
-                       + price_diff * self.config['margin_rate'] - close_fee
+                       + price_diff * amount - close_fee
 
         return cost, earn
 

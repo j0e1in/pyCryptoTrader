@@ -29,7 +29,7 @@ class SingleExchangeStrategy():
         self.ex = ex
         self.fast_mode = False
         self.prefeed_days = 1 # time period for pre-feed data,
-                              # default is 1, child class can set to different ones in `init_vars()`
+        # default is 1, child class can set to different ones in `init_vars()`
 
     def set_config(self, cfg):
         self._config = cfg
@@ -185,11 +185,8 @@ class SingleExchangeStrategy():
         for _, positions in op_positions.items():
             for _, pos in positions.items():
 
-
                 start = pos['op_open_time'] + timedelta(seconds=1)
                 ohlcv = self.trader.ohlcvs[self.ex][pos['market']][self.trader.config['indicator_tf']][start:end]
-                if start == end:
-                    logger.warn('start == end')
 
                 if len(ohlcv) > 0:
 
@@ -259,5 +256,30 @@ class SingleExchangeStrategy():
                             if self._config['mode'] == 'debug':
                                 logger.debug(f"Stop {pos['side']} profit @ {pos['op_close_price']:.3f} ({pos['op_close_time']})")
 
+    def op_force_liquidate_positions(self, end):
+        """ Force liquidate positions if loss exceeds m%. """
+        op_positions = copy.deepcopy(self.trader.op_positions)
+        for _, positions in op_positions.items():
+            for _, pos in positions.items():
 
+                start = pos['op_open_time'] + timedelta(seconds=1)
+                ohlcv = self.trader.ohlcvs[self.ex][pos['market']][self.trader.config['indicator_tf']][start:end]
 
+                if len(ohlcv) > 0:
+                    liq_percent = self._config['analysis']['force_liquidate_percent']
+
+                    if pos['side'] == 'buy':
+                        liq_price = pos['op_open_price'] * (1 - liq_percent)
+                        liq_time = ohlcv[ohlcv.low <= liq_price].index
+
+                    elif pos['side'] == 'sell':
+                        liq_price = pos['op_open_price'] * (1 + liq_percent)
+                        liq_time = ohlcv[ohlcv.high >= liq_price].index
+
+                    if len(liq_time) > 0:
+                        pos['op_close_price'] = liq_price
+                        pos['op_close_time'] = liq_time[0]
+                        self.append_op(self.trader.op_close_position(pos, pos['op_close_time']))
+
+                        if self._config['mode'] == 'debug':
+                            logger.debug(f'Position was forced to liquidated @ {liq_price} ({liq_time[0]})')

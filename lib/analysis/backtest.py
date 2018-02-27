@@ -243,6 +243,7 @@ class Backtest():
         return orders
 
     def get_real_start_end(self):
+        """ Get real start and end of ohlcv rather than using that are requested by user. """
         start = self.end
         end = self.start
 
