@@ -9,8 +9,11 @@ from analysis.hist_data import build_ohlcv
 
 logger = logging.getLogger()
 
+
 async def main():
     target_tfs = [
+        '15m',
+        '30m',
         '1h',
         '2h',
         '3h',
@@ -51,7 +54,7 @@ async def main():
         for target_tf in target_tfs:
             logger.info(f"Building {exchange} {symbol} {target_tf} ohlcv")
             await build_ohlcv(
-                mongo, exchange, symbol, src_tf, target_tf)
+                mongo, exchange, symbol, src_tf, target_tf, upsert=False)
 
     # Starting from 'lib/'
     file = '../scripts/mongodb/create_index.js'
