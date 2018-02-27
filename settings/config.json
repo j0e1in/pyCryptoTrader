@@ -33,6 +33,7 @@
 
   "trading": {
     "margin": true,
+    "indicator_tf": "3h",
     "trade_portion": 0.7,
 
     "_conmment_maintain_portion": "ratio of balance in wallet and balance in markets",
@@ -48,20 +49,30 @@
       "min_trade_value": 30,
 
       "markets": [
-        "XRP/USD"
+        "BTC/USD"
       ],
       "timeframes": [
           "1m",
-          "1h"
+          "3h"
       ]
     },
     "strategy": {
-      "data_days": 7
+      "data_days": 15
     },
     "params": {
-      "trade_portion": 0.9,
+      "stop_loss_percent": 0.06,
+      "stop_profit_percent": 0.08,
 
-      "wvf_tf": "1h",
+      "rsi_conf": 70,
+      "rsi_period": 14,
+      "rsi_uptrend_upper": 80,
+      "rsi_uptrend_lower": 25,
+      "rsi_downtrend_upper": 75,
+      "rsi_downtrend_lower": 22,
+      "rsi_adx_length": 14,
+      "rsi_di_length": 14,
+      "rsi_adx_threshold": 35,
+
       "wvf_conf": 50,
       "wvf_lbsdh": 22,
       "wvf_bbl": 20,
@@ -72,9 +83,42 @@
       "wvf_mtLB": 14,
       "wvf_strg": 3,
 
-      "hma_tf": "1h",
-      "hma_conf": 70,
-      "hma_ma_period": 10
+      "hma_conf": 60,
+      "hma_length": 10,
+      "hma_ma_length": 9,
+      "hma_adx_length": 46,
+      "hma_di_length": 14,
+      "hma_adx_thresh": 25,
+      "hma_fk_period": 5,
+      "hma_fd_period": 3,
+
+      "vma_length": 8,
+
+      "vwma_conf": 100,
+      "vwma_length": 15,
+      "vwma_ma_conf": 100,
+      "vwma_ma_length": 8,
+
+      "dmi_conf": 100,
+      "dmi_adx_length": 40,
+      "dmi_di_length": 12,
+      "dmi_base_thresh": 20,
+      "dmi_adx_thresh": 30,
+      "dmi_di_top_thresh": 30,
+      "dmi_di_bot_thresh": 15,
+      "dmi_adx_top_peak_diff": 1,
+      "dmi_adx_bot_peak_diff": 0.8,
+      "dmi_di_diff": 13,
+      "dmi_ema_length": 9,
+      "dmi_rsi_length": 14,
+      "dmi_rsi_mom_thresh": 25,
+
+      "mom_conf": 100,
+      "mom_length": 20,
+      "mom_ma_length": 10,
+      "mom_second_ma_length": 10,
+      "mom_norm_mid_zone_range": 7,
+      "mom_mid_zone_percent": 0.15
     }
   },
 
