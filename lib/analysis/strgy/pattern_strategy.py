@@ -1,7 +1,6 @@
 from pprint import pprint
 
 import logging
-import matplotlib.pyplot as plt
 
 from analysis.indicators import Indicator
 from analysis.strgy.base_strategy import SingleExchangeStrategy
