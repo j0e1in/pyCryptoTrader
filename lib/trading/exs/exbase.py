@@ -193,15 +193,16 @@ class EXBase():
 
                     if end < cur_time:
                         # Fetching one-by-one is faster and safer(from blocking)
-                        # than gather all tasks at once
+                        # than gathering all tasks at once
+
                         await fetch_ohlcv_to_mongo(market, end, cur_time, tf)
 
             if await is_uptodate():
                 self.ready['ohlcv'] = True
                 countdown = roundup_dt(utc_now(), min=1) - utc_now()
 
-                # Sleep will be slighly shorter than expected
-                # Add extra seconds because exchange server data preperation may delay
+                # 1. Sleep will be slighly shorter than expected
+                # 2. Add extra seconds because exchange server data preperation may delay
                 await asyncio.sleep(countdown.seconds + 8)
 
     async def _start_trade_stream(self):
@@ -209,7 +210,7 @@ class EXBase():
         not_implemented()
 
     async def _start_orderbook_stream(self, params={}):
-        """ Fetch orderbook passively. May not be needed if using `get_orderbook`."""
+        """ Fetch orderbook periodically. May not be needed if using `get_orderbook`."""
         logger.info("Starting orderbook data stream...")
 
         while True:

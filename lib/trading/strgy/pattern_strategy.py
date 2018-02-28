@@ -43,10 +43,9 @@ class PatternStrategy(SingleEXStrategy):
         for market in market_ranks:
             sig = signals[market]
             tf = self.trader.config['indicator_tf']
-
             td = timeframe_timedelta(tf)
 
-            from ipdb import set_trace; set_trace()
+            # from ipdb import set_trace; set_trace()
 
             # Ensure ohlcv is up-to-date
             if is_within(sig.index[-1], td):

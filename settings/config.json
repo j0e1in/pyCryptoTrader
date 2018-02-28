@@ -13,7 +13,7 @@
   "ccxt": {
     "wait": 35,
     "rate_limit": 3000,
-    "fee_delay": 1800,
+    "fee_delay": 3600,
     "orderbook_delay": 25,
     "orderbook_size": 400
   },

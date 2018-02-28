@@ -31,7 +31,7 @@ async def fetch_ohlcv(exchange, symbol, start, end, timeframe='1m', log=True):
     while start < end:
         if log:
             logger.info(
-                f'Fetching {symbol}_{timeframe} ohlcv from {ms_dt(start)} to {ms_dt(end)}'
+                f'Fetching {symbol} {timeframe} ohlcv from {ms_dt(start)} to {ms_dt(end)}'
             )
 
         ohlcv = await handle_ccxt_request(

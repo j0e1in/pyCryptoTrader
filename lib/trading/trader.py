@@ -356,13 +356,14 @@ class SingleEXTrader():
         for tf in ohlcvs.keys():
             if tf != sm_tf:
                 start_dt = ohlcvs[tf].index[-1] + timeframe_timedelta(tf)
+                end_dt = ohlcvs[sm_tf].index[-1]
 
                 # All timeframes are at the same timestamp, no need to fill
                 if len(ohlcvs[sm_tf][start_dt:]) == 0:
                     continue
 
                 new_ohlcv = ohlcvs[tf].iloc[0].copy()
-                new_ohlcv.name = start_dt
+                new_ohlcv.name = end_dt
                 new_ohlcv.open = ohlcvs[sm_tf][start_dt:].iloc[0].open
                 new_ohlcv.close = ohlcvs[sm_tf][start_dt:].iloc[-1].close
                 new_ohlcv.high = ohlcvs[sm_tf][start_dt:].high.max()
