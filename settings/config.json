@@ -263,18 +263,29 @@
       "dmi_di_top_thresh": 30,
       "dmi_di_bot_thresh": 15,
       "dmi_adx_top_peak_diff": 1,
-      "dmi_adx_bot_peak_diff": 0.8,
+      "dmi_adx_bot_peak_diff": 1,
       "dmi_di_diff": 13,
       "dmi_ema_length": 9,
       "dmi_rsi_length": 14,
       "dmi_rsi_mom_thresh": 25,
+      "dmi_stoch_rsi_length": 14,
+      "dmi_stoch_length": 10,
+      "dmi_fastk_length": 3,
+      "dmi_fastd_length": 3,
+      "dmi_stoch_top_thresh": 80,
+      "dmi_stoch_bot_thresh": 20,
+      "dmi_mom_mid_zone_range": 4,
 
       "mom_conf": 100,
       "mom_length": 20,
       "mom_ma_length": 10,
       "mom_second_ma_length": 10,
       "mom_norm_mid_zone_range": 7,
-      "mom_mid_zone_percent": 0.15
+      "mom_mid_zone_percent": 0.15,
+
+      "stoch_rsi_length": 14,
+      "stoch_rsi_fastk_length": 3,
+      "stoch_rsi_fastd_length": 3
     },
 
     "unused_params": {

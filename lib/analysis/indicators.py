@@ -295,6 +295,7 @@ class Indicator():
         return adx, pdi, mdi
 
     def dmi_sig(self, ohlcv):
+        # Parameters
         base_thresh = self.p['dmi_base_thresh']
         adx_thresh = self.p['dmi_adx_thresh']
         di_top_thresh = self.p['dmi_di_top_thresh']
@@ -307,10 +308,25 @@ class Indicator():
         ema_length = self.p['dmi_ema_length']
         rsi_length = self.p['dmi_rsi_length']
 
+        stoch_rsi_length = self.p['dmi_stoch_rsi_length']
+        stoch_length = self.p['dmi_stoch_length']
+        fk_length = self.p['dmi_fastk_length']
+        fd_length = self.p['dmi_fastd_length']
+
+        # Indicators
         adx, pdi, mdi = self.dmi(ohlcv)
         ema = self.talib_s(talib.EMA, ohlcv.close, ema_length)
         rsi = self.talib_s(talib.RSI, ohlcv.close, rsi_length)
         mom = self.mom(ohlcv.close, ma='wma', normalize=True)
+        k, d = self.stoch_rsi(
+            ohlcv.close,
+            stoch_rsi_length,
+            stoch_length,
+            fk_length,
+            fd_length)
+
+        midzr = self.p['dmi_mom_mid_zone_range']
+        mom_mid_zone = (mom < midzr) & (mom > -midzr)
 
         # Calculate top_peak and bot_peak
         top_peak = pd.Series(np.nan, index=adx.index)
@@ -345,8 +361,8 @@ class Indicator():
         top_peak_diff = top_peak - adx_top_peak_diff
         bot_peak_diff = bot_peak + adx_bot_peak_diff
 
-        adx_reverse = (adx <= top_peak_diff) & (adx.shift(1) > top_peak_diff) & (adx > adx_thresh + 5)
-        adx_rebound = (adx >= bot_peak_diff) & (adx.shift(1) < bot_peak_diff) & (adx < adx_thresh + 10)
+        adx_reverse = (adx <= top_peak_diff) & (adx > adx_thresh + 5)
+        adx_rebound = (adx >= bot_peak_diff) & (adx < adx_thresh + 10)
 
         match_base_thresh = adx >= base_thresh
         match_adx_thresh = adx >= adx_thresh
@@ -369,11 +385,11 @@ class Indicator():
         ema_up = ema > ema.shift(1)
         ema_down = ema < ema.shift(1)
 
-        rsi_buy = (rsi <= 25) & (mom <= -self.p['dmi_rsi_mom_thresh'])
-        rsi_sell = (rsi >= 70) & (mom >= self.p['dmi_rsi_mom_thresh'])
+        rsi_buy = ((rsi <= 25) & (mom <= -self.p['dmi_rsi_mom_thresh'])) | (rsi <= 15)
+        rsi_sell = ((rsi >= 80) & (mom >= self.p['dmi_rsi_mom_thresh'])) | (rsi >= 85)
 
-        buy_sig = ((buy | buy_reverse | buy_di_turn) & ema_up) | (rsi_buy & ema_down)
-        sell_sig = ((sell | sell_reverse | sell_di_turn) & ema_down) | (rsi_sell & ema_up)
+        buy_sig = (((buy | buy_reverse | buy_di_turn) & ema_up) | (rsi_buy & ema_down)) & ~(d >= 65)
+        sell_sig = (((sell | sell_reverse | sell_di_turn) & ema_down) | (rsi_sell & ema_up)) & ~(d <= 35)
         close_sig = below_base | no_trend
 
         sig = pd.Series(np.nan, index=ohlcv.index)
@@ -386,6 +402,8 @@ class Indicator():
         conf[sig == 1] = self.p['dmi_conf']
         conf[sig == -1] = -self.p['dmi_conf']
         conf[sig == 0] = 0
+
+        # from ipdb import set_trace; set_trace()
 
         return conf
 
@@ -447,25 +465,29 @@ class Indicator():
         from ipdb import set_trace; set_trace()
         return conf
 
-    def rma(self, ss, length):
-        """ Exponentially weighted moving average with alpha = 1 / (length - 1)
-            Smoothness: RMA > EMA
-        """
-        ## RMA
-        # alpha = 1 / (y - 1)
-        ## EMA
-        # alpha = 2 / (y + 1)
-        # sum := alpha * x + (1 - alpha) * nz(sum[1])
+    def stoch_rsi(self, ss, rsi_length=None, stoch_length=None, fastk_length=None, fastd_length=None):
+        if not rsi_length:
+            rsi_length = self.p['stoch_rsi_length']
+        if not stoch_length:
+            stoch_length = self.p['stoch_length']
+        if not fastk_length:
+            fastk_length = self.p['stoch_rsi_fastk_length']
+        if not fastd_length:
+            fastd_length = self.p['stoch_rsi_fastd_length']
 
-        alpha = 2 / (length + 1)
-        rma = pd.Series(np.nan, index=ss.index)
-        for i in range(1, len(rma)):
-            rma.iloc[i] = alpha * ss.iloc[i] + (1 - alpha) * nz(rma.iloc[i-1])
+        rsi = self.talib_s(talib.RSI, ss, rsi_length)
 
-        return rma
+        fastk, fastd = self.talib_s(
+            talib.STOCH, rsi,
+            np.asarray(rsi),
+            np.asarray(rsi),
+            fastk_period=stoch_length,
+            slowk_period=fastk_length,
+            slowd_period=fastd_length)
 
-    def turtle_sig(self, ohlcv):
-        pass
+        return fastk, fastd
+
+
 
     ############################################################################
 
@@ -502,8 +524,8 @@ class Indicator():
         """
         res = []
         ss = indicator(np.asarray(input), *args, **kwargs)
-
-        if isinstance(ss, list) and len(ss) > 1:
+        if (isinstance(ss, tuple) or isinstance(ss, list)) \
+        and len(ss) > 1:
             for s in ss:
                 tmp = pd.Series(s, index=input.index)
                 res.append(tmp)

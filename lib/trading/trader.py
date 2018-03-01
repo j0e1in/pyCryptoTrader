@@ -194,8 +194,8 @@ class SingleEXTrader():
             amount = self.calc_order_amount(symbol, type, side, spend, orderbook,
                                             price=price, margin=True)
 
-            cond = (symbol_amount < 0) if action == 'long' else (symbol_amount > 0)
-            if cond:
+            has_open_position = (symbol_amount < 0) if action == 'long' else (symbol_amount > 0)
+            if has_open_position:
                 amount += abs(symbol_amount)  # plus the opposite side position amount
 
             orders = None

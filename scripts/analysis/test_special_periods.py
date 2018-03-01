@@ -13,7 +13,7 @@ from utils import config, print_to_file
 
 
 async def test_single_period(mongo, market):
-    dt = (datetime(2017, 8, 1), datetime(2018, 2, 20))
+    dt = (datetime(2017, 10, 1), datetime(2018, 2, 20))
     # dt = (datetime(2018, 1, 1), datetime(2018, 2, 1))
 
     _config = copy.deepcopy(config)
