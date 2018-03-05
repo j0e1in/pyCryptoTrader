@@ -26,13 +26,13 @@
   },
 
   "matplot": {
-    "enable": true,
+    "enable": false,
     "plot_indicators": true,
     "window_size": [15, 9]
   },
 
   "trading": {
-    "margin": true,
+    "margin": false,
     "indicator_tf": "3h",
     "trade_portion": 0.8,
 
@@ -129,7 +129,7 @@
     "margin_fee": 0.0005,
     "margin_rate": 3.0,
     "force_liquidate_percent": 0.15,
-    "indicator_tf": "3h",
+    "indicator_tf": "4h",
 
     "_comment_min_order_value": "minimal USD value is allwed to open an order",
     "min_order_value": 10,
@@ -263,7 +263,7 @@
       "dmi_di_top_thresh": 30,
       "dmi_di_bot_thresh": 15,
       "dmi_adx_top_peak_diff": 1,
-      "dmi_adx_bot_peak_diff": 1,
+      "dmi_adx_bot_peak_diff": 0.8,
       "dmi_di_diff": 13,
       "dmi_ema_length": 9,
       "dmi_rsi_length": 14,
@@ -283,9 +283,13 @@
       "mom_norm_mid_zone_range": 7,
       "mom_mid_zone_percent": 0.15,
 
-      "stoch_rsi_length": 14,
-      "stoch_rsi_fastk_length": 3,
-      "stoch_rsi_fastd_length": 3
+      "stoch_rsi_conf": 100,
+      "stoch_rsi_length": 12,
+      "stoch_length": 12,
+      "stoch_rsi_fastk_length": 2,
+      "stoch_rsi_fastd_length": 2,
+      "stochrsi_upper": 70,
+      "stochrsi_lower": 30
     },
 
     "unused_params": {

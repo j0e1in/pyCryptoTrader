@@ -71,7 +71,8 @@ class PatternStrategy(SingleExchangeStrategy):
         # sig = self.ind.vwma_ma_sig(ohlcv)
         # sig = self.ind.hma_sig(ohlcv)
         # sig = self.ind.hma_ma_sig(ohlcv)
-        sig = self.ind.dmi_sig(ohlcv)
+        # sig = self.ind.dmi_sig(ohlcv)
         # sig = self.ind.mom_sig(ohlcv)
+        sig = self.ind.stoch_rsi_sig(ohlcv)
 
         return sig

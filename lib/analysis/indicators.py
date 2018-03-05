@@ -361,8 +361,16 @@ class Indicator():
         top_peak_diff = top_peak - adx_top_peak_diff
         bot_peak_diff = bot_peak + adx_bot_peak_diff
 
-        adx_reverse = (adx <= top_peak_diff) & (adx > adx_thresh + 5)
-        adx_rebound = (adx >= bot_peak_diff) & (adx < adx_thresh + 10)
+        # adx_reverse = (adx <= top_peak_diff) & (adx > adx_thresh + 5)
+        # adx_rebound = (adx >= bot_peak_diff) & (adx < adx_thresh + 10)
+        adx_reverse = (adx <= top_peak_diff) & (adx.shift(1) > top_peak_diff) & (adx > adx_thresh + 5)
+        adx_rebound = (adx >= bot_peak_diff) & (adx.shift(1) < bot_peak_diff) & (adx < adx_thresh + 10)
+
+        # for i in range(len(adx_rebound)):
+        #     if np.isnan(adx_rebound.iloc[i]) \
+        #     and (not (adx_rebound[max(i-2, 0):i]).all
+
+        # TODO: extend adx_rebound for 2-3 bars
 
         match_base_thresh = adx >= base_thresh
         match_adx_thresh = adx >= adx_thresh
@@ -385,12 +393,14 @@ class Indicator():
         ema_up = ema > ema.shift(1)
         ema_down = ema < ema.shift(1)
 
-        rsi_buy = ((rsi <= 25) & (mom <= -self.p['dmi_rsi_mom_thresh'])) | (rsi <= 15)
-        rsi_sell = ((rsi >= 80) & (mom >= self.p['dmi_rsi_mom_thresh'])) | (rsi >= 85)
+        rsi_buy = ((rsi <= 25) & (mom <= -self.p['dmi_rsi_mom_thresh'])) & ~(mdi > adx)# | (rsi <= 15)
+        rsi_sell = ((rsi >= 80) & (mom >= self.p['dmi_rsi_mom_thresh'])) & ~(pdi > adx)# | (rsi >= 85)
 
-        buy_sig = (((buy | buy_reverse | buy_di_turn) & ema_up) | (rsi_buy & ema_down)) & ~(d >= 65)
-        sell_sig = (((sell | sell_reverse | sell_di_turn) & ema_down) | (rsi_sell & ema_up)) & ~(d <= 35)
-        close_sig = below_base | no_trend
+        stoch_rsi_close = (((k > 90) & (rsi > 70) & (k < k.shift(1))) | ((k < 10) & (rsi < 30) & (k > k.shift(1))))
+
+        buy_sig = (((buy | buy_reverse | buy_di_turn) & ema_up) | (rsi_buy & ema_down))# & ~(d >= 65)
+        sell_sig = (((sell | sell_reverse | sell_di_turn) & ema_down) | (rsi_sell & ema_up))# & ~(d <= 35)
+        close_sig = below_base | no_trend | stoch_rsi_close
 
         sig = pd.Series(np.nan, index=ohlcv.index)
         sig[buy_sig == True] = 1
@@ -462,10 +472,10 @@ class Indicator():
         conf[sig == 1] = self.p['mom_conf']
         conf[sig == -1] = -self.p['mom_conf']
         conf[sig == 0] = 0
-        from ipdb import set_trace; set_trace()
+
         return conf
 
-    def stoch_rsi(self, ss, rsi_length=None, stoch_length=None, fastk_length=None, fastd_length=None):
+    def stoch_rsi(self, ss, rsi_length=None, stoch_length=None, fastk_length=None, fastd_length=None, ma='sma'):
         if not rsi_length:
             rsi_length = self.p['stoch_rsi_length']
         if not stoch_length:
@@ -486,6 +496,52 @@ class Indicator():
             slowd_period=fastd_length)
 
         return fastk, fastd
+
+    def stoch_rsi_sig(self, ohlcv):
+        stochrsi_upper = self.p['stochrsi_upper']
+        stochrsi_lower = self.p['stochrsi_lower']
+
+        k, d = self.stoch_rsi(ohlcv.close)
+        src = k
+
+        top_peak = pd.Series(np.nan, index=src.index)
+        bot_peak = pd.Series(np.nan, index=src.index)
+
+        for i in range(len(src)):
+            if (src.iloc[i] < src.shift(1).iloc[i]) and (src.shift(1).iloc[i] > src.shift(2).iloc[i]):
+                top_peak.iloc[i] = src.shift(1).iloc[i]
+            else:
+                top_peak.iloc[i] = top_peak.shift(1).iloc[i]
+
+            if (src.iloc[i] > src.shift(1).iloc[i]) and (src.shift(1).iloc[i] < src.shift(2).iloc[i]):
+                bot_peak.iloc[i] = src.shift(1).iloc[i]
+            else:
+                bot_peak.iloc[i] = bot_peak.shift(1).iloc[i]
+
+        stochrsi_buy = (src.shift(1) < stochrsi_lower) & (src >= stochrsi_lower)
+        stochrsi_sell = (src.shift(1) > stochrsi_upper) & (src <= stochrsi_upper)
+
+        stochrsi_rebuy = (src.shift(1) < stochrsi_upper) & (src >= stochrsi_upper) & (bot_peak > stochrsi_lower)
+        stochrsi_resell = (src.shift(1) > stochrsi_lower) & (src <= stochrsi_lower) & (top_peak < stochrsi_upper)
+
+        stoch_rsi_close = pd.Series(False, index=src.index)
+
+        buy_sig = stochrsi_buy | stochrsi_rebuy
+        sell_sig = stochrsi_sell | stochrsi_resell
+        close_sig = stoch_rsi_close
+
+        sig = pd.Series(np.nan, index=ohlcv.index)
+        sig[buy_sig == True] = 1
+        sig[sell_sig == True] = -1
+        sig[close_sig == True] = 0
+        sig = self.clean_repeat_sig(sig)
+
+        conf = pd.Series(np.nan, index=ohlcv.index)
+        conf[sig == 1] = self.p['stoch_rsi_conf']
+        conf[sig == -1] = -self.p['stoch_rsi_conf']
+        conf[sig == 0] = 0
+
+        return conf
 
 
 
