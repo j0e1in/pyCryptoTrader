@@ -501,7 +501,11 @@ class Bitfinex(EXBase):
             if 'side' not in order or not isinstance(order['side'], str):
                 valid = False
             if 'amount' not in order or not isinstance(order['amount'], str):
-                valid = False
+                if isinstance(order['amount'], int) \
+                or isinstance(order['amount'], float):
+                    order['amount'] = str(order['amount'])
+                else:
+                    valid = False
             if 'price' not in order \
             or (not isinstance(order['price'], int)\
             and not isinstance(order['price'], float)):
@@ -512,9 +516,12 @@ class Bitfinex(EXBase):
 
         self._check_auth()
 
-        for order in orders:
+        for i, order in enumerate(orders):
             if not is_valid_order(order):
                 return {}
+
+            # Convert symbol to bitfinex compatiable one
+            orders[i]['symbol'] = self.ex.market_id(order['symbol'])
 
         params = {
             'orders': orders,

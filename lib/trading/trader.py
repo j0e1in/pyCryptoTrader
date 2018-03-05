@@ -435,10 +435,11 @@ class SingleEXTrader():
         return self._summary
 
     @staticmethod
-    def gen_scale_orders(symbol, type, side, amount, start_price=0, end_price=0, order_count=20):
+    def gen_scale_orders(symbol, type, side, amount, start_price=0, end_price=0, order_count=20, min_value=0):
         """ Scale one order to multiple orders with different prices. """
         orders = []
 
+        remaining_amount = amount
         amount_diff_base = amount / ((order_count + 1) * order_count / 2)
 
         cur_price = start_price
@@ -461,5 +462,46 @@ class SingleEXTrader():
                 cur_price = cur_price - abs(end_price - start_price) / order_count
             elif side == 'sell':
                 cur_price = cur_price + abs(end_price - start_price) / order_count
+
+        # Merge orders that have value < min_value
+        idx = 0
+        n_orders = len(orders)
+        while idx < n_orders-1:
+
+            if orders[idx]['price'] * orders[idx]['amount'] < min_value:
+                cur_amount = orders[idx]['amount']
+                cur_price = orders[idx]['price']
+                merge_num = 1
+
+                i = idx + 1
+                while (cur_price / merge_num * cur_amount < min_value) \
+                and (i < n_orders):
+                    cur_price += orders[i]['price']
+                    cur_amount += orders[i]['amount']
+                    merge_num += 1
+                    i += 1
+
+                orders[idx]['price'] = cur_price / merge_num
+                orders[idx]['amount'] = cur_amount
+
+                for _ in range(idx+1, i):
+                    del orders[idx+1]
+                    n_orders -= 1
+
+            idx += 1
+
+        # If last order's value is < min_value,
+        # distribute its amount to other orders proportionally
+        idx = len(orders) - 1
+        if idx > 0 \
+        and orders[idx]['price'] * orders[idx]['amount'] < min_value:
+            total_amount = 0
+            for i in range(len(orders)-1):
+                total_amount += orders[i]['amount']
+
+            for i in range(len(orders)-1):
+                orders[i]['amount'] += orders[idx]['amount'] / total_amount * orders[i]['amount']
+
+            del orders[idx]
 
         return orders

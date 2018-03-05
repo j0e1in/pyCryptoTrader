@@ -45,10 +45,11 @@ async def test_strategy(trader):
 
 def test_gen_scale_orders(trader):
     print('-- gen_scale_orders --')
-    orders = trader.gen_scale_orders('BTC/USD', 'limit', 'buy', 1,
+    orders = trader.gen_scale_orders('BTC/USD', 'limit', 'buy', 0.02,
                                      start_price=1000,
                                      end_price=900,
-                                     order_count=15)
+                                     order_count=10,
+                                     min_value=10)
     pprint(orders)
 
     amount = 0
