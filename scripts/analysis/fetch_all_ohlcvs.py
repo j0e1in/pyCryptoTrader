@@ -14,8 +14,8 @@ from utils import init_ccxt_exchange, execute_mongo_ops, config
 logger = logging.getLogger()
 
 
-start = datetime(2017, 8, 1)
-end = datetime(2018, 2, 22)
+start = datetime(2018, 2, 20)
+end = datetime(2018, 3, 5)
 
 
 async def fetch_ohlcv_to_mongo(coll, exchange, symbol, timeframe, upsert=True):
@@ -75,9 +75,9 @@ async def main():
     ex = 'bitfinex'
     coll_tamplate = '{}_ohlcv_{}_{}'
 
-    exchange = init_ccxt_exchange(ex + '2')
+    exchange = init_ccxt_exchange(ex)
 
-    upsert = False
+    upsert = True
 
     symbols = [
         "BTC/USD",

@@ -55,7 +55,7 @@ async def main():
     ex = 'bitfinex'
     coll_tamplate = '{}_trades_{}'
 
-    exchange = init_ccxt_exchange(ex + '2')
+    exchange = init_ccxt_exchange(ex)
 
     symbols = [
         "BTC/USD",
