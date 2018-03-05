@@ -557,18 +557,6 @@ class Indicator():
 
     ############################################################################
 
-    # @staticmethod
-    # def strong_force(side, ohlcv):
-    #     """ Calculate strong buy force at red bars and sell force at green bars. """
-
-    #     if side == 'buy':
-    #         force = (ohlcv.low - ohlcv.close) / ohlcv.close
-    #         force[ohlcv.close > ohlcv.open] = np.nan # filter red bars
-    #         force[force < ]
-    #     else:
-    #         sell_force = (ohlcv.high - ohlcv.close) / ohlcv.close
-    #         sell_force[ohlcv.close < ohlcv.open] = np.nan
-
     @staticmethod
     def last_peak(ss):
         """ Calculate last peak value. """
