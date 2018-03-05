@@ -18,6 +18,8 @@ from utils import config, \
                   is_within, \
                   timeframe_timedelta
 
+from analysis.hist_data import build_ohlcv
+
 logger = logging.getLogger()
 
 
@@ -110,11 +112,31 @@ class SingleEXTrader():
             await asyncio.sleep(countdown.seconds + 45)
 
     async def update_ohlcv(self):
+
+        async def build_recent_ohlcv():
+            src_tf = '1m'
+
+            # Build ohlcvs from 1m
+            for market in self.markets:
+                for tf in self.timeframes:
+                    if tf != src_tf:
+                        src_end_dt = await self.mongo.get_ohlcv_end(self.ex.exname, market, src_tf)
+                        target_end_dt = await self.mongo.get_ohlcv_end(self.ex.exname, market, tf)
+                        target_start_dt = target_end_dt - timeframe_timedelta(tf) * 5
+
+                        # Build ohlcv starting from 5 bars earlier from latest bar
+                        await build_ohlcv(self.mongo, self.ex.exname, market, src_tf, tf,
+                                        start=target_start_dt, end=src_end_dt)
+
+        await build_recent_ohlcv()
+
+        # Get newest ohlcvs
         td = timedelta(days=self.config['strategy']['data_days'])
         end = roundup_dt(utc_now(), min=1)
         start = end - td
         self.ohlcvs = await self.mongo.get_ohlcvs_of_symbols(self.ex.exname, self.markets, self.timeframes, start, end)
 
+        from ipdb import set_trace; set_trace()
 
         for symbol, tfs in self.ohlcvs.items():
             sm_tf = smallest_tf(list(self.ohlcvs[symbol].keys()))

@@ -169,12 +169,10 @@ class EXBase():
             await self.update_ohlcv_start_end()
 
             for market in self.markets:
-                for tf in self.timeframes:
+                end = self.ohlcv_start_end[market]['1m'][1]
 
-                    end = self.ohlcv_start_end[market][tf][1]
-
-                    if end < cur_time:
-                        return False
+                if end < cur_time:
+                    return False
 
             return True
 
@@ -184,18 +182,19 @@ class EXBase():
         while True:
             await self.update_ohlcv_start_end()
 
+            # Fetch only 1m ohlcv
             for market in self.markets:
-                for tf in self.timeframes:
+                tf = '1m'
+                td = timeframe_timedelta(tf)
 
-                    td = timeframe_timedelta(tf)
-                    end = self.ohlcv_start_end[market][tf][1]
-                    cur_time = rounddown_dt(utc_now(), sec=td.seconds)
+                end = self.ohlcv_start_end[market][tf][1]
+                cur_time = rounddown_dt(utc_now(), sec=td.seconds)
 
-                    if end < cur_time:
-                        # Fetching one-by-one is faster and safer(from blocking)
-                        # than gathering all tasks at once
+                if end < cur_time:
+                    # Fetching one-by-one is faster and safer(from blocking)
+                    # than gathering all tasks at once
 
-                        await fetch_ohlcv_to_mongo(market, end, cur_time, tf)
+                    await fetch_ohlcv_to_mongo(market, end, cur_time, tf)
 
             if await is_uptodate():
                 self.ready['ohlcv'] = True
@@ -424,10 +423,10 @@ class EXBase():
         for market in self.markets:
             self.ohlcv_start_end[market] = {}
 
-            for tf in self.timeframes:
-                start = await self.mongo.get_ohlcv_start(self.exname, market, tf)
-                end = await self.mongo.get_ohlcv_end(self.exname, market, tf)
-                self.ohlcv_start_end[market][tf] = (start, end)
+            tf = '1m'
+            start = await self.mongo.get_ohlcv_start(self.exname, market, tf)
+            end = await self.mongo.get_ohlcv_end(self.exname, market, tf)
+            self.ohlcv_start_end[market][tf] = (start, end)
 
     ###############################
     # CUSTOM FUNCTIONS FOR TRADER #
