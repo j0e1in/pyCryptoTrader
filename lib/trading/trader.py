@@ -412,22 +412,17 @@ class SingleEXTrader():
 
         return self._summary
 
-    def gen_scale_orders(self, symbol, type, side, amount, price=0):
+    @staticmethod
+    def gen_scale_orders(symbol, type, side, amount, start_price=0, end_price=0, order_count=20):
         """ Scale one order to multiple orders with different prices. """
         orders = []
-        count = self.config['scale_order_count']
 
-        if side == 'buy':
-            price_end = price * (1 - self.config['scale_order_far_percent'])
-        elif side == 'sell':
-            price_end = price * (1 + self.config['scale_order_far_percent'])
+        amount_diff_base = amount / ((order_count + 1) * order_count / 2)
 
-        amount_diff_base = amount / ((count + 1) * count / 2)
-
-        cur_price = price
+        cur_price = start_price
         dec = 100000000
 
-        for i in range(count):
+        for i in range(order_count):
             cur_amount = amount_diff_base * (i + 1)
             cur_price *= random.randint(0.9999 * dec, 1.0001 * dec) / dec
             cur_amount *= random.randint(0.9999 * dec, 1.0001 * dec) / dec
@@ -441,8 +436,8 @@ class SingleEXTrader():
             })
 
             if side == 'buy':
-                cur_price = cur_price - abs(price_end - price) / count
+                cur_price = cur_price - abs(end_price - start_price) / order_count
             elif side == 'sell':
-                cur_price = cur_price + abs(price_end - price) / count
+                cur_price = cur_price + abs(end_price - start_price) / order_count
 
         return orders
