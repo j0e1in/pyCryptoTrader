@@ -540,7 +540,7 @@ class Bitfinex(EXBase):
         orders = []
         if res['status'] == 'success':
             for order in res['order_ids']:
-                market = {'symbol': order['symbol']}
+                market = {'symbol': self.to_ccxt_symbol(order['symbol'])}
                 orders.append(
                     self.parse_order(
                         self.ex.parse_order(order, market)))
@@ -714,4 +714,6 @@ class Bitfinex(EXBase):
 
         sym = curr + '/USD'
         price = self.mongo.get_last_ohclv(self, self.exname, sym, '1m').close
-        return price * amount
+
+        # TODO: Finish this
+        # return price * amount

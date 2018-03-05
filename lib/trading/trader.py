@@ -136,8 +136,6 @@ class SingleEXTrader():
         start = end - td
         self.ohlcvs = await self.mongo.get_ohlcvs_of_symbols(self.ex.exname, self.markets, self.timeframes, start, end)
 
-        from ipdb import set_trace; set_trace()
-
         for symbol, tfs in self.ohlcvs.items():
             sm_tf = smallest_tf(list(self.ohlcvs[symbol].keys()))
 
@@ -208,56 +206,91 @@ class SingleEXTrader():
                             f"Skip the {side} order.")
                 return False
 
+            has_opposite_open_position = (symbol_amount < 0) if action == 'long' else (symbol_amount > 0)
+            order_count = self.config['scale_order_count']
+
             if action == 'long':
-                price = orderbook['bids'][0][0] * (1 - self.config['scale_order_near_percent'])
+                start_price = orderbook['bids'][0][0] * (1 - self.config['scale_order_near_percent'])
+                close_end_price = orderbook['bids'][0][0] * (1 - self.config['scale_order_close_far_percent'])
+                end_price = orderbook['bids'][0][0] * (1 - self.config['scale_order_far_percent'])
             else:
-                price = orderbook['asks'][0][0] * (1 + self.config['scale_order_near_percent'])
+                start_price = orderbook['asks'][0][0] * (1 + self.config['scale_order_near_percent'])
+                close_end_price = orderbook['bids'][0][0] * (1 + self.config['scale_order_close_far_percent'])
+                end_price = orderbook['bids'][0][0] * (1 + self.config['scale_order_far_percent'])
 
+            # Calculate amount to open, not including close amount (close amount == symbol_amount)
             amount = self.calc_order_amount(symbol, type, side, spend, orderbook,
-                                            price=price, margin=True)
+                                            price=start_price, margin=True)
 
-            has_open_position = (symbol_amount < 0) if action == 'long' else (symbol_amount > 0)
-            if has_open_position:
-                amount += abs(symbol_amount)  # plus the opposite side position amount
+            orders = []
+            min_value = self.config[self.ex.exname]['min_trade_value']
 
-            orders = None
+            if has_opposite_open_position:
+                close_orders = self.gen_scale_orders(symbol, type, side, abs(symbol_amount),
+                                                     start_price=start_price,
+                                                     end_price=close_end_price,
+                                                     order_count=order_count,
+                                                     min_value=min_value)
+
+
+                open_orders = self.gen_scale_orders(symbol, type, side, amount,
+                                                    start_price=close_end_price,
+                                                    end_price=end_price,
+                                                    order_count=order_count,
+                                                    min_value=min_value)
+
+                orders = close_orders + open_orders
+
+            else:
+                open_orders = self.gen_scale_orders(symbol, type, side, amount,
+                                                    start_price=start_price,
+                                                    end_price=end_price,
+                                                    order_count=order_count,
+                                                    min_value=min_value)
+
+                orders = open_orders
+
+
+            res = None
 
             if type == 'limit' and scale_order:
-                orders = self.gen_scale_orders(symbol, type, side, amount, price=price)
-                orders = await self.ex.create_order_multi(orders)
+                res = await self.ex.create_order_multi(orders)
             else:
-                orders = await self.ex.create_order(symbol, type, side, amount, price=price)
+                amount += abs(symbol_amount)
+                res = await self.ex.create_order(symbol, type, side, amount, price=start_price)
 
             alert_sound(0.2, 'Order created', 3)
 
-            if orders:
-                if isinstance(orders, list):
+            if res:
+                if isinstance(res, list):
                     price = 0
                     amount = 0
 
-                    for order in orders:
+                    for order in res:
                         price += order['price'] * order['amount']
                         amount += order['amount']
 
                     price /= amount
 
                     logger.info(f"Created scaled margin {side} order: "
-                                f"avg price: {price} amount: {amount}")
+                                f"avg price: {price} amount: {amount} value: {price * amount}")
 
                 else:
+                    order = res
                     price = order['price']
                     amount = order['amount']
                     logger.info(f"Created margin {side} order: "
-                                f"price: {price} amount: {amount}")
+                                f"price: {price} amount: {amount} value: {price * amount}")
 
-                return True
-
-            elif orders is None:
+            elif res is None:
                 logger.warn(f"Order is not submitted, uncomment the create_order line to enable.")
+
+            return res
+
         else:
             logger.info(f"Spendable balance is < 0, unable to {action}.")
 
-        return False
+        return None
 
     @staticmethod
     def calc_position_value(positions):
