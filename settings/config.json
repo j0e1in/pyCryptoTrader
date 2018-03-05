@@ -129,7 +129,7 @@
     "margin_fee": 0.0005,
     "margin_rate": 3.0,
     "force_liquidate_percent": 0.15,
-    "indicator_tf": "4h",
+    "indicator_tf": "8h",
 
     "_comment_min_order_value": "minimal USD value is allwed to open an order",
     "min_order_value": 10,
@@ -284,12 +284,18 @@
       "mom_mid_zone_percent": 0.15,
 
       "stoch_rsi_conf": 100,
-      "stoch_rsi_length": 12,
+      "stoch_rsi_length": 14,
       "stoch_length": 12,
       "stoch_rsi_fastk_length": 2,
       "stoch_rsi_fastd_length": 2,
       "stochrsi_upper": 70,
-      "stochrsi_lower": 30
+      "stochrsi_lower": 30,
+      "stochrsi_adx_length": 30,
+      "stochrsi_di_length": 12,
+      "stochrsi_mom_length": 20,
+      "stochrsi_mom_ma_length": 10,
+      "stochrsi_rsi_length": 14,
+      "stochrsi_rsi_mom_thresh": 20
     },
 
     "unused_params": {

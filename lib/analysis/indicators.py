@@ -266,10 +266,6 @@ class Indicator():
         if not di_length:
             di_length = self.p['dmi_di_length']
 
-        # adx = talib_abstract.ADX(ohlcv, adx_length)
-        # pdi = talib_abstract.PLUS_DI(ohlcv, di_length)
-        # mdi = talib_abstract.MINUS_DI(ohlcv, di_length)
-
         low = ohlcv.low
         high = ohlcv.high
         close = ohlcv.close
@@ -501,6 +497,19 @@ class Indicator():
         stochrsi_upper = self.p['stochrsi_upper']
         stochrsi_lower = self.p['stochrsi_lower']
 
+        adx_length = self.p['stochrsi_adx_length']
+        di_length = self.p['stochrsi_di_length']
+
+        mom_length = self.p['stochrsi_mom_length']
+        mom_ma_length = self.p['stochrsi_mom_ma_length']
+
+        rsi_length = self.p['stochrsi_rsi_length']
+        rsi_mom_thresh = self.p['stochrsi_rsi_mom_thresh']
+
+        # Indicators
+        adx, pdi, mdi = self.dmi(ohlcv)
+        mom = self.mom(ohlcv.close, normalize=True)
+        rsi = self.talib_s(talib.RSI, ohlcv.close, rsi_length)
         k, d = self.stoch_rsi(ohlcv.close)
         src = k
 
@@ -526,8 +535,11 @@ class Indicator():
 
         stoch_rsi_close = pd.Series(False, index=src.index)
 
-        buy_sig = stochrsi_buy | stochrsi_rebuy
-        sell_sig = stochrsi_sell | stochrsi_resell
+        rsi_buy = ((rsi <= 25) & (mom <= -rsi_mom_thresh)) & ~(mdi > adx) # or (rsi <= 10)
+        rsi_sell = ((rsi >= 80) & (mom >= rsi_mom_thresh)) & ~(pdi > adx) # or (rsi >= 90)
+
+        buy_sig = stochrsi_buy | stochrsi_rebuy | rsi_buy
+        sell_sig = stochrsi_sell | stochrsi_resell | rsi_sell
         close_sig = stoch_rsi_close
 
         sig = pd.Series(np.nan, index=ohlcv.index)
@@ -542,8 +554,6 @@ class Indicator():
         conf[sig == 0] = 0
 
         return conf
-
-
 
     ############################################################################
 
