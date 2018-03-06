@@ -55,23 +55,27 @@ async def main():
 
     for symbol in symbols:
         for target_tf in target_tfs:
-            logger.info(f"Building {exchange} {symbol} {target_tf} ohlcv")
 
             if build_from_start:
                 await build_ohlcv(mongo, exchange, symbol, src_tf, target_tf, upsert=False)
+                logger.info(f"Building {exchange} {symbol} {target_tf} ohlcv from start")
 
             else:
                 src_end_dt = await mongo.get_ohlcv_end(exchange, symbol, src_tf)
                 target_end_dt = await mongo.get_ohlcv_end(exchange, symbol, target_tf)
                 target_start_dt = target_end_dt - timeframe_timedelta(target_tf) * 5
+                logger.info(f"Building {exchange} {symbol} {target_tf} ohlcv "
+                            f"from {target_start_dt} to {src_end_dt}")
 
                 # Build ohlcv starting from 5 bars earlier from latest bar
                 await build_ohlcv(mongo, exchange, symbol, src_tf, target_tf,
                                 start=target_start_dt, end=src_end_dt, upsert=True)
 
-    # Starting from 'lib/'
-    file = '../scripts/mongodb/create_index.js'
-    os.system(f"mongo < {file}")
+    # Build indexes
+    if build_from_start:
+        # Starting from 'lib/'
+        file = '../scripts/mongodb/create_index.js'
+        os.system(f"mongo < {file}")
 
 
 if __name__ == '__main__':
