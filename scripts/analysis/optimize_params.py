@@ -11,7 +11,7 @@ import sys
 from analysis.backtest import ParamOptimizer
 from analysis.strategy import PatternStrategy
 from db import EXMongo
-from utils import is_valid_tf
+from utils import config
 
 
 def calc_eta(combs, periods):
@@ -33,28 +33,27 @@ def calc_eta(combs, periods):
 
 
 def get_num_combs(argv):
-    tf = argv.tf
     prefix = argv.prefix + '_' if argv.prefix else ''
 
-    with open(f'../data/{prefix}combs_{tf}.pkl', 'rb') as f:
+    with open(f'../data/{prefix}combs.pkl', 'rb') as f:
         combs = pickle.load(f)
 
     return len(combs)
 
 
 async def find_optimal_paramters(mongo, argv):
-    tf = argv.tf
+    tf = config['analysis']['indicator_tf']
     prefix = argv.prefix + '_' if argv.prefix else ''
 
-    with open(f'../data/{prefix}combs_{tf}.pkl', 'rb') as f:
+    with open(f'../data/{prefix}combs.pkl', 'rb') as f:
         combs = pickle.load(f)
 
     start = argv.start if argv.start else 1
     end = argv.end if argv.end else len(combs)
 
     test_periods = [
-        (datetime(2017, 8, 1), datetime(2018, 2, 1)),
-        (datetime(2017, 2, 1), datetime(2018, 3, 5)),
+        (datetime(2017, 8, 1), datetime(2018, 3, 5)),
+        # (datetime(2017, 2, 1), datetime(2018, 3, 5)),
     ]
 
     print(f"Running optimization for {tf} {start}-{end}...(total {len(combs)})")
@@ -75,7 +74,6 @@ async def find_optimal_paramters(mongo, argv):
 
 
 def generate_params(mongo, argv):
-    tf = argv.tf
     prefix = argv.prefix + '_' if argv.prefix else ''
 
     strategy = PatternStrategy('bitfinex')
@@ -104,26 +102,22 @@ def generate_params(mongo, argv):
     combs = optimizer.get_combinations()
     print(f"Generated {len(combs)} sets of parameter settings.")
 
-    with open(f'../data/{prefix}combs_{tf}.pkl', 'wb') as f:
+    with open(f'../data/{prefix}combs.pkl', 'wb') as f:
         pickle.dump(combs, f)
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('task', type=str, help="Task to run. generate/optimize/count")
-    parser.add_argument('tf', type=str, help="Timeframe to use in this task, eg. 5m, 3h, 1d...")
 
     # Options all tasks
-    parser.add_argument('--prefix', type=str, help="Prefix for param .pkl file, eg. 'pre' => 'pre_combs_tf' ")
+    parser.add_argument('--prefix', type=str, help="Prefix for param .pkl file, eg. 'pre' => 'pre_combs' ")
 
     # Options for optimization
     parser.add_argument('--start', '-s', type=int, help="Integer, starting parameter set to optimize.")
     parser.add_argument('--end', '-e',  type=int, help="Integer, ending parameter set to optimize.")
 
     argv = parser.parse_args()
-
-    if not is_valid_tf(argv.tf):
-        raise ValueError(f"Timeframe {argv.tf} is invalid")
 
     return argv
 
