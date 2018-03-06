@@ -26,7 +26,7 @@
   },
 
   "matplot": {
-    "enable": true,
+    "enable": false,
     "plot_indicators": true,
     "window_size": [15, 9]
   },
@@ -239,8 +239,25 @@
 
     "params": {
       "trade_portion": 0.7,
+
+      "stoch_rsi_conf": 100,
+      "stoch_rsi_length": 14,
+      "stoch_length": 10,
+      "stoch_rsi_fastk_length": 2,
+      "stoch_rsi_fastd_length": 2,
+      "stochrsi_upper": 70,
+      "stochrsi_lower": 30,
+      "stochrsi_adx_length": 30,
+      "stochrsi_di_length": 12,
+      "stochrsi_rsi_length": 14,
+      "stochrsi_rsi_mom_thresh": 20,
+      "stochrsi_mom_length": 20,
+      "stochrsi_mom_ma_length": 10
+    },
+
+    "unused_params": {
       "stop_loss_percent": 0.06,
-      "stop_profit_percent": 0.08,
+      "stop_profit_percent": 0.02,
 
       "rsi_conf": 70,
       "rsi_period": 14,
@@ -304,24 +321,7 @@
       "mom_ma_length": 10,
       "mom_second_ma_length": 10,
       "mom_norm_mid_zone_range": 7,
-      "mom_mid_zone_percent": 0.15,
-
-      "stoch_rsi_conf": 100,
-      "stoch_rsi_length": 14,
-      "stoch_length": 10,
-      "stoch_rsi_fastk_length": 2,
-      "stoch_rsi_fastd_length": 2,
-      "stochrsi_upper": 70,
-      "stochrsi_lower": 30,
-      "stochrsi_adx_length": 30,
-      "stochrsi_di_length": 12,
-      "stochrsi_rsi_length": 14,
-      "stochrsi_rsi_mom_thresh": 20,
-      "stochrsi_mom_length": 20,
-      "stochrsi_mom_ma_length": 10
-    },
-
-    "unused_params": {
+      "mom_mid_zone_percent": 0.15
     }
 
   },

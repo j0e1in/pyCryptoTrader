@@ -507,8 +507,8 @@ class Indicator():
         rsi_mom_thresh = self.p['stochrsi_rsi_mom_thresh']
 
         # Indicators
-        adx, pdi, mdi = self.dmi(ohlcv)
-        mom = self.mom(ohlcv.close, normalize=True)
+        adx, pdi, mdi = self.dmi(ohlcv, adx_length, di_length)
+        mom = self.mom(ohlcv.close, mom_length, ma_length=mom_ma_length, normalize=True)
         rsi = self.talib_s(talib.RSI, ohlcv.close, rsi_length)
         k, d = self.stoch_rsi(ohlcv.close)
         src = k

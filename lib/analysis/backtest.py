@@ -469,14 +469,17 @@ class ParamOptimizer():
             self.param_d[k] = [v]
 
     def optimize_range(self, param_name, start, end, step):
-        """ Set optimization range for an param. """
+        """ Set optimization range for numerical params. """
+        if start > end:
+            raise ValueError(f"start must < end")
+
         if param_name in self.params:
             self.param_d[param_name] = np.arange(start, end+step/INF, step)
         else:
             raise ValueError(f"{param_name} is not in config['parmas']")
 
     def optimize_selection(self, param_name, selections):
-        """ Set optimization selections for an param, for non-numeric params, eg. '1m', '5m', ... """
+        """ Set optimization selections for non-numerical params, eg. '1m', '5m', ... """
         if not isinstance(selections, list):
             raise TypeError("selections should be a list")
 
@@ -571,6 +574,7 @@ def gen_combinations(arrays, columns=None, types=None):
 def get_types(d):
     """ Get data types for each field in a dict. """
     dtypes = {}
+
     for k, v in d.items():
         if isinstance(v, list) or isinstance(v, np.ndarray):
             dtypes[k] = type(v[0])

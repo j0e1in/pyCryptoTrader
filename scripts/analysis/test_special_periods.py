@@ -13,10 +13,10 @@ from utils import config, print_to_file
 
 
 async def test_single_period(mongo, market):
-    # dt = (datetime(2017, 8, 1), datetime(2018, 3, 1))
+    dt = (datetime(2017, 8, 1), datetime(2018, 3, 1))
     # dt = (datetime(2017, 8, 1), datetime(2017, 10, 10))
     # dt = (datetime(2017, 10, 1), datetime(2018, 2, 20))
-    dt = (datetime(2018, 2, 1), datetime(2018, 3, 5))
+    # dt = (datetime(2018, 2, 1), datetime(2018, 3, 5))
 
     _config = copy.deepcopy(config)
     _config['analysis']['exchanges']['bitfinex']['markets'] = [market]
@@ -61,18 +61,18 @@ async def test_special_periods_of_markets(mongo):
 
     markets = [
         "BTC/USD",
-        # "BCH/USD",
-        # "ETH/USD",
-        # "ETC/USD",
-        # "EOS/USD",
-        # "DASH/USD",
-        # "IOTA/USD",
-        # "LTC/USD",
-        # "NEO/USD",
-        # "OMG/USD",
-        # "XMR/USD",
-        # "XRP/USD",
-        # "ZEC/USD"
+        "BCH/USD",
+        "ETH/USD",
+        "ETC/USD",
+        "EOS/USD",
+        "DASH/USD",
+        "IOTA/USD",
+        "LTC/USD",
+        "NEO/USD",
+        "OMG/USD",
+        "XMR/USD",
+        "XRP/USD",
+        "ZEC/USD"
     ]
 
     total_pl = 0
