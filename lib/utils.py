@@ -594,7 +594,7 @@ def ohlcv_to_interval(ohlcv, src_tf, target_td):
 
 
 def print_to_file(data, path):
-    import os, os.path
+    import os
     import errno
 
     def mkdir_p(path):
@@ -610,6 +610,17 @@ def print_to_file(data, path):
 
     with open(path, 'w+') as f:
         pprint(data, stream=f)
+
+
+def is_valid_tf(tf):
+    base = tf[-1]
+    num = tf[:-1]
+
+    if base not in ['m', 'h', 'd'] \
+    or not num.isdigit():
+        return False
+
+    return True
 
 
 class Timer():
