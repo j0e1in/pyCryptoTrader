@@ -24,7 +24,7 @@ async def test_run(backtest):
 
 
 async def test_backtest_runner_run_single_period(mongo):
-    period = (datetime(2018, 1, 10), datetime(2018, 1, 18))
+    period = (datetime(2018, 1, 1), datetime(2018, 3, 1))
 
     strategy = PatternStrategy('bitfinex')
     bt_runner = BacktestRunner(mongo, strategy, multicore=False)
