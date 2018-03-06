@@ -15,15 +15,15 @@ class PatternStrategy(SingleExchangeStrategy):
         self.ind = Indicator(custom_config=custom_config)
 
     def init_vars(self):
+        self.ind.p = self.p
         self.margin = self._config['backtest']['margin']
 
     def fast_strategy(self):
         stop_loss = False
         stop_profit = False
-
-        for market in self.markets:
-            sig = self.calc_signal(market)
-            self.execute_signal(sig, market, stop_loss, stop_profit)
+        market = self.markets[0]
+        sig = self.calc_signal(market)
+        self.execute_signal(sig, market, stop_loss, stop_profit)
 
     def execute_signal(self, sig, market, stop_loss=False, stop_profit=False):
         stop_loss = self.p['stop_loss_percent'] if stop_loss else None

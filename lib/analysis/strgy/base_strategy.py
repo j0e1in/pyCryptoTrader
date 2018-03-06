@@ -34,7 +34,6 @@ class SingleExchangeStrategy():
     def set_config(self, cfg):
         self._config = cfg
         self.p = cfg['analysis']['params']
-        self.ind.p = self.p
         self.init_vars()
 
     def init(self, trader):
