@@ -266,10 +266,6 @@ class Indicator():
         if not di_length:
             di_length = self.p['dmi_di_length']
 
-        # adx = talib_abstract.ADX(ohlcv, adx_length)
-        # pdi = talib_abstract.PLUS_DI(ohlcv, di_length)
-        # mdi = talib_abstract.MINUS_DI(ohlcv, di_length)
-
         low = ohlcv.low
         high = ohlcv.high
         close = ohlcv.close
@@ -295,6 +291,7 @@ class Indicator():
         return adx, pdi, mdi
 
     def dmi_sig(self, ohlcv):
+        # Parameters
         base_thresh = self.p['dmi_base_thresh']
         adx_thresh = self.p['dmi_adx_thresh']
         di_top_thresh = self.p['dmi_di_top_thresh']
@@ -307,10 +304,25 @@ class Indicator():
         ema_length = self.p['dmi_ema_length']
         rsi_length = self.p['dmi_rsi_length']
 
+        stoch_rsi_length = self.p['dmi_stoch_rsi_length']
+        stoch_length = self.p['dmi_stoch_length']
+        fk_length = self.p['dmi_fastk_length']
+        fd_length = self.p['dmi_fastd_length']
+
+        # Indicators
         adx, pdi, mdi = self.dmi(ohlcv)
         ema = self.talib_s(talib.EMA, ohlcv.close, ema_length)
         rsi = self.talib_s(talib.RSI, ohlcv.close, rsi_length)
         mom = self.mom(ohlcv.close, ma='wma', normalize=True)
+        k, d = self.stoch_rsi(
+            ohlcv.close,
+            stoch_rsi_length,
+            stoch_length,
+            fk_length,
+            fd_length)
+
+        midzr = self.p['dmi_mom_mid_zone_range']
+        mom_mid_zone = (mom < midzr) & (mom > -midzr)
 
         # Calculate top_peak and bot_peak
         top_peak = pd.Series(np.nan, index=adx.index)
@@ -345,8 +357,16 @@ class Indicator():
         top_peak_diff = top_peak - adx_top_peak_diff
         bot_peak_diff = bot_peak + adx_bot_peak_diff
 
+        # adx_reverse = (adx <= top_peak_diff) & (adx > adx_thresh + 5)
+        # adx_rebound = (adx >= bot_peak_diff) & (adx < adx_thresh + 10)
         adx_reverse = (adx <= top_peak_diff) & (adx.shift(1) > top_peak_diff) & (adx > adx_thresh + 5)
         adx_rebound = (adx >= bot_peak_diff) & (adx.shift(1) < bot_peak_diff) & (adx < adx_thresh + 10)
+
+        # for i in range(len(adx_rebound)):
+        #     if np.isnan(adx_rebound.iloc[i]) \
+        #     and (not (adx_rebound[max(i-2, 0):i]).all
+
+        # TODO: extend adx_rebound for 2-3 bars
 
         match_base_thresh = adx >= base_thresh
         match_adx_thresh = adx >= adx_thresh
@@ -369,12 +389,14 @@ class Indicator():
         ema_up = ema > ema.shift(1)
         ema_down = ema < ema.shift(1)
 
-        rsi_buy = (rsi <= 25) & (mom <= -self.p['dmi_rsi_mom_thresh'])
-        rsi_sell = (rsi >= 70) & (mom >= self.p['dmi_rsi_mom_thresh'])
+        rsi_buy = ((rsi <= 25) & (mom <= -self.p['dmi_rsi_mom_thresh'])) & ~(mdi > adx)# | (rsi <= 15)
+        rsi_sell = ((rsi >= 80) & (mom >= self.p['dmi_rsi_mom_thresh'])) & ~(pdi > adx)# | (rsi >= 85)
 
-        buy_sig = ((buy | buy_reverse | buy_di_turn) & ema_up) | (rsi_buy & ema_down)
-        sell_sig = ((sell | sell_reverse | sell_di_turn) & ema_down) | (rsi_sell & ema_up)
-        close_sig = below_base | no_trend
+        stoch_rsi_close = (((k > 90) & (rsi > 70) & (k < k.shift(1))) | ((k < 10) & (rsi < 30) & (k > k.shift(1))))
+
+        buy_sig = (((buy | buy_reverse | buy_di_turn) & ema_up) | (rsi_buy & ema_down))# & ~(d >= 65)
+        sell_sig = (((sell | sell_reverse | sell_di_turn) & ema_down) | (rsi_sell & ema_up))# & ~(d <= 35)
+        close_sig = below_base | no_trend | stoch_rsi_close
 
         sig = pd.Series(np.nan, index=ohlcv.index)
         sig[buy_sig == True] = 1
@@ -386,6 +408,8 @@ class Indicator():
         conf[sig == 1] = self.p['dmi_conf']
         conf[sig == -1] = -self.p['dmi_conf']
         conf[sig == 0] = 0
+
+        # from ipdb import set_trace; set_trace()
 
         return conf
 
@@ -444,42 +468,94 @@ class Indicator():
         conf[sig == 1] = self.p['mom_conf']
         conf[sig == -1] = -self.p['mom_conf']
         conf[sig == 0] = 0
-        from ipdb import set_trace; set_trace()
+
         return conf
 
-    def rma(self, ss, length):
-        """ Exponentially weighted moving average with alpha = 1 / (length - 1)
-            Smoothness: RMA > EMA
-        """
-        ## RMA
-        # alpha = 1 / (y - 1)
-        ## EMA
-        # alpha = 2 / (y + 1)
-        # sum := alpha * x + (1 - alpha) * nz(sum[1])
+    def stoch_rsi(self, ss, rsi_length=None, stoch_length=None, fastk_length=None, fastd_length=None, ma='sma'):
+        if not rsi_length:
+            rsi_length = self.p['stoch_rsi_length']
+        if not stoch_length:
+            stoch_length = self.p['stoch_length']
+        if not fastk_length:
+            fastk_length = self.p['stoch_rsi_fastk_length']
+        if not fastd_length:
+            fastd_length = self.p['stoch_rsi_fastd_length']
 
-        alpha = 2 / (length + 1)
-        rma = pd.Series(np.nan, index=ss.index)
-        for i in range(1, len(rma)):
-            rma.iloc[i] = alpha * ss.iloc[i] + (1 - alpha) * nz(rma.iloc[i-1])
+        rsi = self.talib_s(talib.RSI, ss, rsi_length)
 
-        return rma
+        fastk, fastd = self.talib_s(
+            talib.STOCH, rsi,
+            np.asarray(rsi),
+            np.asarray(rsi),
+            fastk_period=stoch_length,
+            slowk_period=fastk_length,
+            slowd_period=fastd_length)
 
-    def turtle_sig(self, ohlcv):
-        pass
+        return fastk, fastd
+
+    def stoch_rsi_sig(self, ohlcv):
+        stochrsi_upper = self.p['stochrsi_upper']
+        stochrsi_lower = self.p['stochrsi_lower']
+
+        adx_length = self.p['stochrsi_adx_length']
+        di_length = self.p['stochrsi_di_length']
+
+        mom_length = self.p['stochrsi_mom_length']
+        mom_ma_length = self.p['stochrsi_mom_ma_length']
+
+        rsi_length = self.p['stochrsi_rsi_length']
+        rsi_mom_thresh = self.p['stochrsi_rsi_mom_thresh']
+
+        # Indicators
+        adx, pdi, mdi = self.dmi(ohlcv)
+        mom = self.mom(ohlcv.close, normalize=True)
+        rsi = self.talib_s(talib.RSI, ohlcv.close, rsi_length)
+        k, d = self.stoch_rsi(ohlcv.close)
+        src = k
+
+        top_peak = pd.Series(np.nan, index=src.index)
+        bot_peak = pd.Series(np.nan, index=src.index)
+
+        for i in range(len(src)):
+            if (src.iloc[i] < src.shift(1).iloc[i]) and (src.shift(1).iloc[i] > src.shift(2).iloc[i]):
+                top_peak.iloc[i] = src.shift(1).iloc[i]
+            else:
+                top_peak.iloc[i] = top_peak.shift(1).iloc[i]
+
+            if (src.iloc[i] > src.shift(1).iloc[i]) and (src.shift(1).iloc[i] < src.shift(2).iloc[i]):
+                bot_peak.iloc[i] = src.shift(1).iloc[i]
+            else:
+                bot_peak.iloc[i] = bot_peak.shift(1).iloc[i]
+
+        stochrsi_buy = (src.shift(1) < stochrsi_lower) & (src >= stochrsi_lower)
+        stochrsi_sell = (src.shift(1) > stochrsi_upper) & (src <= stochrsi_upper)
+
+        stochrsi_rebuy = (src.shift(1) < stochrsi_upper) & (src >= stochrsi_upper) & (bot_peak > stochrsi_lower)
+        stochrsi_resell = (src.shift(1) > stochrsi_lower) & (src <= stochrsi_lower) & (top_peak < stochrsi_upper)
+
+        stoch_rsi_close = pd.Series(False, index=src.index)
+
+        rsi_buy = ((rsi <= 25) & (mom <= -rsi_mom_thresh)) & ~(mdi > adx) # or (rsi <= 10)
+        rsi_sell = ((rsi >= 80) & (mom >= rsi_mom_thresh)) & ~(pdi > adx) # or (rsi >= 90)
+
+        buy_sig = stochrsi_buy | stochrsi_rebuy | rsi_buy
+        sell_sig = stochrsi_sell | stochrsi_resell | rsi_sell
+        close_sig = stoch_rsi_close
+
+        sig = pd.Series(np.nan, index=ohlcv.index)
+        sig[buy_sig == True] = 1
+        sig[sell_sig == True] = -1
+        sig[close_sig == True] = 0
+        sig = self.clean_repeat_sig(sig)
+
+        conf = pd.Series(np.nan, index=ohlcv.index)
+        conf[sig == 1] = self.p['stoch_rsi_conf']
+        conf[sig == -1] = -self.p['stoch_rsi_conf']
+        conf[sig == 0] = 0
+
+        return conf
 
     ############################################################################
-
-    # @staticmethod
-    # def strong_force(side, ohlcv):
-    #     """ Calculate strong buy force at red bars and sell force at green bars. """
-
-    #     if side == 'buy':
-    #         force = (ohlcv.low - ohlcv.close) / ohlcv.close
-    #         force[ohlcv.close > ohlcv.open] = np.nan # filter red bars
-    #         force[force < ]
-    #     else:
-    #         sell_force = (ohlcv.high - ohlcv.close) / ohlcv.close
-    #         sell_force[ohlcv.close < ohlcv.open] = np.nan
 
     @staticmethod
     def last_peak(ss):
@@ -502,8 +578,8 @@ class Indicator():
         """
         res = []
         ss = indicator(np.asarray(input), *args, **kwargs)
-
-        if isinstance(ss, list) and len(ss) > 1:
+        if (isinstance(ss, tuple) or isinstance(ss, list)) \
+        and len(ss) > 1:
             for s in ss:
                 tmp = pd.Series(s, index=input.index)
                 res.append(tmp)

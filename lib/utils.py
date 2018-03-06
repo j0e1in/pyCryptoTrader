@@ -486,7 +486,7 @@ def near_start(dt, td):
 
 
 def near_end(dt, td):
-    ratio = 1 / 3 # smaller means closer to the end
+    ratio = 1 / 4 # smaller means closer to the end
     rdt = roundup_dt(dt, sec=td.seconds)
     return True if (rdt - dt) <= td * ratio else False
 

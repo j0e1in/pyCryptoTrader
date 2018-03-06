@@ -105,7 +105,7 @@ class PatternStrategy(SingleEXStrategy):
             Returns {signal, timeframe}
         """
         ohlcv = self.trader.ohlcvs[market][self.trader.config['indicator_tf']]
-        sig = self.ind.dmi_sig(ohlcv)
+        sig = self.ind.stoch_rsi_sig(ohlcv)
 
         return sig
 
