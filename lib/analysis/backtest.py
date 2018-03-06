@@ -304,14 +304,13 @@ class BacktestRunner():
         def run_backtest(backtest):
             days = (opts['end'] - opts['start']).days
             logger.info(f"Backtesting {opts['start']} / {opts['end']} ({days} days)")
-            rep = backtest.run()
+            report = backtest.run()
             reports_q.put({
                 'period': (backtest.start, backtest.end),
-                'report': rep
+                'report': report
             })
             del backtest
 
-        backtests = []
         for start, end in periods:
             opts = {
                 'strategy': self.strategy,
@@ -342,7 +341,7 @@ class BacktestRunner():
 
         # Results queued by processes must be cleared from the queue,
         # or some processes will not terminate.
-        for i in range(n_reports_left):
+        for _ in range(n_reports_left):
             reports.append(reports_q.get())
 
         # Wait for all processes to terminate

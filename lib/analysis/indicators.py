@@ -409,8 +409,6 @@ class Indicator():
         conf[sig == -1] = -self.p['dmi_conf']
         conf[sig == 0] = 0
 
-        # from ipdb import set_trace; set_trace()
-
         return conf
 
     def mom(self, ss, length=None, ma='wma', ma_length=None, normalize=False):
@@ -421,7 +419,7 @@ class Indicator():
             ma_length = self.p['mom_ma_length']
 
         # mom = self.talib_s(talib.MOM, ss, length)
-        mom = ss - ss.shift(length)
+        mom = ss - ss.shift(int(length))
 
         if ma:
             MA = getattr(talib, ma.upper())
