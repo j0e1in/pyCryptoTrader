@@ -1,6 +1,6 @@
 {
   "mode": "debug",
-  "use_multicore": true,
+  "use_multicore": false,
   "max_processes": 16,
   "request_max_retry": 5,
 
@@ -166,7 +166,7 @@
       "bitfinex": {
         "_comment_markets": "markets to trade",
         "markets": [
-          "BTC/USD"
+          "XRP/USD"
         ],
         "markets_not_used": [
           "BTC/USD",
@@ -200,21 +200,7 @@
         ],
         "timeframes": [
           "1m",
-          "15m",
-          "30m",
-          "1h",
-          "2h",
-          "3h",
-          "4h",
-          "5h",
-          "6h",
-          "7h",
-          "8h",
-          "9h",
-          "10h",
-          "12h",
-          "15h",
-          "18h"
+          "8h"
         ],
         "timeframes_available": [
           "1m",
@@ -241,16 +227,16 @@
       "trade_portion": 0.7,
 
       "stoch_rsi_conf": 100,
-      "stoch_rsi_length": 14,
-      "stoch_length": 10,
+      "stoch_rsi_length": 10,
+      "stoch_length": 8,
       "stoch_rsi_fastk_length": 2,
       "stoch_rsi_fastd_length": 2,
-      "stochrsi_upper": 70,
+      "stochrsi_upper": 60,
       "stochrsi_lower": 30,
-      "stochrsi_adx_length": 30,
-      "stochrsi_di_length": 12,
-      "stochrsi_rsi_length": 14,
-      "stochrsi_rsi_mom_thresh": 20,
+      "stochrsi_adx_length": 25,
+      "stochrsi_di_length": 10,
+      "stochrsi_rsi_length": 16,
+      "stochrsi_rsi_mom_thresh": 10,
       "stochrsi_mom_length": 20,
       "stochrsi_mom_ma_length": 10
     },
