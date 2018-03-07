@@ -1,0 +1,11 @@
+.git/
+.vscode/
+build/
+data/
+log/
+private/
+ref/
+
+*.log
+*.out
+*.ipynb
