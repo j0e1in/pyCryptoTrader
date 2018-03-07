@@ -1,6 +1,5 @@
 coll = db.getCollectionNames()
 
-// Create unique timestamp index for ohlcvs
 for (i = 0; i < coll.length; i++) {
   if(coll[i].includes('_ohlcv_')) {
     collection = db.getCollection(coll[i])

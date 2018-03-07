@@ -29,11 +29,11 @@ def main(argv):
 
         if rc is 0: # success
             output = output.decode('utf-8')
-            msg = f"Output Message:\n{output}"
+            msg = f"[Output Message]\n{output}"
 
         else: # failure
             err = err.decode('utf-8')
-            msg = f"Error Message:\n{err}"
+            msg = f"[Error Message]\n{err}"
 
             print("----------- Restarting Process ----------")
 
