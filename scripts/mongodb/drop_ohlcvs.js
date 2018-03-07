@@ -3,6 +3,7 @@ use exchange
 coll = db.getCollectionNames()
 
 tfs_to_drop = [
+  '1m',
   '5m',
   '15m',
   '30m',
