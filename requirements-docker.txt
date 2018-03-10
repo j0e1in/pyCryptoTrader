@@ -1,6 +1,7 @@
 ccxt==1.10.1237
 chromalog
 motor
+multiprocess
 numpy
 pandas
 pymongo
