@@ -25,12 +25,6 @@ RUN wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz && \
 RUN pip install -r requirements-docker.txt && \
   pip install ta-lib  # this module needs to be installed after numpy
 
-# RUN git clone https://github.com/matplotlib/mpl_finance.git  && \
-#     cd mpl_finance  && \
-#     python setup.py install  && \
-#     cd ..  && \
-#     rm -rf mpl_finance
-
 USER admin
 
 CMD ["bash"]
