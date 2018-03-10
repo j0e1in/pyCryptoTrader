@@ -1,5 +1,10 @@
 from datetime import timedelta
-import matplotlib.pyplot as plt
+
+try:
+    import matplotlib.pyplot as plt
+except ImportError:
+    pass
+
 import talib.abstract as talib_abstract # ndarray/dataframe as input
 import talib # ndarray as input
 import pandas as pd
@@ -509,6 +514,7 @@ class Indicator():
         mom = self.mom(ohlcv.close, mom_length, ma_length=mom_ma_length, normalize=True)
         rsi = self.talib_s(talib.RSI, ohlcv.close, rsi_length)
         k, d = self.stoch_rsi(ohlcv.close)
+
         src = k
 
         top_peak = pd.Series(np.nan, index=src.index)
@@ -531,10 +537,10 @@ class Indicator():
         stochrsi_rebuy = (src.shift(1) < stochrsi_upper) & (src >= stochrsi_upper) & (bot_peak > stochrsi_lower)
         stochrsi_resell = (src.shift(1) > stochrsi_lower) & (src <= stochrsi_lower) & (top_peak < stochrsi_upper)
 
-        stoch_rsi_close = pd.Series(False, index=src.index)
-
         rsi_buy = ((rsi <= 25) & (mom <= -rsi_mom_thresh)) & ~(mdi > adx) # or (rsi <= 10)
         rsi_sell = ((rsi >= 80) & (mom >= rsi_mom_thresh)) & ~(pdi > adx) # or (rsi >= 90)
+
+        stoch_rsi_close = pd.Series(False, index=src.index)
 
         buy_sig = stochrsi_buy | stochrsi_rebuy | rsi_buy
         sell_sig = stochrsi_sell | stochrsi_resell | rsi_sell

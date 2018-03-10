@@ -13,7 +13,12 @@ import numpy as np
 
 from utils import config, Timer, roundup_dt, timeframe_timedelta, check_periods, INF
 from analysis.backtest_trader import SimulatedTrader, FastTrader
-from analysis.plot import Plot
+
+try:
+    from analysis.plot import Plot
+except ImportError:
+    pass
+
 from db import EXMongo
 
 from pprint import pprint
@@ -303,7 +308,10 @@ class BacktestRunner():
 
         def run_backtest(backtest):
             days = (opts['end'] - opts['start']).days
-            logger.info(f"Backtesting {opts['start']} / {opts['end']} ({days} days)")
+
+            if self._config['mode'] == 'debug':
+                logger.debug(f"Backtesting {opts['start']} / {opts['end']} ({days} days)")
+
             report = backtest.run()
             reports_q.put({
                 'period': (backtest.start, backtest.end),
@@ -518,9 +526,9 @@ class ParamOptimizer():
 
             num_tests -= len(periods)
             count += len(periods)
-            if count >= 100: # periodically log number of remaining tests
+            if count >= 10: # periodically log number of remaining tests
                 count = 0
-                logger.info(f"{num_tests} tests left...")
+                logger.info(f"{num_tests} tests remaining")
 
         return summaries
 
