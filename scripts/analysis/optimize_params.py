@@ -11,7 +11,7 @@ import sys
 from analysis.backtest import ParamOptimizer
 from analysis.strategy import PatternStrategy
 from db import EXMongo
-from utils import config
+from utils import config, rsym
 
 
 def calc_eta(combs, periods):
@@ -41,9 +41,10 @@ def get_num_combs(argv):
     return len(combs)
 
 
-async def find_optimal_paramters(mongo, argv):
+async def find_optimal_paramters(mongo, ex, argv):
     tf = config['analysis']['indicator_tf']
     prefix = argv.prefix + '_' if argv.prefix else ''
+    market = rsym(config['analysis']['exchanges'][ex]['markets'][0])
 
     with open(f'../data/{prefix}combs.pkl', 'rb') as f:
         combs = pickle.load(f)
@@ -56,7 +57,7 @@ async def find_optimal_paramters(mongo, argv):
         # (datetime(2017, 2, 1), datetime(2018, 3, 5)),
     ]
 
-    print(f"Running optimization for {tf} {start}-{end}...(total {len(combs)})")
+    print(f"Running optimization for {market} {tf} {start}-{end}...(total {len(combs)})")
 
     combs = combs[start-1:end]
 
@@ -65,18 +66,18 @@ async def find_optimal_paramters(mongo, argv):
     print(">> ETA:", eta)
     print()
 
-    strategy = PatternStrategy('bitfinex')
+    strategy = PatternStrategy(ex)
     optimizer = ParamOptimizer(mongo, strategy)
 
     summaries = await optimizer.run(combs, test_periods)
     summary = optimizer.analyze_summary(summaries, 'best_params')
-    summary.to_csv(f'../data/{prefix}{tf}_optimization_{start}_{end}.csv')
+    summary.to_csv(f'../data/{prefix}{market}_{tf}_optimization_{start}_{end}.csv')
 
 
-def generate_params(mongo, argv):
+def generate_params(mongo, ex, argv):
     prefix = argv.prefix + '_' if argv.prefix else ''
 
-    strategy = PatternStrategy('bitfinex')
+    strategy = PatternStrategy(ex)
     optimizer = ParamOptimizer(mongo, strategy)
 
     # optimizer.optimize_range('dmi_adx_length', 30, 46, 3)
@@ -126,14 +127,15 @@ async def main():
     argv = parse_args()
 
     mongo = EXMongo()
+    ex = 'bitfinex'
 
     if argv.task == 'generate':
         # Generate parameter sets and save to .pkl
-        generate_params(mongo, argv)
+        generate_params(mongo, ex, argv)
 
     elif argv.task == 'optimize':
         # Load saved pkl and run specific range of sets.
-        await find_optimal_paramters(mongo, argv)
+        await find_optimal_paramters(mongo, ex, argv)
 
     elif argv.task == 'count':
         # Load pkl and print number of parameter sets
