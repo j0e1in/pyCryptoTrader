@@ -27,4 +27,4 @@ RUN pip install -r requirements-docker.txt && \
 
 USER admin
 
-CMD ["bash"]
+CMD ["true"]

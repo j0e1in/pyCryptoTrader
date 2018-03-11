@@ -1,11 +1,36 @@
 version: '3'
 services:
-  pycryptotrader:
-    build: .
-    depends_on:
-      - mongo
+  # pycryptotrader:
+  #   build: .
+  #   container_name: "pycryptotrader"
+  #   environment:
+  #     - KEY=val
+  #   volumes:
+  #     - $PWD/data:/app/data
+  #     - $PWD/log:/app/log
+  #     - $PWD/private:/app/private
+  #     - $PWD/settings:/app/settings
+  #   networks:
+  #     - mongo_net
+  #   depends_on:
+  #     - mongo
   mongo:
     image: mongo:3.6
+    container_name: "mongo"
+    networks:
+      - mongo_net
+    environment:
+      - MONGO_DATA_DIR=/data/db
+      - MONGO_LOG_DIR=/dev/null
+    volumes:
+      - mongo_data:/data/db
+    ports:
+      - 27017:27017
+    command: mongod --smallfiles --logpath=/dev/null --quiet --auth
 
+networks:
+  mongo_net:
 
-
+volumes:
+  mongo_data:
+    external: true
