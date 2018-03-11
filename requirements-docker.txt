@@ -3,6 +3,7 @@ chromalog
 motor
 multiprocess
 numpy
+sanic
 pandas
 pymongo
 # ta-lib

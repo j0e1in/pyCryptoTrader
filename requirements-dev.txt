@@ -6,4 +6,5 @@ multiprocess
 numpy
 pandas
 pymongo
+sanic
 ta-lib
