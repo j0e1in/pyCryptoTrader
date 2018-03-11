@@ -30,6 +30,7 @@ services:
 
 networks:
   mongo_net:
+    external: true
 
 volumes:
   mongo_data:
