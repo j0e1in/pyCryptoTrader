@@ -2,9 +2,6 @@ from setup import setup, run
 setup()
 
 import asyncio
-import logging
-import os
-import sys
 
 from db import EXMongo
 from trading.trader import SingleEXTrader
@@ -17,7 +14,7 @@ async def main():
     mongo = EXMongo()
     trader = SingleEXTrader(mongo, 'bitfinex', 'pattern', log=True)
 
-    await asyncio.gather(trader.start())
+    await trader.start()
     await trader.ex.ex.close()
 
 

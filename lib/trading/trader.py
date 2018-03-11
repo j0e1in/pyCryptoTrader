@@ -25,11 +25,16 @@ logger = logging.getLogger()
 
 class SingleEXTrader():
 
-    def __init__(self, mongo, ex_id, strategy_name, custom_config=None, ccxt_verbose=False, log=False):
+    def __init__(self, mongo, ex_id, strategy_name,
+                 custom_config=None,
+                 ccxt_verbose=False,
+                 enable_trade=True,
+                 log=False):
         self.mongo = mongo
         self._config = custom_config if custom_config else config
         self.config = self._config['trading']
         self.log = log
+        self.enable_trade = enable_trade
 
         # Requires self attributes above, put this at last
         self.ex = self.init_exchange(ex_id, ccxt_verbose)
@@ -148,15 +153,21 @@ class SingleEXTrader():
         """ Cancel all orders, close sell positions
             and open a buy margin order (if has enough balance).
         """
-        return await self._do_long_short(
-            'long', symbol, confidence, type, scale_order=scale_order)
+        res = None
+        if self.enable_trade:
+            res = await self._do_long_short(
+                'long', symbol, confidence, type, scale_order=scale_order)
+        return res
 
     async def short(self, symbol, confidence, type='market', scale_order=True):
         """ Cancel all orders, close buy positions
             and open a sell margin order (if has enough balance).
         """
-        return await self._do_long_short(
-            'short', symbol, confidence, type, scale_order=scale_order)
+        res = None
+        if self.enable_trade:
+            res = await self._do_long_short(
+                'short', symbol, confidence, type, scale_order=scale_order)
+        return res
 
     async def _do_long_short(self, action, symbol, confidence, type='limit', scale_order=True):
 
@@ -204,7 +215,7 @@ class SingleEXTrader():
             if trade_value < self.config[self.ex.exname]['min_trade_value']:
                 logger.info(f"Trade value is < {self.config[self.ex.exname]['min_trade_value']}."
                             f"Skip the {side} order.")
-                return False
+                return None
 
             has_opposite_open_position = (symbol_amount < 0) if action == 'long' else (symbol_amount > 0)
             order_count = self.config['scale_order_count']
