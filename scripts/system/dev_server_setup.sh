@@ -57,6 +57,7 @@ IP=159.89.201.222
 scp $OHLCV_DIR/ohlcvs.zip $USERNAME@$IP:~/
 
 # Zip and upload source code
+rm -rf $PROJ_DIR.zip
 zip -9 -r --exclude=*.git* $PROJ_DIR.zip $PROJ_DIR
 scp $PROJ_DIR.zip $USERNAME@$IP:~/
 ssh $USERNAME@$IP
