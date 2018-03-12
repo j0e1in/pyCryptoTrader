@@ -267,7 +267,11 @@
     "keep_alive": true,
     "keep_alive_timeout": 10,
     "request_timeout": 120,
-    "response_timeout": 120
+    "response_timeout": 120,
+    "api_access": {
+      "j0e1in": [ "all" ],
+      "wayne": [ "all" ]
+    }
   }
 }
 
