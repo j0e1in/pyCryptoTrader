@@ -1,6 +1,7 @@
 from setup import setup, run
 setup()
 
+from concurrent.futures import FIRST_COMPLETED
 from pprint import pprint
 import asyncio
 
@@ -24,18 +25,22 @@ async def test_cancel_all_orders(trader):
 
 async def test_long(trader):
     print('-- Long --')
-    await asyncio.gather(
-        trader.long('BTC/USD', 100, type='limit'),
-        trader.ex.update_trade_fees()
-    )
+    done, pending = await asyncio.wait(
+        [
+            trader.long('BTC/USD', 100, type='limit'),
+            trader.ex.update_trade_fees(),
+        ],
+        return_when=FIRST_COMPLETED)
 
 
 async def test_short(trader):
     print('-- Short --')
-    await asyncio.gather(
-        trader.short('BTC/USD', 100, type='limit'),
-        trader.ex.update_trade_fees()
-    )
+    done, pending = await asyncio.wait(
+        [
+            trader.short('BTC/USD', 100, type='limit'),
+            trader.ex.update_trade_fees(),
+        ],
+        return_when=FIRST_COMPLETED)
 
 
 async def test_strategy(trader):
@@ -65,10 +70,10 @@ async def main():
     # await asyncio.gather(test_trader_start(trader))
     # await asyncio.gather(test_start_trading(trader))
     # await asyncio.gather(test_cancel_all_orders(trader))
-    # await asyncio.gather(test_long(trader))
+    await asyncio.gather(test_long(trader))
     # await asyncio.gather(test_short(trader))
     # await asyncio.gather(test_strategy(trader))
-    test_gen_scale_orders(trader)
+    # test_gen_scale_orders(trader)
 
     await trader.ex.ex.close()
 

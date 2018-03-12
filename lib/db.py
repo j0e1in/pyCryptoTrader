@@ -36,7 +36,7 @@ class EXMongo():
             else:
                 uri = f"mongodb://{host}:{port}/"
 
-        logger.info(f"Connecting mongo client to {uri}")
+        logger.info(f"Connecting mongo client to {host}:{port}")
         self.client = motor_asyncio.AsyncIOMotorClient(uri)
 
     async def get_exchanges_info(self, ex):
@@ -91,11 +91,9 @@ class EXMongo():
             .to_list(length=INF)
 
         if not res:
-            raise logger.warn(
-                f"Empty response, maybe {ex} {sym} {tf}'s data does not exist."
-            )
+            logger.warn(f"No ohlcv, maybe {ex} {sym} {tf} is not in DB.")
 
-        return res[0]
+        return res[0] if res else {}
 
     async def get_trades_start(self, ex, sym):
         """ Get datetime of first trades in a collection. """
@@ -284,12 +282,33 @@ class EXMongo():
         return coll
 
     async def get_my_trades(self, ex, start, end):
-        db = self.config['dbname_exchange']
-        coll = f"{ex}_mytrades"
+        db = self.config['dbname_trade']
+        coll = f"{ex}_trades"
         coll = self.get_collection(db, coll)
-        trades = await coll.find(self.cond_timestamp_range(start, end),
-                                 {'_id': 0}).to_list(length=INF)
+        trades = await coll.find(self.cond_timestamp_range(start, end), {'_id': 0}) \
+                                 .sort([('timestamp', 1)]) \
+                                 .to_list(length=INF)
         return trades
+
+    async def get_my_last_trade(self, ex, symbol):
+        db = self.config['dbname_trade']
+        coll = f"{ex}_trades"
+        coll = self.get_collection(db, coll)
+        trade = await coll.find({'symbol': symbol}, {'_id': 0}) \
+                          .sort([('timestamp', -1)]) \
+                          .limit(1) \
+                          .to_list(length=INF)
+        return trade[0] if trade else {}
+
+    async def get_last_order_group_id(self, ex):
+        db = self.config['dbname_trade']
+        coll = f"{ex}_created_orders"
+        coll = self.get_collection(db, coll)
+        order = await coll.find({}, {'_id': 0}) \
+                          .sort([('group_id', -1)]) \
+                          .limit(1) \
+                          .to_list(length=INF)
+        return order[0]['group_id'] if order else 0
 
     @staticmethod
     async def check_columns(collection, columns):

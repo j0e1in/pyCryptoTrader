@@ -1,29 +1,42 @@
+from concurrent.futures import FIRST_COMPLETED
 from sanic import Sanic
 from sanic.response import json
 
 import asyncio
 import argparse
+import copy
 
 from utils import dt_ms
 
 
 class APIServer():
 
-    app = Sanic(__name__)
+    app = Sanic(__name__, log_config=None)
 
-    def __init__(self, trader, *args, **kwargs):
+    def __init__(self, trader):
         self.app.trader = trader
         # setattr(self.app, 'trader', trader) # for app listener and router
 
-    async def run(self):
+    async def run(self, *args, **kwargs):
         """ Start server and provide some cli options. """
 
         parser = argparse.ArgumentParser()
         parser.add_argument('--host', default='0.0.0.0', help='Server IP')
         parser.add_argument('--port', type=int, default=8000, help='Server port')
-        args = parser.parse_args()
+        cli_args = parser.parse_args()
 
-        start_server = self.app.create_server(host=args.host, port=args.port)
+        # Sanic.create_server options
+        # create_server(host=None,
+        #               port=None,
+        #               debug=False,
+        #               ssl=None,
+        #               sock=None,
+        #               protocol=None,
+        #               backlog=100,
+        #               stop_event=None,
+        #               access_log=True)
+
+        start_server = self.app.create_server(host=cli_args.host, port=cli_args.port, *args, **kwargs)
         start_trader = asyncio.ensure_future(self.app.trader.start())
 
         await asyncio.gather(
@@ -87,3 +100,41 @@ class APIServer():
             'active_markets': active,
             'inactive_markets': inactive,
         })
+
+    @app.route('/account/summary')
+    async def account_summary(req):
+        """ Query summary of current trading session.
+
+            Response:
+            {
+                "start": timestamp, (bot trading start datetime)
+                "now": timestamp, (datetime as of summary calculation)
+                "days": int,
+                "#normal_orders": int,
+                "#margin_orders": int,
+                "#profit_trades": int,
+                "#loss_trades": int,
+                "initial_balance": {
+                    "USD": `float` or `{'exchange': float, 'margin': float, 'funding': float}`,
+                    "BTC": `float` or `{'exchange': float, 'margin': float, 'funding': float}`,
+                    ...
+                },
+                "initial_value": float,
+                "current_balance": {
+                    "USD": `float` or `{'exchange': float, 'margin': float, 'funding': float}`,
+                    "BTC": `float` or `{'exchange': float, 'margin': float, 'funding': float}`,
+                    ...
+                },
+                "current_value": float,
+                "total_fee": float,
+                "total_margin_fee": float,
+                "PL": float,
+                "PL(%)": float,
+                "PL_Eff": float
+            }
+        """
+        summ = copy.deepcopy(await req.app.trader.get_summary())
+        summ['start'] = dt_ms(summ['start'])
+        summ['now'] = dt_ms(summ['now'])
+
+        return json(summ)

@@ -80,6 +80,11 @@ async def test_fetch_my_recent_trades(ex):
     pprint(res)
 
 
+async def test_update_my_trades(ex):
+    print('-- Update my trades --')
+    res = await ex.update_my_trades()
+
+
 async def test_get_deposit_address(ex):
     print('-- Get deposit address --')
     curr = 'BTC'
@@ -100,14 +105,14 @@ async def test_create_order_multi(ex):
 
     orders = [
         {
-            "symbol": 'BTCUSD',
+            "symbol": 'BTC/USD',
             "type": 'limit',
             "side": 'sell',
             "amount": '0.002',
             "price": 99999,
         },
         {
-            "symbol": 'BTCUSD',
+            "symbol": 'BTC/USD',
             "type": 'limit',
             "side": 'sell',
             "amount": '0.002',
@@ -153,11 +158,27 @@ async def test_update_fees(ex):
     await asyncio.gather(ex.update_trade_fees(), ex.update_withdraw_fees())
 
 
+async def test_calc_trade_fee(ex):
+    print('-- Calculate trade fee --')
+    res = await ex.calc_trade_fee(
+        datetime(2017, 12, 1),
+        datetime(2018, 2, 1)
+    )
+    pprint(res)
+
+
+async def test_calc_position_value(ex):
+    print('-- Calculate position value --')
+    res = await ex.calc_position_value()
+    pprint(res)
+
+
 async def main():
     mongo = EXMongo()
 
     key = load_keys(get_project_root() + '/private/keys.json')['bitfinex']
     ex = Bitfinex(mongo, key['apiKey'], key['secret'], ccxt_verbose=False, log=True)
+    await ex.ex.load_markets()
 
     # await test_ex_start(ex)
     # await test_data_streams(ex)
@@ -180,6 +201,9 @@ async def main():
     # await test_fetch_order(ex)
     # await test_fetch_open_positions(ex)
     # await test_fetch_my_recent_trades(ex)
+    # await test_update_my_trades(ex)
+    # await test_calc_trade_fee(ex)
+    # await test_calc_position_value(ex)
 
     # await test_update_fees(ex)
 

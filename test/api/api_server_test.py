@@ -17,7 +17,7 @@ async def main():
                             log=True)
     server = APIServer(trader)
 
-    await server.run()
+    await server.run(access_log=True)
 
 
 if __name__ == "__main__":

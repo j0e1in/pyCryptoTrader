@@ -238,8 +238,8 @@ class Bitfinex(EXBase):
         return self.parse_order(ord) if parse is True else ord
 
     async def fetch_positions(self, symbol=None):
-        """
-            ccxt response
+        """ Fetch all open positions. Specify symbol to filter result.
+            ccxt response:
             [{'amount': '0.002',
               'base': '13219.0',
               'id': 134256839,
@@ -248,22 +248,34 @@ class Bitfinex(EXBase):
               'swap': '0.0',
               'symbol': 'btcusd',
               'timestamp': '1515947276.0'}]
+
+            Return:
+            [{'amount': '0.002',
+              'base_price': '13219.0',
+              'id': 134256839,
+              'pl': '-0.076828',
+              'status': 'ACTIVE',
+              'symbol': 'btcusd',
+              'timestamp': '1515947276.0'}]
         """
         def parse_position(position):
             pos['amount'] = float(pos['amount'])
-            pos['base'] = float(pos['base'])
+            pos['base_price'] = float(pos['base'])
             pos['pl'] = float(pos['pl'])
-            pos['swap'] = float(pos['swap'])
             pos['symbol'] = self.to_ccxt_symbol(pos['symbol'])
             pos['timestamp'] = sec_ms(pos['timestamp'])
             pos['datetime'] = ms_dt(pos['timestamp'])
+
+            del pos['base']
+            del pos['swap']
+            return pos
 
         self._check_auth()
         res = await handle_ccxt_request(self.ex.private_post_positions)
 
         positions = []
         for pos in res:
-            parse_position(pos)
+            pos = parse_position(pos)
 
             if not symbol:
                 positions.append(pos)
@@ -310,7 +322,6 @@ class Bitfinex(EXBase):
              'type': None}]
         """
         async def save_to_db(trades):
-            from ipdb import set_trace; set_trace()
             collname = f"{self.exname}_trades"
             coll = self.mongo.get_collection(
                 self._config['database']['dbname_trade'], collname)
@@ -326,7 +337,14 @@ class Bitfinex(EXBase):
 
             await execute_mongo_ops(ops)
 
+        if not hasattr(self.ex, 'fetch_my_trades'):
+            logger.warn(f"{self.exname} doesn't have fetch_my_trades method.")
+            return []
+
         self._check_auth()
+
+        if self.log:
+            logger.info(f"Fetching my {symbol} trades from {start} to {end}")
 
         start = dt_ms(start) if start else None
         end = dt_ms(end) if end else None
@@ -343,7 +361,6 @@ class Bitfinex(EXBase):
 
         trades = trades[::-1] # reverse the order to oldest first
         await save_to_db(trades)
-
         return trades
 
     @staticmethod
@@ -462,6 +479,22 @@ class Bitfinex(EXBase):
              'symbol': 'BTC/USD',
              'timestamp': 1515849724224,
              'type': 'limit'}
+
+             Return:
+             {'amount': 0.00654278,
+              'average': 0.0,
+              'datetime': datetime.datetime(2018, 3, 12, 10, 27, 32),
+              'fee': None,
+              'filled': 0.0,
+              'id': '9264290876',
+              'margin': True,
+              'price': 10148.0,
+              'remaining': 0.00654278,
+              'side': 'sell',
+              'status': 'open',
+              'symbol': 'BTC/USD',
+              'timestamp': 1520850452996,
+              'type': 'limit'}
         """
         def is_valid_params(params):
             valid = True
@@ -614,7 +647,7 @@ class Bitfinex(EXBase):
         """
         self._check_auth()
 
-        logger.info(f"Starting updating trade fees...")
+        logger.info(f"Start updating trade fees...")
         while True:
             if self.log:
                 logger.info(f"Update trade fees")
@@ -633,7 +666,8 @@ class Bitfinex(EXBase):
     async def update_withdraw_fees(self):
         """ Periodically update withdraw fees.
             ccxt response:
-            {'withdraw': {'AVT': '0.5',
+            {'withdraw': {
+              'AVT': '0.5',
               'BAT': 0,
               'BCH': '0.0001',
               'BTC': '0.0008',
@@ -666,7 +700,7 @@ class Bitfinex(EXBase):
         """
         self._check_auth()
 
-        logger.info(f"Starting updating withdraw fees...")
+        logger.info(f"Start updating withdraw fees...")
         while True:
             if self.log:
                 logger.info(f"Update withdraw fees")
@@ -701,33 +735,27 @@ class Bitfinex(EXBase):
         symbol = base.upper() + '/' + qoute.upper()
         return symbol
 
-    def calc_wallet_value(self):
-        """ Calculate total value of all currencies using latest 1m ohlcv. """
-        total_value = 0
+    async def calc_wallet_value(self):
+        """ Calculate total value of all currencies in wallet using latest 1m ohlcv. """
+        value = 0
 
         for curr in self.wallet.keys():
             amount = self.wallet[curr]['exchange']
             amount += self.wallet[curr]['margin']
             amount += self.wallet[curr]['funding']
-            total_value += self.calc_value_of(curr, amount)
+            value += await self.calc_value_of(curr, amount)
 
-        return total_value
+        return value
 
-    async def calc_trade_fee(self, start, end):
-        """ Calcullate total trade fee in a period using history trades. """
-        trades = await self.mongo.get_my_trades(self.exname, start, end)
-        # TODO: decide my trades fields and calculate fee
+    async def calc_all_position_value(self):
+        """ Calculate total value of all open positions. """
+        MR = self._config['trading'][self.exname]['margin_rate']
 
-    def calc_margin_fee(self, start, end):
-        """ Calcullate total margin fee in a period using history orders and trades. """
-        not_implemented()
+        positions = await self.fetch_positions()
+        value = 0
 
-    def calc_value_of(self, curr, value):
-        if curr == 'USD':
-            return value
+        for pos in positions:
+            base_cost = pos['base_price'] * abs(pos['amount']) / MR
+            value += base_cost + pos['pl']
 
-        sym = curr + '/USD'
-        price = self.mongo.get_last_ohclv(self, self.exname, sym, '1m').close
-
-        # TODO: Finish this
-        # return price * amount
+        return value

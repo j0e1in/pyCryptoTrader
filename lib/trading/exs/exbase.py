@@ -1,9 +1,11 @@
-from pprint import pprint
 from asyncio import ensure_future
+from datetime import datetime, timedelta
+from pprint import pprint
+
 import asyncio
 import ccxt.async as ccxt
-import logging
 import inspect
+import logging
 
 from analysis.hist_data import fetch_ohlcv
 from utils import \
@@ -141,7 +143,7 @@ class EXBase():
             ops = []
 
             collname = f"{self.exname}_ohlcv_{rsym(symbol)}_{timeframe}"
-            coll = self.mongo.get_collection('exchange', collname)
+            coll = self.mongo.get_collection(self._config['database']['dbname_exchange'], collname)
             res = fetch_ohlcv(self.ex, symbol, start, end, timeframe, log=self.log)
 
             async for ohlcv in res:
@@ -179,7 +181,7 @@ class EXBase():
 
             return True
 
-        logger.info("Starting ohlcv data stream...")
+        logger.info("Start ohlcv data stream...")
         self.ohlcv_start_end = {}
 
         while True:
@@ -212,7 +214,7 @@ class EXBase():
 
     async def _start_orderbook_stream(self, params={}):
         """ Fetch orderbook periodically. May not be needed if using `get_orderbook`."""
-        logger.info("Starting orderbook data stream...")
+        logger.info("Start orderbook data stream...")
 
         while True:
             for market in self.markets:
@@ -221,14 +223,21 @@ class EXBase():
             self.ready['orderbook'] = True
             await asyncio.sleep(self.config['orderbook_delay'])
 
-    async def update_my_trades(self, symbol):
+    async def update_my_trades(self):
         """ Keep history trades in mongodb up-to-date. """
-        # TODO
-        not_implemented()
 
-        # if not self.ex.hasFetchMyTrades:
-        #     logger.warn(f"{self.exname} doesn't have fetch_my_trades method.")
-        #     return
+        for market in self.markets:
+            last_trade = await self.mongo.get_my_last_trade(self.exname, market)
+
+            if last_trade:
+                start = last_trade['datetime'] - timedelta(days=3)
+            else:
+                start = datetime(1970, 1, 1)
+
+            end = utc_now()
+
+            # Fetch recent trades to mongo
+            await self.fetch_my_recent_trades(market, start, end)
 
     async def get_orderbook(self, symbol, params={}):
         """ Fetch orderbook of a specific symbol on-demand.
@@ -380,7 +389,7 @@ class EXBase():
     async def fetch_positions(self):
         not_implemented()
 
-    async def fetch_my_recent_trades(self):
+    async def fetch_my_recent_trades(self, symbol, start=None, end=None):
         not_implemented()
 
     async def create_order(self):
@@ -438,17 +447,44 @@ class EXBase():
     # CUSTOM FUNCTIONS FOR TRADER #
     ###############################
 
-    def calc_wallet_value(self):
+    async def calc_wallet_value(self):
         """ Calculate total value of all currencies using latest 1m ohlcv. """
         not_implemented()
 
-    def calc_trade_fee(self, start, end):
-        """ Calcullate total trade fee in a period using history trades. """
+    async def calc_all_position_value(self):
         not_implemented()
+
+    async def calc_trade_fee(self, start, end):
+        """ Calcullate total trade fee in a period using history trades. """
+        trades = await self.mongo.get_my_trades(self.exname, start, end)
+        fee = 0
+
+        for tr in trades:
+            fee += tr['fee']
+
+        return fee
 
     def calc_margin_fee(self, start, end):
         """ Calcullate total margin fee in a period using history orders and trades. """
-        not_implemented()
+        # TODO: Find a way to get margin fee
+        return 0
+
+    async def calc_account_value(self):
+        wallet_value = await self.calc_wallet_value()
+        position_value = await self.calc_all_position_value()
+        return wallet_value + position_value
+
+    async def calc_value_of(self, curr, amount):
+        if curr == 'USD' or amount == 0:
+            return amount
+
+        sym = curr + '/USD'
+        ohlcv = await self.mongo.get_last_ohclv(self.exname, sym, '1m')
+
+        if not ohlcv:
+            return 0
+        else:
+            return ohlcv['close'] * amount
 
     def set_market_start_dt(self, market, dt):
         self.markets_start_dt[market] = dt

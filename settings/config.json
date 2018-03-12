@@ -45,7 +45,7 @@
     "scale_order_far_percent": 0.05,
     "scale_order_count": 20,
 
-    "summary_delay": 300,
+    "summary_delay": 30,
 
     "bitfinex": {
       "margin_rate": 3.33,
@@ -260,7 +260,7 @@
     "password": "vv112358",
     "auth_db": "admin",
     "dbname_exchange": "exchange",
-    "dbname_trade": "trade"
+    "dbname_trade": "trading"
   }
 }
 

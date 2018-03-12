@@ -1,6 +1,9 @@
+from asyncio import ensure_future
 from datetime import timedelta
 from pprint import pprint
+
 import asyncio
+import copy
 import logging
 import pandas as pd
 import random
@@ -16,7 +19,8 @@ from utils import config, \
                   smallest_tf, \
                   alert_sound, \
                   is_within, \
-                  timeframe_timedelta
+                  timeframe_timedelta, \
+                  execute_mongo_ops
 
 from analysis.hist_data import build_ohlcv
 
@@ -44,7 +48,7 @@ class SingleEXTrader():
         self.timeframes = self.ex.timeframes
         self.ohlcvs = self.create_empty_ohlcv_store()
 
-        self._summary = {
+        self.summary = {
             'start': None,
             'now': None,                # Update in getter
             'days': 0,                  # Update in getter
@@ -89,9 +93,23 @@ class SingleEXTrader():
 
     async def _start(self):
         """ Starting entry for OnlineTrader. """
+
+        async def _set_startup_status():
+            self.summary['start'] = utc_now()
+            self.summary['now'] = utc_now()
+
+            for market in self.ex.markets:
+                self.ex.set_market_start_dt(market, self.summary['start'])
+
+            self.summary['initial_balance'] = copy.deepcopy(self.ex.wallet)
+            self.summary['initial_value'] = await self.ex.calc_account_value()
+
         await self.ex_ready()
         logger.info("Exchange is ready")
 
+        await _set_startup_status()
+
+        logger.info("Start trading...")
         await self.start_trading()
 
     async def ex_ready(self):
@@ -102,11 +120,6 @@ class SingleEXTrader():
                 await asyncio.sleep(2)
 
     async def start_trading(self):
-        logger.info("Start trading...")
-        self._summary['start'] = utc_now()
-
-        for market in self.ex.markets:
-            self.ex.set_market_start_dt(market, self._summary['start'])
 
         while True:
             # read latest ohlcv from db
@@ -173,6 +186,31 @@ class SingleEXTrader():
         return res
 
     async def _do_long_short(self, action, symbol, confidence, type='limit', scale_order=True):
+
+        async def save_to_db(orders):
+            if not isinstance(orders, list):
+                orders = [orders]
+
+            # Orders' group id to label orders that are created at the same time
+            group_id = await self.mongo.get_last_order_group_id(self.ex.exname)
+            group_id += 1
+
+            collname = f"{self.ex.exname}_created_orders"
+            coll = self.mongo.get_collection(
+                self._config['database']['dbname_trade'], collname)
+
+            ops = []
+            for ord in orders:
+                ord['group_id'] = group_id
+
+                ops.append(
+                    ensure_future(
+                        coll.update_one(
+                            {'id': ord['id']},
+                            {'$set': ord},
+                            upsert=True)))
+
+            await execute_mongo_ops(ops)
 
         side = 'buy' if action == 'long' else 'sell'
 
@@ -276,6 +314,8 @@ class SingleEXTrader():
             alert_sound(0.2, 'Order created', 3)
 
             if res:
+                await save_to_db(res)
+
                 if isinstance(res, list):
                     price = 0
                     amount = 0
@@ -443,50 +483,34 @@ class SingleEXTrader():
 
         return ohlcvs
 
-    def eval_summary(self):
+    async def get_summary(self):
         td = timedelta(seconds=self.config['summary_delay'])
-        if (utc_now() - self._summary['now']) < td:
-            return self._summary
+        if (utc_now() - self.summary['now']) < td:
+            return self.summary
 
-        self.ex.update_wallet()
+        await self.ex.update_wallet()
+        await self.ex.update_my_trades()
 
-        wallet_value = self.ex.calc_wallet_value()
+        start = self.summary['start']
         now = utc_now()
 
-        self._summary['now'] = now
-        self._summary['days'] = (now - self._summary['start']).days
-        self._summary['current_balance'] = self.wallet
-        self._summary['current_value'] = wallet_value
-        self._summary['total_trade_fee'] = self.ex.calc_trade_fee(self.start, now)
-        self._summary['total_margin_fee'] = self.ex.calc_margin_fee(self.start, now)
-        self._summary['PL'] = self._summary['current_value'] - self._summary['initial_value']
-        self._summary['PL(%)'] = self._summary['PL'] / self._summary['initial_value']
-        self._summary['PL_Eff'] = self._summary['PL(%)'] / days * 0.3
+        self.summary['now'] = now
+        self.summary['days'] = (now - start).seconds / 60 / 60 / 24
+        self.summary['current_balance'] = copy.deepcopy(self.ex.wallet)
+        self.summary['current_value'] = await self.ex.calc_account_value()
+        self.summary['total_trade_fee'] = await self.ex.calc_trade_fee(start, now)
+        self.summary['total_margin_fee'] = self.ex.calc_margin_fee(start, now)
+        self.summary['PL'] = self.summary['current_value'] - self.summary['initial_value']
+        self.summary['PL(%)'] = self.summary['PL'] / self.summary['initial_value']
+        self.summary['PL_Eff'] = self.summary['PL(%)'] / self.summary['days'] * 0.3
 
-
-        self._summary = {
-            'start': None,
-            'now': None,                # Update in getter
-            'days': 0,                  # Update in getter
-            'initial_balance': {},      # Update on first update_wallet
-            'initial_value': 0,         # Update on first update_wallet after start trading (1m ohlcv are up-to-date)
-            'current_balance': {},      # Update in getter
-            'current_value': 0,         # Update in getter
-            'total_trade_fee': 0,       # Update in getter (from past trades)
-            'total_margin_fee': 0,      # Update in getter (from past trades)
-            'PL': 0,                    # Update in getter
-            'PL(%)': 0,                 # Update in getter
-            'PL_Eff': 0,                # Update in getter
-        }
-
-        return self._summary
+        return self.summary
 
     @staticmethod
     def gen_scale_orders(symbol, type, side, amount, start_price=0, end_price=0, order_count=20, min_value=0):
         """ Scale one order to multiple orders with different prices. """
         orders = []
 
-        remaining_amount = amount
         amount_diff_base = amount / ((order_count + 1) * order_count / 2)
 
         cur_price = start_price
