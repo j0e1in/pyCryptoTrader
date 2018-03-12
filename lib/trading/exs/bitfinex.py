@@ -215,6 +215,22 @@ class Bitfinex(EXBase):
                        'type': 'exchange limit',
                        'was_forced': False}}
               ...]
+
+            Return:
+            [{'amount': 0.002,
+             'average': 0.0,
+             'datetime': datetime.datetime(2018, 3, 12, 19, 24, 3),
+             'fee': None,
+             'filled': 0.0,
+             'id': '9278143508',
+             'margin': True,
+             'price': 100.0,
+             'remaining': 0.002,
+             'side': 'buy',
+             'status': 'open',
+             'symbol': 'BTC/USD',
+             'timestamp': 1520882643000,
+             'type': 'limit'}]
         """
         self._check_auth()
 
@@ -255,7 +271,7 @@ class Bitfinex(EXBase):
               'id': 134256839,
               'pl': '-0.076828',
               'status': 'ACTIVE',
-              'symbol': 'btcusd',
+              'symbol': 'BTC/USD',
               'timestamp': '1515947276.0'}]
         """
         def parse_position(position):
