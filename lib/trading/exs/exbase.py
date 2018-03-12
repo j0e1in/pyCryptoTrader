@@ -88,6 +88,8 @@ class EXBase():
           'withdraw_fees': False,
         }
 
+        self.markets_start_dt = {}
+
     def init_wallet(self):
         wallet = {}
         wallet['USD'] = 0
@@ -125,6 +127,7 @@ class EXBase():
         else:
             self.ready['orderbook'] = True
 
+        tasks.append(self.ex.load_markets())
         tasks.append(self.update_markets())
         tasks.append(self.update_wallet())
         tasks.append(self.update_trade_fees())
@@ -169,7 +172,7 @@ class EXBase():
             await self.update_ohlcv_start_end()
 
             for market in self.markets:
-                end = self.ohlcv_start_end[market]['1m'][1]
+                end = self.ohlcv_start_end[market]['1m']['end']
 
                 if end < cur_time:
                     return False
@@ -187,13 +190,12 @@ class EXBase():
                 tf = '1m'
                 td = timeframe_timedelta(tf)
 
-                end = self.ohlcv_start_end[market][tf][1]
+                end = self.ohlcv_start_end[market][tf]['end']
                 cur_time = rounddown_dt(utc_now(), sec=td.seconds)
 
                 if end < cur_time:
                     # Fetching one-by-one is faster and safer(from blocking)
                     # than gathering all tasks at once
-
                     await fetch_ohlcv_to_mongo(market, end, cur_time, tf)
 
             if await is_uptodate():
@@ -202,7 +204,7 @@ class EXBase():
 
                 # 1. Sleep will be slighly shorter than expected
                 # 2. Add extra seconds because exchange server data preperation may delay
-                await asyncio.sleep(countdown.seconds + 8)
+                await asyncio.sleep(countdown.seconds + 20)
 
     async def _start_trade_stream(self):
         # TODO
@@ -421,12 +423,16 @@ class EXBase():
         self.ohlcv_start_end = {}
 
         for market in self.markets:
-            self.ohlcv_start_end[market] = {}
-
             tf = '1m'
+
+            self.ohlcv_start_end[market] = {}
+            self.ohlcv_start_end[market][tf] = {}
+
             start = await self.mongo.get_ohlcv_start(self.exname, market, tf)
             end = await self.mongo.get_ohlcv_end(self.exname, market, tf)
-            self.ohlcv_start_end[market][tf] = (start, end)
+
+            self.ohlcv_start_end[market][tf]['start'] = start
+            self.ohlcv_start_end[market][tf]['end'] = end
 
     ###############################
     # CUSTOM FUNCTIONS FOR TRADER #
@@ -444,3 +450,5 @@ class EXBase():
         """ Calcullate total margin fee in a period using history orders and trades. """
         not_implemented()
 
+    def set_market_start_dt(self, market, dt):
+        self.markets_start_dt[market] = dt

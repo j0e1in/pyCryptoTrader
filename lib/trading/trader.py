@@ -105,6 +105,9 @@ class SingleEXTrader():
         logger.info("Start trading...")
         self._summary['start'] = utc_now()
 
+        for market in self.ex.markets:
+            self.ex.set_market_start_dt(market, self._summary['start'])
+
         while True:
             # read latest ohlcv from db
             await self.update_ohlcv()
