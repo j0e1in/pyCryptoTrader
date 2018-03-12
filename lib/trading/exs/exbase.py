@@ -129,7 +129,7 @@ class EXBase():
         else:
             self.ready['orderbook'] = True
 
-        tasks.append(self.ex.load_markets())
+        tasks.append(self.load_markets())
         tasks.append(self.update_markets())
         tasks.append(self.update_wallet())
         tasks.append(self.update_trade_fees())
@@ -313,6 +313,9 @@ class EXBase():
             if market in res:
                 self.tickers[market] = res[market]
         return self.tickers
+
+    async def load_markets(self):
+        await handle_ccxt_request(self.ex.load_markets)
 
     async def update_markets(self):
         not_implemented()
