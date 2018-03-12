@@ -1,8 +1,6 @@
 from setup import setup, run
 setup()
 
-import asyncio
-
 from api import APIServer
 from db import EXMongo
 from trading.trader import SingleEXTrader
@@ -16,7 +14,7 @@ async def main():
     mongo = EXMongo()
     trader = SingleEXTrader(mongo, 'bitfinex', 'pattern',
                             enable_trade=False,
-                            log=False)
+                            log=True)
     server = APIServer(trader)
 
     await server.run()
