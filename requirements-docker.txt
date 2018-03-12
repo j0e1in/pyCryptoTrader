@@ -6,4 +6,4 @@ numpy
 sanic
 pandas
 pymongo
-# ta-lib
+# ta-lib # Needs to be installed after numpy (in seperated commands)
