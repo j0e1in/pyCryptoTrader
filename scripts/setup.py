@@ -11,6 +11,10 @@ file_dir = os.path.dirname(os.path.abspath(__file__))
 root_dir = os.path.dirname(file_dir)
 
 
+import uvloop
+asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+
+
 def setup():
 
     os.chdir(root_dir + '/lib')
