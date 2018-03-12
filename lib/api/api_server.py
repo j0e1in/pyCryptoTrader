@@ -6,12 +6,25 @@ import asyncio
 import argparse
 import copy
 
-from utils import dt_ms
+from utils import dt_ms, config
 
 
 class APIServer():
 
+    ## Sanic default built-in configuration
+    # | Variable           | Default   | Description                                   |
+    # | ------------------ | --------- | --------------------------------------------- |
+    # | REQUEST_MAX_SIZE   | 100000000 | How big a request may be (bytes)              |
+    # | REQUEST_TIMEOUT    | 60        | How long a request can take to arrive (sec)   |
+    # | RESPONSE_TIMEOUT   | 60        | How long a response can take to process (sec) |
+    # | KEEP_ALIVE         | True      | Disables keep-alive when False                |
+    # | KEEP_ALIVE_TIMEOUT | 5         | How long to hold a TCP connection open (sec)  |
+
     app = Sanic(__name__, log_config=None)
+    app.config.KEEP_ALIVE = config['apiserver']['keep_alive']
+    app.config.KEEP_ALIVE_TIMEOUT = config['apiserver']['keep_alive_timeout']
+    app.config.REQUEST_TIMEOUT = config['apiserver']['request_timeout']
+    app.config.RESPONSE_TIMEOUT = config['apiserver']['response_timeout']
 
     def __init__(self, trader):
         self.app.trader = trader

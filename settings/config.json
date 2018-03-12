@@ -251,7 +251,7 @@
 
   },
 
-  "database":{
+  "database": {
     "_comment_default_host": "localhost or mongo (docker) or an external IP",
     "default_host": "172.18.0.2",
     "default_port": 27017,
@@ -261,6 +261,13 @@
     "auth_db": "admin",
     "dbname_exchange": "exchange",
     "dbname_trade": "trading"
+  },
+
+  "apiserver": {
+    "keep_alive": true,
+    "keep_alive_timeout": 10,
+    "request_timeout": 120,
+    "response_timeout": 120
   }
 }
 
