@@ -68,12 +68,6 @@ async def test_fetch_open_orders(ex):
     pprint(res)
 
 
-async def test_fetch_closed_orders(ex):
-    print('-- Fetch closed orders --')
-    res = await ex.fetch_closed_orders()
-    pprint(res)
-
-
 async def test_fetch_order(ex):
     print('-- Fetch order --')
     res = await ex.fetch_order('7126033276')
@@ -183,7 +177,6 @@ async def main():
     # await test_cancel_order_all(ex)
 
     # await test_fetch_open_orders(ex)
-    # await test_fetch_closed_orders(ex) # bug in ccxt
     # await test_fetch_order(ex)
     # await test_fetch_open_positions(ex)
     # await test_fetch_my_recent_trades(ex)

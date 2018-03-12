@@ -1,4 +1,5 @@
 from pprint import pprint
+from asyncio import ensure_future
 import asyncio
 import ccxt.async as ccxt
 import copy
@@ -226,12 +227,6 @@ class Bitfinex(EXBase):
 
         return orders
 
-    async def fetch_closed_orders(self,  symbol=None):
-        self._check_auth()
-        # bug in ccxt
-        # res = await handle_ccxt_request(self.ex.fetch_closed_orders, symbol)
-        # return res
-
     async def fetch_order(self, id, parse=True):
         """ Fetch a single order using order known id.
             Param
@@ -314,6 +309,23 @@ class Bitfinex(EXBase):
              'timestamp': 1512044991000,
              'type': None}]
         """
+        async def save_to_db(trades):
+            from ipdb import set_trace; set_trace()
+            collname = f"{self.exname}_trades"
+            coll = self.mongo.get_collection(
+                self._config['database']['dbname_trade'], collname)
+
+            ops = []
+            for tr in trades:
+                ops.append(
+                    ensure_future(
+                        coll.update_one(
+                            {'id': tr['id']},
+                            {'$set': tr},
+                            upsert=True)))
+
+            await execute_mongo_ops(ops)
+
         self._check_auth()
 
         start = dt_ms(start) if start else None
@@ -330,6 +342,8 @@ class Bitfinex(EXBase):
             trades.append(trade)
 
         trades = trades[::-1] # reverse the order to oldest first
+        await save_to_db(trades)
+
         return trades
 
     @staticmethod

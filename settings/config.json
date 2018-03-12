@@ -259,7 +259,8 @@
     "username": "ex",
     "password": "vv112358",
     "auth_db": "admin",
-    "dbname_exchange": "exchange"
+    "dbname_exchange": "exchange",
+    "dbname_trade": "trade"
   }
 }
 

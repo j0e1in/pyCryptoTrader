@@ -23,7 +23,7 @@ for (i = 0; i < coll.length; i++) {
     // Remove duplicates
     ).forEach(function(doc) {
         doc.dups.shift();
-        collection.remove({ "_id": {"$in": doc.dups }});
+        collection.remove({ "_id": {"$in": doc.dups } });
     })
 
     // Create unique index
@@ -45,7 +45,7 @@ for (i = 0; i < coll.length; i++) {
                 "dups": { "$push": "$_id" },
                 "count": { "$sum": 1 }
             }},
-            { "$match": { "count": { "$gt": 1 } }}
+            { "$match": { "count": { "$gt": 1 } } }
         ],
 
         { "allowDiskUse": true }
@@ -53,11 +53,46 @@ for (i = 0; i < coll.length; i++) {
     // Remove duplicates
     ).forEach(function(doc) {
         doc.dups.shift();
-        collection.remove({ "_id": {"$in": doc.dups }});
+        collection.remove({ "_id": {"$in": doc.dups } });
     })
 
     // Create unique index
     collection.createIndex({"id": 1},{unique:true})
     collection.createIndex({"timestamp": 1})
   }
+}
+
+
+use trade
+
+coll = db.getCollectionNames()
+
+// Create unique id index and timestamp index for trades
+for (i = 0; i < coll.length; i++) {
+    if (coll[i].includes('_trades')) {
+        collection = db.getCollection(coll[i])
+
+        // Find duplicates
+        collection.aggregate(
+            [
+                { "$group": {
+                        "_id": { "id": "$id" },
+                        "dups": { "$push": "$_id" },
+                        "count": { "$sum": 1 }
+                }},
+                { "$match": { "count": { "$gt": 1 } } }
+            ],
+
+            { "allowDiskUse": true }
+
+            // Remove duplicates
+        ).forEach(function (doc) {
+            doc.dups.shift();
+            collection.remove({ "_id": { "$in": doc.dups } });
+        })
+
+        // Create unique index
+        collection.createIndex({ "id": 1 }, { unique: true })
+        collection.createIndex({ "timestamp": 1 })
+    }
 }
