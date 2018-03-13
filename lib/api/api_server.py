@@ -39,7 +39,7 @@ class APIServer():
 
         self.log_level = 'info'
 
-    async def run(self, host='0.0.0.0', port=8000, ssl=False, *args, **kwargs):
+    async def run(self, host='0.0.0.0', port=8000, enable_ssl=False, *args, **kwargs):
         """ Start server and provide some cli options. """
 
         # Sanic.create_server options
@@ -53,9 +53,14 @@ class APIServer():
         #               stop_event=None,
         #               access_log=True)
 
-        ssl = {'cert': self.config['cert'], 'key': self.config['key']} if ssl else None
+        if enable_ssl:
+            import ssl
+            context = ssl.create_default_context(purpose=ssl.Purpose.CLIENT_AUTH)
+            context.load_cert_chain(self.config['cert'], keyfile=self.config['key'])
+        else:
+            context = None
 
-        start_server = self.app.create_server(host=host, port=port, ssl=ssl, *args, **kwargs)
+        start_server = self.app.create_server(host=host, port=port, ssl=context, *args, **kwargs)
         start_trader = asyncio.ensure_future(self.app.trader.start())
 
         await asyncio.gather(
@@ -162,7 +167,7 @@ class APIServer():
             abort(401)
 
         if ex != req.app.trader.ex.exname:
-            return response.json({ 'error': 'Exchange is not active.' })
+            return response.json({ 'error': 'Exchange {ex} is not active.' })
 
         summ = copy.deepcopy(await req.app.trader.get_summary())
         summ['start'] = dt_ms(summ['start'])
