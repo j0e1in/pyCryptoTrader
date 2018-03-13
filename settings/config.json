@@ -271,7 +271,9 @@
     "api_access": {
       "j0e1in": [ "all" ],
       "wayne": [ "all" ]
-    }
+    },
+    "cert": "/etc/letsencrypt/csr/0000_csr-certbot.pem",
+    "key": "/etc/letsencrypt/keys/0000_key-certbot.pem"
   }
 }
 

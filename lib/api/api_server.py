@@ -39,7 +39,7 @@ class APIServer():
 
         self.log_level = 'info'
 
-    async def run(self, host='0.0.0.0', port=8000, *args, **kwargs):
+    async def run(self, host='0.0.0.0', port=8000, ssl=False, *args, **kwargs):
         """ Start server and provide some cli options. """
 
         # Sanic.create_server options
@@ -53,7 +53,9 @@ class APIServer():
         #               stop_event=None,
         #               access_log=True)
 
-        start_server = self.app.create_server(host=host, port=port, *args, **kwargs)
+        ssl = {'cert': self.config['cert'], 'key': self.config['key']} if ssl else None
+
+        start_server = self.app.create_server(host=host, port=port, ssl=ssl, *args, **kwargs)
         start_trader = asyncio.ensure_future(self.app.trader.start())
 
         await asyncio.gather(
