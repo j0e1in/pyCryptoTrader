@@ -1,19 +1,18 @@
-version: '3'
+version: '2'
 services:
-  # pycryptotrader:
-  #   build: .
-  #   container_name: "pycryptotrader"
-  #   environment:
-  #     - KEY=val
-  #   volumes:
-  #     - $PWD/data:/app/data
-  #     - $PWD/log:/app/log
-  #     - $PWD/private:/app/private
-  #     - $PWD/settings:/app/settings
-  #   networks:
-  #     - mongo_net
-  #   depends_on:
-  #     - mongo
+  pycryptotrader:
+    image: pycryptotrader:trader-ssl
+    container_name: "pycryptotrader"
+    volumes:
+      - $PWD/data:/app/data
+      - $PWD/log:/app/log
+      - $PWD/private:/app/private
+      - $PWD/settings:/app/settings
+      - /etc/letsencrypt:/etc/letsencrypt
+    networks:
+      - mongo_net
+    depends_on:
+      - mongo
   mongo:
     image: mongo:3.6
     container_name: "mongo"
