@@ -1,5 +1,5 @@
 from asyncio import ensure_future
-from datetime import timedelta
+from datetime import timedelta, datetime
 from pprint import pprint
 
 import asyncio
@@ -33,12 +33,14 @@ class SingleEXTrader():
                  custom_config=None,
                  ccxt_verbose=False,
                  enable_trade=True,
-                 log=False):
+                 log=False,
+                 log_sig=False):
         self.mongo = mongo
         self._config = custom_config if custom_config else config
         self.config = self._config['trading']
-        self.log = log
         self.enable_trade = enable_trade
+        self.log = log
+        self.log_sig = log_sig
 
         # Requires self attributes above, put this at last
         self.ex = self.init_exchange(ex_id, ccxt_verbose)
@@ -121,11 +123,23 @@ class SingleEXTrader():
 
     async def start_trading(self):
 
+        last_log_time = datetime(1970, 1, 1)
+
         while True:
             # read latest ohlcv from db
             await self.update_ohlcv()
 
             await self.strategy.run()
+
+            # Log signal periodically
+            if self.log_sig \
+            and (utc_now() - last_log_time) > \
+            timeframe_timedelta(self.config['indicator_tf']) / 10:
+                for market in self.markets:
+                    sig = self.strategy.calc_signal(market)
+                    logger.info(f"{market} indicator signal @ {utc_now()}\n{sig[-5:]}")
+
+                last_log_time = utc_now()
 
             # wait til next minute
             # +45 sec to wait for ohlcv of all markets to be fetched
@@ -277,31 +291,31 @@ class SingleEXTrader():
             orders = []
             min_value = self.config[self.ex.exname]['min_trade_value']
 
-            if has_opposite_open_position:
-                close_orders = self.gen_scale_orders(symbol, type, side, abs(symbol_amount),
-                                                     start_price=start_price,
-                                                     end_price=close_end_price,
-                                                     order_count=order_count,
-                                                     min_value=min_value)
+            if scale_order:
 
+                if has_opposite_open_position:
+                    close_orders = self.gen_scale_orders(symbol, type, side, abs(symbol_amount),
+                                                        start_price=start_price,
+                                                        end_price=close_end_price,
+                                                        order_count=1, # create only one order for now
+                                                        min_value=min_value)
 
-                open_orders = self.gen_scale_orders(symbol, type, side, amount,
-                                                    start_price=close_end_price,
-                                                    end_price=end_price,
-                                                    order_count=order_count,
-                                                    min_value=min_value)
+                    open_orders = self.gen_scale_orders(symbol, type, side, amount,
+                                                        start_price=close_end_price,
+                                                        end_price=end_price,
+                                                        order_count=order_count,
+                                                        min_value=min_value)
 
-                orders = close_orders + open_orders
+                    orders = close_orders + open_orders
 
-            else:
-                open_orders = self.gen_scale_orders(symbol, type, side, amount,
-                                                    start_price=start_price,
-                                                    end_price=end_price,
-                                                    order_count=order_count,
-                                                    min_value=min_value)
+                else:
+                    open_orders = self.gen_scale_orders(symbol, type, side, amount,
+                                                        start_price=start_price,
+                                                        end_price=end_price,
+                                                        order_count=order_count,
+                                                        min_value=min_value)
 
-                orders = open_orders
-
+                    orders = open_orders
 
             res = None
 
@@ -311,7 +325,7 @@ class SingleEXTrader():
                 amount += abs(symbol_amount)
                 res = await self.ex.create_order(symbol, type, side, amount, price=start_price)
 
-            alert_sound(0.2, 'Order created', 3)
+            # alert_sound(0.2, 'Order created', 3)
 
             if res:
                 await save_to_db(res)
@@ -353,7 +367,7 @@ class SingleEXTrader():
         pl = 0
 
         for pos in positions:
-            base += pos['base'] * abs(pos['amount'])
+            base += pos['base_price'] * abs(pos['amount'])
             pl += pos['pl']
 
         return base, pl

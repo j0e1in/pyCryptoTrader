@@ -1,21 +1,29 @@
 from subprocess import Popen, PIPE
+
+import argparse
 import os
 import sys
 import time
 
 
-def main(argv):
+def main():
+    # Must run restart.py while in the same directory as the target script
+    # Example: python restart.py start_trader.py --args=--log-signal
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('file', type=str, help='Python script to run.')
+    parser.add_argument('--args', type=str, default='', help='Arguments to pass to the target script.')
+    argv = parser.parse_args()
 
     rc = 1
     while rc is not 0:
 
-        if len(argv) == 0:
-            print("Usage: python restart.py [python file]")
-            return
-
-        file = os.path.abspath(argv[0])
+        file = os.path.abspath(argv.file)
 
         cmd = ['python', file]
+
+        if argv.args:
+            cmd.append(argv.args)
 
         p = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE)
 
@@ -46,7 +54,4 @@ def main(argv):
 
 
 if __name__ == '__main__':
-    # Must run restart.py while in the same directory as restart.py
-    # Usage: python restart.py [python file]
-
-    main(sys.argv[1:])
+    main()
