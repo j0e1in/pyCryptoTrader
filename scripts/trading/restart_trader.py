@@ -10,20 +10,16 @@ def main():
     # Must run restart.py while in the same directory as the target script
     # Example: python restart.py start_trader.py --args=--log-signal
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument('file', type=str, help='Python script to run.')
-    parser.add_argument('--args', type=str, default='', help='Arguments to pass to the target script.')
-    argv = parser.parse_args()
-
     rc = 1
     while rc is not 0:
 
-        file = os.path.abspath(argv.file)
+        file_dir = os.path.dirname(os.path.abspath(__file__))
+        file = os.path.abspath(f"{file_dir}/start_trader.py")
 
         cmd = ['python', file]
 
-        if argv.args:
-            cmd += argv.args.split(' ')
+        if sys.argv[-1] != 'None':
+            cmd += sys.argv[1:]
 
         p = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE)
 
@@ -47,7 +43,7 @@ def main():
 
         print(msg)
 
-        with open('restart.log', 'a') as f:
+        with open('log/restart.log', 'a') as f:
             f.write(msg)
 
         time.sleep(3)
