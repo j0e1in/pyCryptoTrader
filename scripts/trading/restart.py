@@ -23,7 +23,7 @@ def main():
         cmd = ['python', file]
 
         if argv.args:
-            cmd.append(argv.args)
+            cmd += argv.args.split(' ')
 
         p = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE)
 

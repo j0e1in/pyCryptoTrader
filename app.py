@@ -63,7 +63,8 @@ def main():
         os.system(f"python scripts/trading/start_trader.py {argv.args}")
 
     elif argv.restart_trader:
-        os.system(f"python scripts/trading/restart.py scripts/trading/start_trader.py {argv.args}") # eg. --args="--args=--log_signal"
+        # eg. --args="--args='--log-signal --enable-api'"
+        os.system(f"python scripts/trading/restart.py scripts/trading/start_trader.py {argv.args}")
 
 
 if __name__ == '__main__':

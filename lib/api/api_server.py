@@ -39,13 +39,8 @@ class APIServer():
 
         self.log_level = 'info'
 
-    async def run(self, *args, **kwargs):
+    async def run(self, host='0.0.0.0', port=8000, *args, **kwargs):
         """ Start server and provide some cli options. """
-
-        parser = argparse.ArgumentParser()
-        parser.add_argument('--host', default='0.0.0.0', help='Server IP')
-        parser.add_argument('--port', type=int, default=8000, help='Server port')
-        cli_args = parser.parse_args()
 
         # Sanic.create_server options
         # create_server(host=None,
@@ -58,7 +53,7 @@ class APIServer():
         #               stop_event=None,
         #               access_log=True)
 
-        start_server = self.app.create_server(host=cli_args.host, port=cli_args.port, *args, **kwargs)
+        start_server = self.app.create_server(host=host, port=port, *args, **kwargs)
         start_trader = asyncio.ensure_future(self.app.trader.start())
 
         await asyncio.gather(
