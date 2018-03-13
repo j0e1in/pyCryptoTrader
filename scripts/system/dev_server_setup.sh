@@ -8,12 +8,13 @@ usermod -aG sudo $USERNAME
 cp -r .ssh /home/$USERNAME
 chown -R $USERNAME:$USERNAME /home/$USERNAME/.ssh
 
+sudo apt-get update
+
 # Install some utilities
 sudo apt-get install -y htop zip
 
 #Install Docker
-sudo apt-get update
-sudo apt-get install \
+sudo apt-get install -y \
     apt-transport-https \
     ca-certificates \
     curl \
