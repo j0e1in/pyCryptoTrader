@@ -53,9 +53,18 @@ sudo reboot
 PROJ_DIR=pyCryptoTrader
 OHLCV_DIR=~/mongo_backup
 USERNAME=j0e1in
-IP=159.89.201.222
+IP=35.229.144.97
 
 scp $OHLCV_DIR/ohlcvs.zip $USERNAME@$IP:~/
+
+# or backup volume from mongo container
+docker run -v mongo_data:/volume --rm loomchild/volume-backup backup - > mongo_data.tar.bz2
+
+# Copy to remote
+scp mongo_data.tar.bz2 $USERNAME@$IP:~/
+
+# and restore (use scripts/mongodb/mongo_container_setup.sh to restore)
+# cat mongo_data.tar.bz2 | docker run -i -v mongo_data:/volume --rm loomchild/volume-backup restore -
 
 # Zip and upload source code
 rm -rf $PROJ_DIR.zip
