@@ -14,7 +14,7 @@ class SingleEXStrategy():
 
     async def run(self):
         self.refresh()
-        await self.strategy()
+        return await self.strategy()
 
     def strategy(self):
         not_implemented()

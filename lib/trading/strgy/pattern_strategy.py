@@ -84,6 +84,8 @@ class PatternStrategy(SingleEXStrategy):
                 self.last_sig_execution['conf'] = None
                 self.last_sig_execution['time'] = None
 
+        return signals
+
     async def execute_sig(self, sig, market, use_prev_sig=False):
         action = None
         succ = False

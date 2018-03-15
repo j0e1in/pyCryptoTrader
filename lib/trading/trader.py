@@ -124,27 +124,44 @@ class SingleEXTrader():
     async def start_trading(self):
 
         last_log_time = datetime(1970, 1, 1)
+        last_sig = {market: np.nan for market in self.markets}
 
         while True:
             # read latest ohlcv from db
             await self.update_ohlcv()
+            await self.execute_margin_order_queue()
+            sig = await self.strategy.run()
 
-            await self.strategy.run()
-
-            # Log signal periodically
-            if self.log_sig \
-            and (utc_now() - last_log_time) > \
-            timeframe_timedelta(self.config['indicator_tf']) / 10:
-                for market in self.markets:
-                    sig = self.strategy.calc_signal(market)
-                    logger.info(f"{market} indicator signal @ {utc_now()}\n{sig[-5:]}")
-
-                last_log_time = utc_now()
+            if self.log_sig:
+                last_log_time, last_sig = self.log_signals(sig, last_log_time, last_sig)
 
             # wait til next minute
             # +45 sec to wait for ohlcv of all markets to be fetched
             countdown = roundup_dt(utc_now(), min=1) - utc_now()
             await asyncio.sleep(countdown.seconds + 45)
+
+    def log_signals(self, sig, last_log_time, last_sig):
+        """ Log signal periodically or on signal change. """
+
+        def sig_changed(sig):
+            changed = False
+
+            for market in sig:
+                if sig[market].iloc[-1] != last_sig[market]:
+                    last_sig[market] = sig[market].iloc[-1]
+                    changed = True
+
+            return True if changed else False
+
+        if (utc_now() - last_log_time) > \
+        timeframe_timedelta(self.config['indicator_tf']) / 10 \
+        or sig_changed(sig):
+            for market in self.markets:
+                logger.info(f"{market} indicator signal @ {utc_now()}\n{sig[-5:]}")
+
+            last_log_time = utc_now()
+
+        return last_log_time, last_sig
 
     async def update_ohlcv(self):
 
