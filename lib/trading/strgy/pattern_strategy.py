@@ -1,5 +1,6 @@
 from datetime import datetime
 
+import copy
 import logging
 import numpy as np
 import pprint
@@ -43,7 +44,7 @@ class PatternStrategy(SingleEXStrategy):
         for market in self.trader.markets:
             signals[market] = self.calc_signal(market)
 
-        market_ranks = self.rank_markets(signals)
+        market_ranks = self.rank_markets()
         for market in market_ranks:
             sig = signals[market]
             tf = self.trader.config['indicator_tf']
@@ -115,14 +116,27 @@ class PatternStrategy(SingleEXStrategy):
 
         return sig
 
-    def rank_markets(self, signals):
+    def rank_markets(self):
         """ Rank markets' profitability.
             Returns a list of markets.
         """
-        # TODO: (HIGH PRIOR)
+        # TODO
 
-        # Idea 1: calculate trend strength in past 1-4 days
-        #         higher the strength higher the rank
+        # Current method: hard coded market rank base on backtest profitibitlity
+        backtest_profit_rank = [
+            "XRP/USD",
+            "BCH/USD",
+            "BTC/USD",
+            "ETH/USD",
+        ]
 
-        # Current method: no ranking, by the order of self.trader.markets
-        return self.trader.markets
+        trade_markets = copy.deepcopy(self.trader.markets)
+        rank = []
+
+        for market in backtest_profit_rank:
+            if market in trade_markets:
+                rank.append(market)
+
+        trade_markets = [market for market in trade_markets if market not in rank]
+        rank += trade_markets
+        return rank
