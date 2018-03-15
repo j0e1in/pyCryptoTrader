@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import logging
 import numpy as np
 import pprint
@@ -35,6 +37,8 @@ class PatternStrategy(SingleEXStrategy):
             self.last_sig_execution['conf'] = conf
             self.last_sig_execution['time'] = utc_now()
 
+        last_reset_time = datetime(1970, 1, 1)
+
         signals = {}
         for market in self.trader.markets:
             signals[market] = self.calc_signal(market)
@@ -44,8 +48,6 @@ class PatternStrategy(SingleEXStrategy):
             sig = signals[market]
             tf = self.trader.config['indicator_tf']
             td = timeframe_timedelta(tf)
-
-            # from ipdb import set_trace; set_trace()
 
             # Ensure ohlcv is up-to-date
             if is_within(sig.index[-1], td):
@@ -80,9 +82,11 @@ class PatternStrategy(SingleEXStrategy):
                         await exec_sig(sig, market, use_prev_sig=use_prev_sig)
 
             # Reset last_sig_execution on new period
-            if near_start(sig.index[-1], td):
+            if near_start(sig.index[-1], td) \
+            and not is_within(last_reset_time, timeframe_timedelta(tf) / 2):
                 self.last_sig_execution['conf'] = None
                 self.last_sig_execution['time'] = None
+                last_reset_time = utc_now()
 
         return signals
 
