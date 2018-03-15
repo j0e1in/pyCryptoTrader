@@ -20,7 +20,8 @@ from utils import \
     not_implemented, \
     init_ccxt_exchange, \
     execute_mongo_ops, \
-    handle_ccxt_request
+    handle_ccxt_request, \
+    is_within
 
 logger = logging.getLogger()
 
@@ -175,6 +176,7 @@ class EXBase():
 
             for market in self.markets:
                 end = self.ohlcv_start_end[market]['1m']['end']
+                cur_time = rounddown_dt(utc_now(), sec=td.seconds)
 
                 if end < cur_time:
                     return False
@@ -182,12 +184,12 @@ class EXBase():
             return True
 
         logger.info("Start ohlcv data stream...")
-        last_update_time = datetime(1970, 1, 1)
+        last_update = datetime(1970, 1, 1)
 
         while True:
             await self.update_ohlcv_start_end()
 
-            if utc_now() - last_update_time < timedelta(seconds=3):
+            if is_within(last_update, timedelta(seconds=10)):
                 await asyncio.sleep(5)
 
             # Fetch only 1m ohlcv
@@ -203,13 +205,15 @@ class EXBase():
                     # than gathering all tasks at once
                     await fetch_ohlcv_to_mongo(market, end, cur_time, tf)
 
+            last_update = utc_now()
+
             if await is_uptodate():
                 self.ready['ohlcv'] = True
                 countdown = roundup_dt(utc_now(), min=1) - utc_now()
 
                 # 1. Sleep will be slighly shorter than expected
                 # 2. Add extra seconds because exchange server data preperation may delay
-                await asyncio.sleep(countdown.seconds + 20)
+                await asyncio.sleep(countdown.seconds + 25)
 
     async def _start_trade_stream(self):
         # TODO
