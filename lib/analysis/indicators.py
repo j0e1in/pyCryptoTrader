@@ -309,10 +309,10 @@ class Indicator():
         ema_length = self.p['dmi_ema_length']
         rsi_length = self.p['dmi_rsi_length']
 
-        stoch_rsi_length = self.p['dmi_stoch_rsi_length']
+        stochrsi_length = self.p['dmi_stochrsi_length']
         stoch_length = self.p['dmi_stoch_length']
-        fk_length = self.p['dmi_fastk_length']
-        fd_length = self.p['dmi_fastd_length']
+        fk_length = self.p['dmi_slowk_length']
+        fd_length = self.p['dmi_slowd_length']
 
         # Indicators
         adx, pdi, mdi = self.dmi(ohlcv)
@@ -321,7 +321,7 @@ class Indicator():
         mom = self.mom(ohlcv.close, ma='wma', normalize=True)
         k, d = self.stoch_rsi(
             ohlcv.close,
-            stoch_rsi_length,
+            stochrsi_length,
             stoch_length,
             fk_length,
             fd_length)
@@ -474,15 +474,15 @@ class Indicator():
 
         return conf
 
-    def stoch_rsi(self, ss, rsi_length=None, stoch_length=None, fastk_length=None, fastd_length=None, ma='sma'):
+    def stoch_rsi(self, ss, rsi_length=None, stoch_length=None, slowk_length=None, slowd_length=None, ma='sma'):
         if not rsi_length:
-            rsi_length = self.p['stoch_rsi_length']
+            rsi_length = self.p['stochrsi_length']
         if not stoch_length:
             stoch_length = self.p['stoch_length']
-        if not fastk_length:
-            fastk_length = self.p['stoch_rsi_fastk_length']
-        if not fastd_length:
-            fastd_length = self.p['stoch_rsi_fastd_length']
+        if not slowk_length:
+            slowk_length = self.p['stochrsi_slowk_length']
+        if not slowd_length:
+            slowd_length = self.p['stochrsi_slowd_length']
 
         rsi = self.talib_s(talib.RSI, ss, rsi_length)
 
@@ -491,8 +491,8 @@ class Indicator():
             np.asarray(rsi),
             np.asarray(rsi),
             fastk_period=stoch_length,
-            slowk_period=fastk_length,
-            slowd_period=fastd_length)
+            slowk_period=slowk_length,
+            slowd_period=slowd_length)
 
         return fastk, fastd
 
@@ -503,17 +503,19 @@ class Indicator():
         adx_length = self.p['stochrsi_adx_length']
         di_length = self.p['stochrsi_di_length']
 
+        rsi_length = self.p['stochrsi_rsi_length']
+        rsi_mom_thresh = self.p['stochrsi_rsi_mom_thresh']
+        rsi_upper = self.p['stochrsi_rsi_upper']
+        rsi_lower = self.p['stochrsi_rsi_lower']
+
         mom_length = self.p['stochrsi_mom_length']
         mom_ma_length = self.p['stochrsi_mom_ma_length']
 
-        rsi_length = self.p['stochrsi_rsi_length']
-        rsi_mom_thresh = self.p['stochrsi_rsi_mom_thresh']
-
         # Indicators
         adx, pdi, mdi = self.dmi(ohlcv, adx_length, di_length)
-        mom = self.mom(ohlcv.close, mom_length, ma_length=mom_ma_length, normalize=True)
-        rsi = self.talib_s(talib.RSI, ohlcv.close, rsi_length)
         k, d = self.stoch_rsi(ohlcv.close)
+        rsi = self.talib_s(talib.RSI, ohlcv.close, rsi_length)
+        mom = self.mom(ohlcv.close, mom_length, ma_length=mom_ma_length, normalize=True)
 
         src = k
 
@@ -537,8 +539,8 @@ class Indicator():
         stochrsi_rebuy = (src.shift(1) < stochrsi_upper) & (src >= stochrsi_upper) & (bot_peak > stochrsi_lower)
         stochrsi_resell = (src.shift(1) > stochrsi_lower) & (src <= stochrsi_lower) & (top_peak < stochrsi_upper)
 
-        rsi_buy = ((rsi <= 25) & (mom <= -rsi_mom_thresh)) & ~(mdi > adx) # or (rsi <= 10)
-        rsi_sell = ((rsi >= 80) & (mom >= rsi_mom_thresh)) & ~(pdi > adx) # or (rsi >= 90)
+        rsi_buy = ((rsi <= rsi_upper) & (mom <= -rsi_mom_thresh)) & ~(mdi > adx) # or (rsi <= 10)
+        rsi_sell = ((rsi >= rsi_lower) & (mom >= rsi_mom_thresh)) & ~(pdi > adx) # or (rsi >= 90)
 
         stoch_rsi_close = pd.Series(False, index=src.index)
 
@@ -553,8 +555,8 @@ class Indicator():
         sig = self.clean_repeat_sig(sig)
 
         conf = pd.Series(np.nan, index=ohlcv.index)
-        conf[sig == 1] = self.p['stoch_rsi_conf']
-        conf[sig == -1] = -self.p['stoch_rsi_conf']
+        conf[sig == 1] = self.p['stochrsi_conf']
+        conf[sig == -1] = -self.p['stochrsi_conf']
         conf[sig == 0] = 0
 
         return conf
