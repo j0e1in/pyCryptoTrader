@@ -119,7 +119,7 @@ class Bitfinex(EXBase):
         return await super().get_orderbook(symbol, params=params)
 
     async def update_markets(self):
-        """
+        """ Fetch same data as self.ex.load_markets
             ccxt response:
             [{'active': True,
               'base': 'BTC',
@@ -168,15 +168,18 @@ class Bitfinex(EXBase):
                 ...
             ]
         """
-        if self.log:
-            logger.info("Updating markets...")
-        res = await handle_ccxt_request(self.ex.fetch_markets)
-        for mark in res:
-            if mark['symbol'] in self.markets:
-                self.markets_info[mark['symbol']] = mark
+        logger.info(f"Start updating markets info...")
+        while True:
+            if self.log:
+                logger.info("Update markets info")
 
-        self.ready['markets'] = True
-        return self.markets_info
+            res = await handle_ccxt_request(self.ex.fetch_markets)
+            for mark in res:
+                if mark['symbol'] in self.markets:
+                    self.markets_info[mark['symbol']] = mark
+
+            self.ready['markets'] = True
+            await asyncio.sleep(self.config['markets_info_delay'])
 
     async def fetch_open_orders(self, symbol=None):
         """
@@ -723,9 +726,10 @@ class Bitfinex(EXBase):
 
             res = await handle_ccxt_request(self.ex.private_post_account_fees)
 
-            fees = res['withdraw']
-            for sym in fees:
-                fees[sym] = float(fees[sym])
+            res = res['withdraw']
+            fees = {}
+            for sym in res:
+                fees[sym] = float(res[sym])
 
             self.withdraw_fees = fees
             self.ready['withdraw_fees'] = True
