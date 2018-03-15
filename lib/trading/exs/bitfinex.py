@@ -118,7 +118,7 @@ class Bitfinex(EXBase):
         }
         return await super().get_orderbook(symbol, params=params)
 
-    async def update_markets(self):
+    async def update_markets(self, once=False):
         """ Fetch same data as self.ex.load_markets
             ccxt response:
             [{'active': True,
@@ -168,6 +168,14 @@ class Bitfinex(EXBase):
                 ...
             ]
         """
+        if once: # Fetch only once
+            res = await handle_ccxt_request(self.ex.fetch_markets)
+            for mark in res:
+                if mark['symbol'] in self.markets:
+                    self.markets_info[mark['symbol']] = mark
+
+            return self.markets_info
+
         logger.info(f"Start updating markets info...")
         while True:
             if self.log:
