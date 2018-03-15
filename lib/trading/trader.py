@@ -151,17 +151,18 @@ class SingleEXTrader():
             changed = False
 
             for market in sig:
-                if sig[market].iloc[-1] != last_sig[market]:
+                if (not np.isnan(sig[market].iloc[-1]) or not np.isnan(last_sig[market])) \
+                and (sig[market].iloc[-1] != last_sig[market]):
                     last_sig[market] = sig[market].iloc[-1]
                     changed = True
 
-            return True if changed else False
+            return changed
 
         if (utc_now() - last_log_time) > \
         timeframe_timedelta(self.config['indicator_tf']) / 10 \
         or sig_changed(sig):
             for market in self.markets:
-                logger.info(f"{market} indicator signal @ {utc_now()}\n{sig[-5:]}")
+                logger.info(f"{market} indicator signal @ {utc_now()}\n{sig[market][-5:]}")
 
             last_log_time = utc_now()
 
@@ -379,7 +380,6 @@ class SingleEXTrader():
         else:
             logger.error(f"Create orders failed")
 
-        from ipdb import set_trace; set_trace()
         return res
 
     @staticmethod
@@ -579,7 +579,7 @@ class SingleEXTrader():
         """ Scale one order to multiple orders with different prices. """
         orders = []
 
-        min_amount = self.ex.markets_info['XRP/USD']['limits']['amount']['min']
+        min_amount = self.ex.markets_info[symbol]['limits']['amount']['min']
         amount_diff_base = amount / ((order_count + 1) * order_count / 2)
 
         cur_price = start_price

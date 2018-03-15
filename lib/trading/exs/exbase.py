@@ -89,6 +89,7 @@ class EXBase():
           'withdraw_fees': False,
         }
 
+        self.ohlcv_start_end = {}
         self.markets_start_dt = {}
 
     def init_wallet(self):
@@ -181,10 +182,13 @@ class EXBase():
             return True
 
         logger.info("Start ohlcv data stream...")
-        self.ohlcv_start_end = {}
+        last_update_time = datetime(1970, 1, 1)
 
         while True:
             await self.update_ohlcv_start_end()
+
+            if utc_now() - last_update_time < timedelta(seconds=3):
+                await asyncio.sleep(5)
 
             # Fetch only 1m ohlcv
             for market in self.markets:

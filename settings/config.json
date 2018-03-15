@@ -53,9 +53,9 @@
       "min_trade_value": 30,
 
       "markets": [
+        "BCH/USD",
         "BTC/USD",
         "ETH/USD",
-        "BCH/USD",
         "XRP/USD"
       ],
       "timeframes": [
