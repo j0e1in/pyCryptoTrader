@@ -209,7 +209,7 @@ class EXBase():
 
             if await is_uptodate():
                 self.ready['ohlcv'] = True
-                countdown = roundup_dt(utc_now(), min=1) - utc_now()
+                countdown = roundup_dt(utc_now(), sec=self.config['ohlcv_fetch_interval']) - utc_now()
 
                 # 1. Sleep will be slighly shorter than expected
                 # 2. Add extra seconds because exchange server data preperation may delay

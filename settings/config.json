@@ -16,7 +16,8 @@
     "fee_delay": 3600,
     "orderbook_delay": 25,
     "orderbook_size": 400,
-    "markets_info_delay": 5400
+    "markets_info_delay": 5400,
+    "ohlcv_fetch_interval": 180
   },
 
   "backtest": {

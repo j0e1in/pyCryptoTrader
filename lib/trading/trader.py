@@ -131,7 +131,7 @@ class SingleEXTrader():
         last_sig = {market: np.nan for market in self.markets}
 
         while True:
-            # read latest ohlcv from db
+            # Read latest ohlcv from db
             await self.update_ohlcv()
             await self.execute_margin_order_queue()
             sig = await self.strategy.run()
@@ -139,10 +139,9 @@ class SingleEXTrader():
             if self.log_sig:
                 last_log_time, last_sig = self.log_signals(sig, last_log_time, last_sig)
 
-            # wait til next minute
-            # +45 sec to wait for ohlcv of all markets to be fetched
-            countdown = roundup_dt(utc_now(), min=1) - utc_now()
-            await asyncio.sleep(countdown.seconds + 45)
+            # Wait additional 50 sec for ohlcv of all markets to be fetched
+            countdown = roundup_dt(utc_now(), sec=self.ex.config['ohlcv_fetch_interval']) - utc_now()
+            await asyncio.sleep(countdown.seconds + 50)
 
     def log_signals(self, sig, last_log_time, last_sig):
         """ Log signal periodically or on signal change. """
@@ -159,7 +158,7 @@ class SingleEXTrader():
             return changed
 
         if (utc_now() - last_log_time) > \
-        timeframe_timedelta(self.config['indicator_tf']) / 10 \
+        timeframe_timedelta(self.config['indicator_tf']) / 5 \
         or sig_changed(sig):
             for market in self.markets:
                 logger.info(f"{market} indicator signal @ {utc_now()}\n{sig[market][-10:]}")
