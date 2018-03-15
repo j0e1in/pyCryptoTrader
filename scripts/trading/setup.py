@@ -21,9 +21,14 @@ def setup():
     os.chdir(root_dir + '/lib')
     sys.path.append('.')
 
-    chromalog.basicConfig(level=logging.INFO,
+    from utils import config
+    level = logging.INFO if config['mode'] == 'production' else logging.DEBUG
+
+    chromalog.basicConfig(level=level,
                           stream=sys.stdout,
                           format=log_fmt)
+
+    logging.getLogger('ccxt').setLevel(logging.WARNING)
 
 
 def run(func, debug=False, log_file=None, *args, **kwargs):

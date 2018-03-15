@@ -20,7 +20,10 @@ def setup():
     os.chdir(root_dir + '/lib')
     sys.path.append('.')
 
-    chromalog.basicConfig(level=logging.DEBUG,
+    from utils import config
+    level = logging.INFO if config['mode'] == 'production' else logging.DEBUG
+
+    chromalog.basicConfig(level=level,
                           stream=sys.stdout,
                           format=log_fmt)
 
