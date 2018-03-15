@@ -6,6 +6,7 @@ from pprint import pprint
 import asyncio
 import copy
 import logging
+import math
 import numpy as np
 import pandas as pd
 import random
@@ -333,7 +334,7 @@ class SingleEXTrader():
             orders = self.gen_scale_orders(symbol, type, side, amount,
                                             start_price=start_price,
                                             end_price=end_price,
-                                            order_count=order_count,
+                                            max_order_count=order_count,
                                             exact_amount=exact_amount)
 
             res = await self.ex.create_order_multi(orders)
@@ -572,14 +573,14 @@ class SingleEXTrader():
     def gen_scale_orders(self, symbol, type, side, amount,
                          start_price=0,
                          end_price=0,
-                         order_count=10,
+                         max_order_count=20,
                          exact_amount=False):
         """ Scale one order to multiple orders with different prices. """
         orders = []
 
         min_amount = self.ex.markets_info[symbol]['limits']['amount']['min']
+        order_count = min(int(math.sqrt(2 * amount / min_amount) - 1), max_order_count)
         amount_diff_base = amount / ((order_count + 1) * order_count / 2)
-
         cur_price = start_price
         dec = 100000000
 
