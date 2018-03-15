@@ -73,9 +73,8 @@ class EXBase():
 
         self.markets = self._config['trading'][self.exname]['markets']
         self.timeframes = self._config['trading'][self.exname]['timeframes']
-
-        self.trade_fees = {'datetime': None}
-        self.withdraw_fees = {'datetime': None}
+        self.trade_fees = {}
+        self.withdraw_fees = {}
         self.markets_info = {}
         self.orderbook = {}
         self.tickers = {}

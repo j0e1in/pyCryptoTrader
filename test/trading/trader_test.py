@@ -25,9 +25,11 @@ async def test_cancel_all_orders(trader):
 
 async def test_long(trader):
     print('-- Long --')
+
     done, pending = await asyncio.wait(
         [
-            trader.long('BTC/USD', 100, type='limit'),
+            trader.ex.update_markets(),
+            trader.long('XRP/USD', confidence=100, type='limit'),
             trader.ex.update_trade_fees(),
         ],
         return_when=FIRST_COMPLETED)
@@ -35,9 +37,11 @@ async def test_long(trader):
 
 async def test_short(trader):
     print('-- Short --')
+
     done, pending = await asyncio.wait(
         [
-            trader.short('BTC/USD', 100, type='limit'),
+            trader.ex.update_markets(),
+            trader.short('XRP/USD', confidence=100, type='limit'),
             trader.ex.update_trade_fees(),
         ],
         return_when=FIRST_COMPLETED)
@@ -48,13 +52,13 @@ async def test_strategy(trader):
     await asyncio.gather(trader.start())
 
 
-def test_gen_scale_orders(trader):
+async def test_gen_scale_orders(trader):
     print('-- gen_scale_orders --')
-    orders = trader.gen_scale_orders('BTC/USD', 'limit', 'buy', 0.02,
+    await trader.ex.update_markets()
+    orders = trader.gen_scale_orders(trader.ex.exname, 'limit', 'buy', 100,
                                      start_price=1000,
                                      end_price=900,
-                                     order_count=10,
-                                     min_value=10)
+                                     order_count=10)
     pprint(orders)
 
     amount = 0
