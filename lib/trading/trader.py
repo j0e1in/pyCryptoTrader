@@ -162,7 +162,7 @@ class SingleEXTrader():
         timeframe_timedelta(self.config['indicator_tf']) / 10 \
         or sig_changed(sig):
             for market in self.markets:
-                logger.info(f"{market} indicator signal @ {utc_now()}\n{sig[market][-5:]}")
+                logger.info(f"{market} indicator signal @ {utc_now()}\n{sig[market][-10:]}")
 
             last_log_time = utc_now()
 
@@ -346,11 +346,11 @@ class SingleEXTrader():
             await save_to_db(res)
 
             if has_opposite_open_position:
-                reason = "close position"
+                reason = "Close old position"
             else:
-                reason = "open position"
+                reason = "Open new position"
 
-            logger.info(f"Created orders to {reason}")
+            logger.info(f"{reason}")
 
             if isinstance(res, list):
                 price = 0
@@ -362,14 +362,13 @@ class SingleEXTrader():
 
                 price /= amount
 
-                logger.info(f"Created scaled margin {side} order: "
+                logger.info(f"Created {symbol} scaled margin {side} order: "
                             f"avg price: {price} amount: {amount} value: {price * amount}")
-
             else:
                 order = res
                 price = order['price']
                 amount = order['amount']
-                logger.info(f"Created margin {side} order: "
+                logger.info(f"Created {symbol} margin {side} order: "
                             f"price: {price} amount: {amount} value: {price * amount}")
 
             # Queue open position if current action is to close position
@@ -378,7 +377,7 @@ class SingleEXTrader():
                                         type=type,
                                         scale_order=True)
         else:
-            logger.error(f"Create orders failed")
+            logger.error(f"Failed to create orders")
 
         return res
 
