@@ -99,7 +99,7 @@ class EXMongo():
         """ Get datetime of first trades in a collection. """
         collname = f"{ex}_trades_{rsym(sym)}"
         coll = self.get_collection(self.config['dbname_exchange'], collname)
-        res = await coll.find_one({}, {'_id': 0})
+        res = await coll.find({}).sort([('id', 1)]).limit(1).to_list(length=INF)
         return ms_dt(res['timestamp'])
 
     async def get_trades_end(self, ex, sym):
