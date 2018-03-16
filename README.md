@@ -1,54 +1,79 @@
 # pyCryptoTrader
 
-A full program for trading cryptocurrencies automatically, including data fetching, backtesting, and trading bot.
+A full-package program for trading cryptocurrencies automatically, including data fetching, back-testing, and automatic trading.
 
-# Usage
+# Requirements
 
-Use one of the options below to run a task. (only use one options at a time) Some configurations may be required, for details, please look into source code.
+- Ubuntu 16.04 (Recommended)
+- Docker 17.12+
+- Mongo 3.6+
+- GCP SDK (gcloud)
 
-```bash
-python app.py -h
+**Note**: A Ubuntu 16.04 server setup script is available, just execute
 
+`$ ./scripts/system/dev_server_setup.sh`
+
+# Setup
+
+1. Setup mongo container: restore mongodb, create network and volume, and then start container in auth mode.
+
+```sh
+$ ./scripts/mongodb/setup_mongo_container.sh
+```
+
+# Usage (without docker)
+
+- Use one of the options below to run a task. 
+- Use only one option at a time. 
+
+
+- Add `-h` or `--help` after a task argument to print available arguments for the task.
+
+```sh
+python app.py --help
 optional arguments:
   -h, --help            show this help message and exit
-  
   --build-ohlcvs        Execute build_ohlcv.py
   --fetch-ohlcvs        Execute fetch_all_ohlcvs.py
   --fetch-trades        Execute fetch_all_trades.py
   --optimize            Execute optimize_params.py
   --backtest            Execute run_backtest.py
+  --setup-mongo-container
+                        Execute setup_mongo_container.sh
   --create-mongo-index  Execute create_index.js
   --create-mongo-user   Execute create_user.js
   --drop-ohlcvs         Execute drop_ohlcvs.js
   --drop-trades         Execute drop_ohlcvs.js
   --start-trader        Execute start_trader.py
-  --restart-trader      Execute start_trader.py with restart.py
-  
-  --args ARGS           Arguments to be passed to the script that are going to
-                        be executed. Wrapped with ""
+  --restart-trader      Execute restart_trader.py
 ```
 
-## Examples
+## Examples (without docker)
 
-```
+```sh
 # Build ohlcvs start from their most recent datetime
 python app.py --build-ohlcvs
 
 # Build ohlcvs start from first record of 1m ohlcv
-python app.py --build-ohlcvs --args "--from-start"
+python app.py --build-ohlcvs --from-start
 
 # Fetch ohlcvs start from their most recent records to current time
 python app.py --fetch-ohlcvs
 
-# Fetch ohlcvs start from 2018/2/1 to current time
-python app.py --fetch-ohlcvs --args "-s 2018/2/1"
-
-# Fetch ohlcvs start from 2018/2/1 to 2018/3/1, end datetime must not greater then current
-python app.py --fetch-ohlcvs --args "-s 2018/2/1 -e 2018/3/1"
-
-python app.py --optimize --args "generate-params
-
-# Read a specific pkl file that contains combinations of param set and print the total number if combinations
-python app.py --optimize --args "count --prefix prefix_of_the_pkl"
+# Fetch ohlcvs and do not replace existing ohlcvs
+python app.py --fetch-ohlcvs --no-upsert
 ```
 
+# Usage (with docker)
+
+```sh
+
+```
+
+# Example (with docker)
+
+```sh
+
+```
+
+# 
