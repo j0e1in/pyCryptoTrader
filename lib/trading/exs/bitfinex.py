@@ -118,8 +118,8 @@ class Bitfinex(EXBase):
         }
         return await super().get_orderbook(symbol, params=params)
 
-    async def update_markets(self):
-        """
+    async def update_markets(self, once=False):
+        """ Fetch same data as self.ex.load_markets
             ccxt response:
             [{'active': True,
               'base': 'BTC',
@@ -168,15 +168,26 @@ class Bitfinex(EXBase):
                 ...
             ]
         """
-        if self.log:
-            logger.info("Updating markets...")
-        res = await handle_ccxt_request(self.ex.fetch_markets)
-        for mark in res:
-            if mark['symbol'] in self.markets:
-                self.markets_info[mark['symbol']] = mark
+        if once: # Fetch only once
+            res = await handle_ccxt_request(self.ex.fetch_markets)
+            for mark in res:
+                if mark['symbol'] in self.markets:
+                    self.markets_info[mark['symbol']] = mark
 
-        self.ready['markets'] = True
-        return self.markets_info
+            return self.markets_info
+
+        logger.info(f"Start updating markets info...")
+        while True:
+            if self.log:
+                logger.info("Update markets info")
+
+            res = await handle_ccxt_request(self.ex.fetch_markets)
+            for mark in res:
+                if mark['symbol'] in self.markets:
+                    self.markets_info[mark['symbol']] = mark
+
+            self.ready['markets'] = True
+            await asyncio.sleep(self.config['markets_info_delay'])
 
     async def fetch_open_orders(self, symbol=None):
         """
@@ -354,7 +365,7 @@ class Bitfinex(EXBase):
             await execute_mongo_ops(ops)
 
         if not hasattr(self.ex, 'fetch_my_trades'):
-            logger.warn(f"{self.exname} doesn't have fetch_my_trades method.")
+            logger.warning(f"{self.exname} doesn't have fetch_my_trades method.")
             return []
 
         self._check_auth()
@@ -521,7 +532,7 @@ class Bitfinex(EXBase):
             elif 'use_all_available' in params and not isinstance(params['is_hidden'], bool):
                 valid = False
             if not valid:
-                logger.warn(f"create_order params are invalid: {params}")
+                logger.warning(f"create_order params are invalid: {params}")
             return valid
 
         self._check_auth()
@@ -546,7 +557,7 @@ class Bitfinex(EXBase):
                 params=params)
 
         except ccxt.InvalidOrder as err:
-            logger.warn(f"{str(err)}")
+            logger.warning(f"{str(err)}")
             # TODO: pass invalid order msg to client: MessengerServer.notify_error(err, order)
             return {}
 
@@ -574,7 +585,7 @@ class Bitfinex(EXBase):
             and not isinstance(order['price'], float)):
                 valid = False
             if not valid:
-                logger.warn(f"create_order_multi orders are invalid: {order}")
+                logger.warning(f"create_order_multi orders are invalid: {order}")
             return valid
 
         self._check_auth()
@@ -596,7 +607,7 @@ class Bitfinex(EXBase):
                 params=params)
 
         except ccxt.InvalidOrder as err:
-            logger.warn(f"{str(err)}")
+            logger.warning(f"{str(err)}")
             # TODO: pass invalid order msg to client: MessengerServer.notify_error(err, order)
             return {}
 
@@ -616,7 +627,7 @@ class Bitfinex(EXBase):
         try:
             res = await handle_ccxt_request(self.ex.cancel_order, id)
         except ccxt.OrderNotFound as err:
-            logger.warn(f"OrderNotFound: {str(err)}")
+            logger.warning(f"OrderNotFound: {str(err)}")
             return {}
 
         ccxt_parsed_order = self.ex.parse_order(res)
@@ -723,9 +734,10 @@ class Bitfinex(EXBase):
 
             res = await handle_ccxt_request(self.ex.private_post_account_fees)
 
-            fees = res['withdraw']
-            for sym in fees:
-                fees[sym] = float(fees[sym])
+            res = res['withdraw']
+            fees = {}
+            for sym in res:
+                fees[sym] = float(res[sym])
 
             self.withdraw_fees = fees
             self.ready['withdraw_fees'] = True

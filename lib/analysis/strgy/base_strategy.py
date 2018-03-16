@@ -24,7 +24,7 @@ class SingleExchangeStrategy():
     def __init__(self, ex, custom_config=None):
         _config = custom_config if custom_config else config
         self._config = _config
-        self.p = _config['analysis']['params']
+        self.p = _config['analysis']['params']['common']
 
         self.ex = ex
         self.fast_mode = False
@@ -33,7 +33,7 @@ class SingleExchangeStrategy():
 
     def set_config(self, cfg):
         self._config = cfg
-        self.p = cfg['analysis']['params']
+        self.p = cfg['analysis']['params']['common']
         self.init_vars()
 
     def init(self, trader):

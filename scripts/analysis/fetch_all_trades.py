@@ -2,7 +2,7 @@ from setup import run, setup
 setup()
 
 from asyncio import ensure_future
-from datetime import datetime
+from datetime import timedelta
 
 import asyncio
 import ccxt.async as ccxt
@@ -13,19 +13,15 @@ from analysis.hist_data import fetch_trades
 from db import EXMongo
 from utils import init_ccxt_exchange, \
                   execute_mongo_ops, \
-                  config
+                  config, \
+                  utc_now
 
 
 logger = logging.getLogger()
 
 
-start = datetime(2017, 11, 1)
-end = datetime(2018, 1, 1)
-
-
-async def fetch_trades_to_mongo(coll, exchange, symbol):
+async def fetch_trades_to_mongo(coll, exchange, symbol, start, end):
     ops = []
-    count = 0
 
     res = fetch_trades(exchange, symbol, start, end)
     async for trades in res:
@@ -48,7 +44,19 @@ async def fetch_trades_to_mongo(coll, exchange, symbol):
     await execute_mongo_ops(ops)
 
 
+
+def parse_args():
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    argv = parser.parse_args()
+
+    return argv
+
+
 async def main():
+    argv = parse_args()
+
     mongo = EXMongo()
 
     db = config['database']['dbname_exchange']
@@ -57,27 +65,15 @@ async def main():
 
     exchange = init_ccxt_exchange(ex)
 
-    symbols = [
-        "BTC/USD",
-        "BCH/USD",
-        "ETH/USD",
-        "ETC/USD",
-        "EOS/USD",
-        "DASH/USD",
-        "IOTA/USD",
-        "LTC/USD",
-        "NEO/USD",
-        "OMG/USD",
-        "XMR/USD",
-        "XRP/USD",
-        "ZEC/USD",
-    ]
+    symbols = config['analysis']['exchanges'][ex]['markets_all']
 
     for symbol in symbols:
         _symbol = ''.join(symbol.split('/')) # remove '/'
         coll = mongo.get_collection(db, coll_tamplate.format(ex, _symbol))
+        start = await mongo.get_trades_end(ex, symbol) - timedelta(hours=1)
+        end = utc_now()
 
-        await fetch_trades_to_mongo(coll, exchange, symbol)
+        await fetch_trades_to_mongo(coll, exchange, symbol, start, end)
 
         logger.info(f"Finished fetching {symbol}.")
 

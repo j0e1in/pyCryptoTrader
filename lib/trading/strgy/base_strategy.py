@@ -7,14 +7,14 @@ class SingleEXStrategy():
         self.trader = trader
 
         self._config = custom_config if custom_config else config
-        self.p = self.trader.config['params']
+        self.p = self.trader.config['params']['common']
 
     def refresh(self):
         self.init_vars()
 
     async def run(self):
         self.refresh()
-        await self.strategy()
+        return await self.strategy()
 
     def strategy(self):
         not_implemented()

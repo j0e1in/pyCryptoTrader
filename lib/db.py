@@ -71,9 +71,7 @@ class EXMongo():
             .to_list(length=INF)
 
         if not res:
-            raise logger.warn(
-                f"Empty response, maybe {ex} {sym} {tf}'s data does not exist."
-            )
+            raise ValueError(f"{collname} does not exist")
 
         return res[0]
 
@@ -91,22 +89,30 @@ class EXMongo():
             .to_list(length=INF)
 
         if not res:
-            logger.warn(f"No ohlcv, maybe {ex} {sym} {tf} is not in DB.")
+            raise ValueError(f"{collname} does not exist")
 
-        return res[0] if res else {}
+        return res[0]
 
     async def get_trades_start(self, ex, sym):
         """ Get datetime of first trades in a collection. """
         collname = f"{ex}_trades_{rsym(sym)}"
         coll = self.get_collection(self.config['dbname_exchange'], collname)
-        res = await coll.find_one({}, {'_id': 0})
-        return ms_dt(res['timestamp'])
+        res = await coll.find({}).sort([('id', 1)]).limit(1).to_list(length=INF)
+
+        if not res:
+            raise ValueError(f"{collname} does not exist")
+
+        return ms_dt(res[0]['timestamp'])
 
     async def get_trades_end(self, ex, sym):
         """ Get datetime of last trades in a collection. """
         collname = f"{ex}_trades_{rsym(sym)}"
         coll = self.get_collection(self.config['dbname_exchange'], collname)
         res = await coll.find({}).sort([('id', -1)]).limit(1).to_list(length=INF)
+
+        if not res:
+            raise ValueError(f"{collname} does not exist")
+
         return ms_dt(res[0]['timestamp'])
 
     async def get_ohlcv(self, ex, symbol, timeframe, start, end, fields_condition={}, compress=False):

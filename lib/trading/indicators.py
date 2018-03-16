@@ -18,12 +18,25 @@ from pprint import pprint
 BUY = 1
 SELL = -1
 
+category = 'trading'
+
 
 class Indicator():
 
     def __init__(self, custom_config=None):
         _config = custom_config if custom_config else config
-        self.p = _config['analysis']['params']
+        self.config = _config[category]['params']
+        self.p = _config[category]['params']['common']
+
+    def change_param_set(self, symbol):
+        """ Change param set according to symbol. """
+        if symbol in self.config:
+            param_set = self.config[symbol]
+        else:
+            param_set = self.config['common']
+
+        for k in param_set:
+            self.p[k] = param_set[k]
 
     def rsi_sig(self, ohlcv):
         rsi = self.talib_s(talib.RSI, ohlcv.close, self.p['rsi_period'])
@@ -46,18 +59,18 @@ class Indicator():
         buy  = rsi < lower
         sell = rsi > upper
 
-        # conf[(buy  == True) & (adx > self.p['rsi_adx_threshold'])] = self.p['rsi_conf']
-        # conf[(sell == True) & (adx > self.p['rsi_adx_threshold'])] = -self.p['rsi_conf']
+        # conf[(buy  == True) & (adx > self.p['rsi_adx_threshold'])] = self.p['ind_conf']
+        # conf[(sell == True) & (adx > self.p['rsi_adx_threshold'])] = -self.p['ind_conf']
 
         # buy  = (buy  == True) & (price_diff < 0) & (adx > self.p['rsi_adx_threshold'])
         # sell = (sell == True) & (price_diff > 0) & (adx > self.p['rsi_adx_threshold'])
-        # conf[buy]  = self.p['rsi_conf']
-        # conf[sell] = -self.p['rsi_conf']
+        # conf[buy]  = self.p['ind_conf']
+        # conf[sell] = -self.p['ind_conf']
 
         buy  = (buy  == True) & (price_diff < 0) & (adx > self.p['rsi_adx_threshold']) & (price_diff_prct < 0.17)
         sell = (sell == True) & (price_diff > 0) & (adx > self.p['rsi_adx_threshold']) & (price_diff_prct < 0.17)
-        conf[buy]  = self.p['rsi_conf']
-        conf[sell] = -self.p['rsi_conf']
+        conf[buy]  = self.p['ind_conf']
+        conf[sell] = -self.p['ind_conf']
 
         last_conf = 0
         last_diff = 0
@@ -138,8 +151,8 @@ class Indicator():
         drop_sig = (wvf_sig.shift(1) | wvf_sig) & (~wvf_sig).shift(1) & wvf_sig
 
         conf = pd.Series(index=ohlcv.index)
-        conf[rise_sig.index[rise_sig == True]] = BUY * self.p['wvf_conf']
-        conf[drop_sig.index[drop_sig == True]] = SELL * self.p['wvf_conf']
+        conf[rise_sig.index[rise_sig == True]] = BUY * self.p['ind_conf']
+        conf[drop_sig.index[drop_sig == True]] = SELL * self.p['ind_conf']
 
         # --------------------------------------------------------------- #
 
@@ -193,8 +206,8 @@ class Indicator():
         # rsi_buy = fastk
 
         conf = pd.Series(index=ohlcv.index)
-        conf[buy  == True] = BUY * self.p['hma_conf']
-        conf[sell == True] = SELL * self.p['hma_conf']
+        conf[buy  == True] = BUY * self.p['ind_conf']
+        conf[sell == True] = SELL * self.p['ind_conf']
 
         self.verify_confidence(conf)
         self.cap_confidence(conf)
@@ -209,8 +222,8 @@ class Indicator():
         drop_sig = (hma_ma.shift(2) <= hma_ma.shift(1)) & (hma_ma.shift(1) > hma_ma)
 
         conf = pd.Series(index=ohlcv.index)
-        conf[rise_sig.index[rise_sig == True]] = BUY * self.p['hma_conf']
-        conf[drop_sig.index[drop_sig == True]] = SELL * self.p['hma_conf']
+        conf[rise_sig.index[rise_sig == True]] = BUY * self.p['ind_conf']
+        conf[drop_sig.index[drop_sig == True]] = SELL * self.p['ind_conf']
 
         self.verify_confidence(conf)
         self.cap_confidence(conf)
@@ -233,8 +246,8 @@ class Indicator():
         drop_sig = (vwma.shift(2) <= vwma.shift(1)) & (vwma.shift(1) > vwma)
 
         conf = pd.Series(index=ohlcv.index)
-        conf[rise_sig.index[rise_sig == True]] = BUY * self.p['vwma_conf']
-        conf[drop_sig.index[drop_sig == True]] = SELL * self.p['vwma_conf']
+        conf[rise_sig.index[rise_sig == True]] = BUY * self.p['ind_conf']
+        conf[drop_sig.index[drop_sig == True]] = SELL * self.p['ind_conf']
 
         self.verify_confidence(conf)
         self.cap_confidence(conf)
@@ -309,10 +322,10 @@ class Indicator():
         ema_length = self.p['dmi_ema_length']
         rsi_length = self.p['dmi_rsi_length']
 
-        stoch_rsi_length = self.p['dmi_stoch_rsi_length']
+        stochrsi_length = self.p['dmi_stochrsi_length']
         stoch_length = self.p['dmi_stoch_length']
-        fk_length = self.p['dmi_fastk_length']
-        fd_length = self.p['dmi_fastd_length']
+        fk_length = self.p['dmi_slowk_length']
+        fd_length = self.p['dmi_slowd_length']
 
         # Indicators
         adx, pdi, mdi = self.dmi(ohlcv)
@@ -321,7 +334,7 @@ class Indicator():
         mom = self.mom(ohlcv.close, ma='wma', normalize=True)
         k, d = self.stoch_rsi(
             ohlcv.close,
-            stoch_rsi_length,
+            stochrsi_length,
             stoch_length,
             fk_length,
             fd_length)
@@ -410,8 +423,8 @@ class Indicator():
         sig = self.clean_repeat_sig(sig)
 
         conf = pd.Series(np.nan, index=ohlcv.index)
-        conf[sig == 1] = self.p['dmi_conf']
-        conf[sig == -1] = -self.p['dmi_conf']
+        conf[sig == 1] = self.p['ind_conf']
+        conf[sig == -1] = -self.p['ind_conf']
         conf[sig == 0] = 0
 
         return conf
@@ -468,21 +481,21 @@ class Indicator():
         sig = self.clean_repeat_sig(sig)
 
         conf = pd.Series(np.nan, index=ohlcv.index)
-        conf[sig == 1] = self.p['mom_conf']
-        conf[sig == -1] = -self.p['mom_conf']
+        conf[sig == 1] = self.p['ind_conf']
+        conf[sig == -1] = -self.p['ind_conf']
         conf[sig == 0] = 0
 
         return conf
 
-    def stoch_rsi(self, ss, rsi_length=None, stoch_length=None, fastk_length=None, fastd_length=None, ma='sma'):
+    def stoch_rsi(self, ss, rsi_length=None, stoch_length=None, slowk_length=None, slowd_length=None, ma='sma'):
         if not rsi_length:
-            rsi_length = self.p['stoch_rsi_length']
+            rsi_length = self.p['stochrsi_length']
         if not stoch_length:
             stoch_length = self.p['stoch_length']
-        if not fastk_length:
-            fastk_length = self.p['stoch_rsi_fastk_length']
-        if not fastd_length:
-            fastd_length = self.p['stoch_rsi_fastd_length']
+        if not slowk_length:
+            slowk_length = self.p['stochrsi_slowk_length']
+        if not slowd_length:
+            slowd_length = self.p['stochrsi_slowd_length']
 
         rsi = self.talib_s(talib.RSI, ss, rsi_length)
 
@@ -491,8 +504,8 @@ class Indicator():
             np.asarray(rsi),
             np.asarray(rsi),
             fastk_period=stoch_length,
-            slowk_period=fastk_length,
-            slowd_period=fastd_length)
+            slowk_period=slowk_length,
+            slowd_period=slowd_length)
 
         return fastk, fastd
 
@@ -503,17 +516,19 @@ class Indicator():
         adx_length = self.p['stochrsi_adx_length']
         di_length = self.p['stochrsi_di_length']
 
+        rsi_length = self.p['stochrsi_rsi_length']
+        rsi_upper = self.p['stochrsi_rsi_upper']
+        rsi_lower = self.p['stochrsi_rsi_lower']
+        rsi_mom_thresh = self.p['stochrsi_rsi_mom_thresh']
+
         mom_length = self.p['stochrsi_mom_length']
         mom_ma_length = self.p['stochrsi_mom_ma_length']
 
-        rsi_length = self.p['stochrsi_rsi_length']
-        rsi_mom_thresh = self.p['stochrsi_rsi_mom_thresh']
-
         # Indicators
         adx, pdi, mdi = self.dmi(ohlcv, adx_length, di_length)
-        mom = self.mom(ohlcv.close, mom_length, ma_length=mom_ma_length, normalize=True)
-        rsi = self.talib_s(talib.RSI, ohlcv.close, rsi_length)
         k, d = self.stoch_rsi(ohlcv.close)
+        rsi = self.talib_s(talib.RSI, ohlcv.close, rsi_length)
+        mom = self.mom(ohlcv.close, mom_length, ma_length=mom_ma_length, normalize=True)
 
         src = k
 
@@ -537,8 +552,8 @@ class Indicator():
         stochrsi_rebuy = (src.shift(1) < stochrsi_upper) & (src >= stochrsi_upper) & (bot_peak > stochrsi_lower)
         stochrsi_resell = (src.shift(1) > stochrsi_lower) & (src <= stochrsi_lower) & (top_peak < stochrsi_upper)
 
-        rsi_buy = ((rsi <= 25) & (mom <= -rsi_mom_thresh)) & ~(mdi > adx) # or (rsi <= 10)
-        rsi_sell = ((rsi >= 80) & (mom >= rsi_mom_thresh)) & ~(pdi > adx) # or (rsi >= 90)
+        rsi_buy = ((rsi <= rsi_lower) & (mom <= -rsi_mom_thresh)) & ~(mdi > adx) # or (rsi <= 10)
+        rsi_sell = ((rsi >= rsi_upper) & (mom >= rsi_mom_thresh)) & ~(pdi > adx) # or (rsi >= 90)
 
         stoch_rsi_close = pd.Series(False, index=src.index)
 
@@ -553,8 +568,8 @@ class Indicator():
         sig = self.clean_repeat_sig(sig)
 
         conf = pd.Series(np.nan, index=ohlcv.index)
-        conf[sig == 1] = self.p['stoch_rsi_conf']
-        conf[sig == -1] = -self.p['stoch_rsi_conf']
+        conf[sig == 1] = self.p['ind_conf']
+        conf[sig == -1] = -self.p['ind_conf']
         conf[sig == 0] = 0
 
         return conf

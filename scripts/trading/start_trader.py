@@ -16,13 +16,14 @@ async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--host', default='0.0.0.0', help='Server IP')
     parser.add_argument('--port', type=int, default=8000, help='Server port')
+    parser.add_argument('--log', action='store_true', help='Enable trader logging')
     parser.add_argument('--log-signal', action='store_true', help='Enable periodic indicator signal logging')
     parser.add_argument('--enable-api', action='store_true', help='Enable API server for clients to request data')
     parser.add_argument('--ssl', action='store_true', help='Enable SSL, only works if API is enabled')
     argv = parser.parse_args()
 
     mongo = EXMongo()
-    trader = SingleEXTrader(mongo, 'bitfinex', 'pattern', log=False, log_sig=argv.log_signal)
+    trader = SingleEXTrader(mongo, 'bitfinex', 'pattern', log=argv.log, log_sig=argv.log_signal)
 
     if argv.enable_api:
         server = APIServer(trader)

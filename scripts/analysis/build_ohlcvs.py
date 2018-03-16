@@ -6,57 +6,34 @@ import os
 
 from db import EXMongo
 from analysis.hist_data import build_ohlcv
-from utils import timeframe_timedelta
+from utils import timeframe_timedelta, config
 
 logger = logging.getLogger()
 
 
+def parse_args():
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--from-start', action='store_true', help="Build ohlcvs from first data of source ohlcv")
+    argv = parser.parse_args()
+
+    return argv
+
+
 async def main():
-    target_tfs = [
-        '15m',
-        '30m',
-        '1h',
-        '2h',
-        '3h',
-        '4h',
-        '5h',
-        '6h',
-        '7h',
-        '8h',
-        '9h',
-        '10h',
-        '11h',
-        '12h',
-        '15h',
-        '18h',
-    ]
-
-    symbols = [
-        "BTC/USD",
-        "BCH/USD",
-        "ETH/USD",
-        "ETC/USD",
-        "EOS/USD",
-        "DASH/USD",
-        "IOTA/USD",
-        "LTC/USD",
-        "NEO/USD",
-        "OMG/USD",
-        "XMR/USD",
-        "XRP/USD",
-        "ZEC/USD",
-    ]
-
-    build_from_start = False
+    argv = parse_args()
 
     src_tf = '1m'
     exchange = 'bitfinex'
     mongo = EXMongo()
 
+    target_tfs = config['analysis']['exchanges'][exchange]['timeframes_all']
+    symbols = config['analysis']['exchanges'][exchange]['markets_all']
     for symbol in symbols:
         for target_tf in target_tfs:
 
-            if build_from_start:
+            if argv.from_start:
                 await build_ohlcv(mongo, exchange, symbol, src_tf, target_tf, upsert=False)
                 logger.info(f"Building {exchange} {symbol} {target_tf} ohlcv from start")
 
@@ -72,7 +49,7 @@ async def main():
                                 start=target_start_dt, end=src_end_dt, upsert=True)
 
     # Build indexes
-    if build_from_start:
+    if argv.from_start:
         # Starting from 'lib/'
         file = '../scripts/mongodb/create_index.js'
         os.system(f"mongo < {file}")

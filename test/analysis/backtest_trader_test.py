@@ -172,7 +172,7 @@ async def test_margin_order_execution(order_type, trader, mongo):
 #             curr = order['curr']
 
 #             if wallet[order['ex']][curr] < order['cost']:
-#                 logger.warn(f"Cost exceeds current balance. \n=> {wallet}\n=> {order}")
+#                 logger.warning(f"Cost exceeds current balance. \n=> {wallet}\n=> {order}")
 
 #             wallet[order['ex']][curr] -= order['cost']
 
@@ -183,7 +183,7 @@ async def test_margin_order_execution(order_type, trader, mongo):
 #                 opp_curr = backtest.trader.opposite_currency(order, curr)
 
 #                 if wallet[order['ex']][curr] < order['cost']:
-#                     logger.warn(f"Cost exceeds current balance. \n=> {wallet}\n=> {order}")
+#                     logger.warning(f"Cost exceeds current balance. \n=> {wallet}\n=> {order}")
 
 #                 wallet[order['ex']][curr] -= order['cost']
 #                 wallet[order['ex']][opp_curr] += order['amount']
@@ -192,7 +192,7 @@ async def test_margin_order_execution(order_type, trader, mongo):
 #                 opp_curr = backtest.trader.opposite_currency(order, curr)
 
 #                 if wallet[order['ex']][curr] < order['cost']:
-#                     logger.warn(f"Cost exceeds current balance. \n=> {wallet}\n=> {order}")
+#                     logger.warning(f"Cost exceeds current balance. \n=> {wallet}\n=> {order}")
 
 #                 wallet[order['ex']][curr] -= order['cost']
 #                 wallet[order['ex']][opp_curr] += order['amount'] * order['open_price']

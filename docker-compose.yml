@@ -1,16 +1,20 @@
-version: '2'
+version: '3.3'
 services:
   pycryptotrader:
     image: pycryptotrader:trader-ssl
     container_name: "pycryptotrader"
     volumes:
-      - $PWD/data:/app/data
       - $PWD/log:/app/log
-      - $PWD/private:/app/private
       - $PWD/settings:/app/settings
-      - /etc/letsencrypt:/etc/letsencrypt
     networks:
       - mongo_net
+    secrets:
+      - source: keys.json
+        target: /app/private/keys.json
+      - source: fullchain.pem
+        target: /app/private/fullchain.pem
+      - source: privkey.pem
+        target: /app/private/privkey.pem
     depends_on:
       - mongo
   mongo:
@@ -34,3 +38,11 @@ networks:
 volumes:
   mongo_data:
     external: true
+
+secrets:
+  keys.json:
+    file: ./private/keys.json
+  fullchain.pem:
+    file: ./private/fullchain.pem
+  privkey.pem:
+    file: ./private/privkey.pem

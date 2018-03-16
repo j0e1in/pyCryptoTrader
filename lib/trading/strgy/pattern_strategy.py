@@ -1,3 +1,6 @@
+from datetime import datetime
+
+import copy
 import logging
 import numpy as np
 import pprint
@@ -35,17 +38,17 @@ class PatternStrategy(SingleEXStrategy):
             self.last_sig_execution['conf'] = conf
             self.last_sig_execution['time'] = utc_now()
 
+        last_reset_time = datetime(1970, 1, 1)
+
         signals = {}
         for market in self.trader.markets:
             signals[market] = self.calc_signal(market)
 
-        market_ranks = self.rank_markets(signals)
+        market_ranks = self.rank_markets()
         for market in market_ranks:
             sig = signals[market]
             tf = self.trader.config['indicator_tf']
             td = timeframe_timedelta(tf)
-
-            # from ipdb import set_trace; set_trace()
 
             # Ensure ohlcv is up-to-date
             if is_within(sig.index[-1], td):
@@ -80,9 +83,13 @@ class PatternStrategy(SingleEXStrategy):
                         await exec_sig(sig, market, use_prev_sig=use_prev_sig)
 
             # Reset last_sig_execution on new period
-            if near_start(sig.index[-1], td):
+            if near_start(sig.index[-1], td) \
+            and not is_within(last_reset_time, timeframe_timedelta(tf) / 2):
                 self.last_sig_execution['conf'] = None
                 self.last_sig_execution['time'] = None
+                last_reset_time = utc_now()
+
+        return signals
 
     async def execute_sig(self, sig, market, use_prev_sig=False):
         action = None
@@ -104,19 +111,35 @@ class PatternStrategy(SingleEXStrategy):
         """ Main algorithm which calculates signals.
             Returns {signal, timeframe}
         """
+        self.ind.change_param_set(market)
+        self.p = self.ind.p
+
         ohlcv = self.trader.ohlcvs[market][self.trader.config['indicator_tf']]
         sig = self.ind.stoch_rsi_sig(ohlcv)
 
         return sig
 
-    def rank_markets(self, signals):
+    def rank_markets(self):
         """ Rank markets' profitability.
             Returns a list of markets.
         """
-        # TODO: (HIGH PRIOR)
+        # TODO
 
-        # Idea 1: calculate trend strength in past 1-4 days
-        #         higher the strength higher the rank
+        # Current method: hard coded market rank base on backtest profitibitlity
+        backtest_profit_rank = [
+            "XRP/USD",
+            "BCH/USD",
+            "BTC/USD",
+            "ETH/USD",
+        ]
 
-        # Current method: no ranking, by the order of self.trader.markets
-        return self.trader.markets
+        trade_markets = copy.deepcopy(self.trader.markets)
+        rank = []
+
+        for market in backtest_profit_rank:
+            if market in trade_markets:
+                rank.append(market)
+
+        trade_markets = [market for market in trade_markets if market not in rank]
+        rank += trade_markets
+        return rank

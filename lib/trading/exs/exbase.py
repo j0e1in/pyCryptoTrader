@@ -20,7 +20,8 @@ from utils import \
     not_implemented, \
     init_ccxt_exchange, \
     execute_mongo_ops, \
-    handle_ccxt_request
+    handle_ccxt_request, \
+    is_within
 
 logger = logging.getLogger()
 
@@ -73,9 +74,8 @@ class EXBase():
 
         self.markets = self._config['trading'][self.exname]['markets']
         self.timeframes = self._config['trading'][self.exname]['timeframes']
-
-        self.trade_fees = {'datetime': None}
-        self.withdraw_fees = {'datetime': None}
+        self.trade_fees = {}
+        self.withdraw_fees = {}
         self.markets_info = {}
         self.orderbook = {}
         self.tickers = {}
@@ -90,6 +90,7 @@ class EXBase():
           'withdraw_fees': False,
         }
 
+        self.ohlcv_start_end = {}
         self.markets_start_dt = {}
 
     def init_wallet(self):
@@ -175,6 +176,7 @@ class EXBase():
 
             for market in self.markets:
                 end = self.ohlcv_start_end[market]['1m']['end']
+                cur_time = rounddown_dt(utc_now(), sec=td.seconds)
 
                 if end < cur_time:
                     return False
@@ -182,10 +184,13 @@ class EXBase():
             return True
 
         logger.info("Start ohlcv data stream...")
-        self.ohlcv_start_end = {}
+        last_update = datetime(1970, 1, 1)
 
         while True:
             await self.update_ohlcv_start_end()
+
+            if is_within(last_update, timedelta(seconds=10)):
+                await asyncio.sleep(5)
 
             # Fetch only 1m ohlcv
             for market in self.markets:
@@ -200,13 +205,15 @@ class EXBase():
                     # than gathering all tasks at once
                     await fetch_ohlcv_to_mongo(market, end, cur_time, tf)
 
+            last_update = utc_now()
+
             if await is_uptodate():
                 self.ready['ohlcv'] = True
-                countdown = roundup_dt(utc_now(), min=1) - utc_now()
+                countdown = roundup_dt(utc_now(), sec=self.config['ohlcv_fetch_interval']) - utc_now()
 
                 # 1. Sleep will be slighly shorter than expected
                 # 2. Add extra seconds because exchange server data preperation may delay
-                await asyncio.sleep(countdown.seconds + 20)
+                await asyncio.sleep(countdown.seconds + 40)
 
     async def _start_trade_stream(self):
         # TODO
