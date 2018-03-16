@@ -330,7 +330,7 @@ class SimulatedTrader():
             else:
                 curr = order['currency']
                 cost = order['cost']
-                logger.warn(f"Not enough balance to open order => "
+                logger.warning(f"Not enough balance to open order => "
                             f"{curr}--{self.wallet[ex][curr]}<{cost}")
                 return None
         else:
@@ -391,11 +391,11 @@ class SimulatedTrader():
             order_fields += ['open_price']
 
         if not set(order_fields).issubset(order.keys()):
-            logger.warn(f"Invalid order {order}")
+            logger.warning(f"Invalid order {order}")
             return False
 
         if order['order_type'] == 'limit' and order['open_price'] == 0:
-            logger.warn(f"Cannot open order at price 0")
+            logger.warning(f"Cannot open order at price 0")
             return False
 
         return True
@@ -543,7 +543,7 @@ class SimulatedTrader():
                             self.wallet[ex][order['currency']] -= order['cost']
                             execute_open_position(order)
                         else:
-                            logger.warn(f"Not enough balance to open margin position: {order}")
+                            logger.warning(f"Not enough balance to open margin position: {order}")
                             self.wallet[ex][order['currency']] -= order['cost'] # will be restored on cancellation
                             self.cancel_order(order)
 
@@ -553,7 +553,7 @@ class SimulatedTrader():
                             self.wallet[ex][order['currency']] -= order['cost']
                             execute_normal_order(order)
                         else:
-                            logger.warn(f"Not enough balance to execute normal market order: {order}")
+                            logger.warning(f"Not enough balance to execute normal market order: {order}")
                             self.wallet[ex][order['currency']] -= order['cost'] # will be restored on cancellation
                             self.cancel_order(order)
 

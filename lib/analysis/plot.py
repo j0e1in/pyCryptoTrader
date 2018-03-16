@@ -67,7 +67,7 @@ class Plot():
             ax2.set_ylabel('(%)')
 
         if len(ohlc) == 0:
-            logger.warn("No ohlc to plot.")
+            logger.warning("No ohlc to plot.")
             return
 
         tf = int(config['analysis']['indicator_tf'][:-1])

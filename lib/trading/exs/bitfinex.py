@@ -365,7 +365,7 @@ class Bitfinex(EXBase):
             await execute_mongo_ops(ops)
 
         if not hasattr(self.ex, 'fetch_my_trades'):
-            logger.warn(f"{self.exname} doesn't have fetch_my_trades method.")
+            logger.warning(f"{self.exname} doesn't have fetch_my_trades method.")
             return []
 
         self._check_auth()
@@ -532,7 +532,7 @@ class Bitfinex(EXBase):
             elif 'use_all_available' in params and not isinstance(params['is_hidden'], bool):
                 valid = False
             if not valid:
-                logger.warn(f"create_order params are invalid: {params}")
+                logger.warning(f"create_order params are invalid: {params}")
             return valid
 
         self._check_auth()
@@ -557,7 +557,7 @@ class Bitfinex(EXBase):
                 params=params)
 
         except ccxt.InvalidOrder as err:
-            logger.warn(f"{str(err)}")
+            logger.warning(f"{str(err)}")
             # TODO: pass invalid order msg to client: MessengerServer.notify_error(err, order)
             return {}
 
@@ -585,7 +585,7 @@ class Bitfinex(EXBase):
             and not isinstance(order['price'], float)):
                 valid = False
             if not valid:
-                logger.warn(f"create_order_multi orders are invalid: {order}")
+                logger.warning(f"create_order_multi orders are invalid: {order}")
             return valid
 
         self._check_auth()
@@ -607,7 +607,7 @@ class Bitfinex(EXBase):
                 params=params)
 
         except ccxt.InvalidOrder as err:
-            logger.warn(f"{str(err)}")
+            logger.warning(f"{str(err)}")
             # TODO: pass invalid order msg to client: MessengerServer.notify_error(err, order)
             return {}
 
@@ -627,7 +627,7 @@ class Bitfinex(EXBase):
         try:
             res = await handle_ccxt_request(self.ex.cancel_order, id)
         except ccxt.OrderNotFound as err:
-            logger.warn(f"OrderNotFound: {str(err)}")
+            logger.warning(f"OrderNotFound: {str(err)}")
             return {}
 
         ccxt_parsed_order = self.ex.parse_order(res)

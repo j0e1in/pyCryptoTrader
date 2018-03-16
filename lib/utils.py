@@ -412,17 +412,17 @@ async def handle_ccxt_request(func, *args, **kwargs):
             and not (str(err).find("Web server is returning an unknown error") >= 0
             or       str(err).find("Ratelimit") >= 0
             or       str(err).find("Cannot connect to host") >= 0):
-                logger.warn(f"ExchangeError, {type(err)} {str(err)}")
+                logger.warning(f"ExchangeError, {type(err)} {str(err)}")
                 raise err
 
             elif isinstance(err, ccxt.ExchangeNotAvailable) \
             and (str(err).find("time_interval: invalid") >= 0):
-                logger.warn(f"ExchangeNotAvailable, {type(err)} {str(err)}")
+                logger.warning(f"ExchangeNotAvailable, {type(err)} {str(err)}")
 
             # caused by ccxt.bitfinex handle_errors in bitfinex.py line 634
             elif isinstance(err, KeyError) \
                     and not str(err).find('message') >= 0:
-                logger.warn(f"KeyError, {str(err)}")
+                logger.warning(f"KeyError, {str(err)}")
                 raise err
 
             logger.info(f'# {type(err).__name__} # retry {func.__name__} in {wait} seconds...')
@@ -480,7 +480,7 @@ def is_within(dt, td):
 
 
 def near_start(dt, td):
-    ratio = 1 / 6 # smaller means closer to the start
+    ratio = 1 / 10 # smaller means closer to the start
     rdt = rounddown_dt(dt, sec=td.seconds)
     return True if (dt - rdt) <= td * ratio else False
 
@@ -523,7 +523,7 @@ def alert_sound(duration, words, n=1):
             import winsound
             winsound.Beep(freq, duration * 1000)
         else:
-            logger.warn(f"Platform {sys.platform} is not supported.")
+            logger.warning(f"Platform {sys.platform} is not supported.")
 
 
 def ohlcv_to_interval(ohlcv, src_tf, target_td):

@@ -71,7 +71,7 @@ class EXMongo():
             .to_list(length=INF)
 
         if not res:
-            raise logger.warn(
+            raise logger.warning(
                 f"Empty response, maybe {ex} {sym} {tf}'s data does not exist."
             )
 
@@ -91,7 +91,7 @@ class EXMongo():
             .to_list(length=INF)
 
         if not res:
-            logger.warn(f"No ohlcv, maybe {ex} {sym} {tf} is not in DB.")
+            logger.warning(f"No ohlcv, maybe {ex} {sym} {tf} is not in DB.")
 
         return res[0] if res else {}
 
