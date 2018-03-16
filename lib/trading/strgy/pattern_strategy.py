@@ -111,6 +111,9 @@ class PatternStrategy(SingleEXStrategy):
         """ Main algorithm which calculates signals.
             Returns {signal, timeframe}
         """
+        self.ind.change_param_set(market)
+        self.p = self.ind.p
+
         ohlcv = self.trader.ohlcvs[market][self.trader.config['indicator_tf']]
         sig = self.ind.stoch_rsi_sig(ohlcv)
 

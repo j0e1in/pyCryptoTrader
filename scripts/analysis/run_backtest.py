@@ -64,11 +64,12 @@ async def test_special_periods_of_markets(mongo):
         "BTC/USD",
         "BCH/USD",
         "ETH/USD",
+        "XRP/USD",
+
         "EOS/USD",
         "LTC/USD",
         "NEO/USD",
         "OMG/USD",
-        "XRP/USD",
 
         # "ETC/USD",
         # "DASH/USD",

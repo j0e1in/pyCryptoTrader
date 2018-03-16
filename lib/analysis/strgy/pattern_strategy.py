@@ -25,6 +25,30 @@ class PatternStrategy(SingleExchangeStrategy):
         sig = self.calc_signal(market)
         self.execute_signal(sig, market, stop_loss, stop_profit)
 
+    def calc_signal(self, market):
+        """ Main algorithm which calculates signals.
+            Returns {signal, timeframe}
+        """
+        # Use market-specific param set if available
+        self.ind.change_param_set(market)
+        self.p = self.ind.p
+        pprint(f"Param set for {market}")
+        pprint(self.p)
+
+        ohlcv = self.ohlcvs[market][self.trader.config['indicator_tf']]
+        # sig = self.ind.wvf_sig(ohlcv)
+        # sig = self.ind.rsi_sig(ohlcv)
+        # sig = self.ind.ann_v3_sig(ohlcv)
+        # sig = self.ind.vwma_sig(ohlcv)
+        # sig = self.ind.vwma_ma_sig(ohlcv)
+        # sig = self.ind.hma_sig(ohlcv)
+        # sig = self.ind.hma_ma_sig(ohlcv)
+        # sig = self.ind.dmi_sig(ohlcv)
+        # sig = self.ind.mom_sig(ohlcv)
+        sig = self.ind.stoch_rsi_sig(ohlcv)
+
+        return sig
+
     def execute_signal(self, sig, market, stop_loss=False, stop_profit=False):
         stop_loss = self.p['stop_loss_percent'] if stop_loss else None
         stop_profit = self.p['stop_profit_percent'] if stop_profit else None
@@ -58,21 +82,3 @@ class PatternStrategy(SingleExchangeStrategy):
             else:  # ss == 0
                 # Close all positions and cancel all orders
                 self.op_clean_orders('all', dt)
-
-    def calc_signal(self, market):
-        """ Main algorithm which calculates signals.
-            Returns {signal, timeframe}
-        """
-        ohlcv = self.ohlcvs[market][self.trader.config['indicator_tf']]
-        # sig = self.ind.wvf_sig(ohlcv)
-        # sig = self.ind.rsi_sig(ohlcv)
-        # sig = self.ind.ann_v3_sig(ohlcv)
-        # sig = self.ind.vwma_sig(ohlcv)
-        # sig = self.ind.vwma_ma_sig(ohlcv)
-        # sig = self.ind.hma_sig(ohlcv)
-        # sig = self.ind.hma_ma_sig(ohlcv)
-        # sig = self.ind.dmi_sig(ohlcv)
-        # sig = self.ind.mom_sig(ohlcv)
-        sig = self.ind.stoch_rsi_sig(ohlcv)
-
-        return sig
