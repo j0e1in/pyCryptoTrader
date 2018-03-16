@@ -504,9 +504,9 @@ class Indicator():
         di_length = self.p['stochrsi_di_length']
 
         rsi_length = self.p['stochrsi_rsi_length']
-        rsi_mom_thresh = self.p['stochrsi_rsi_mom_thresh']
         rsi_upper = self.p['stochrsi_rsi_upper']
         rsi_lower = self.p['stochrsi_rsi_lower']
+        rsi_mom_thresh = self.p['stochrsi_rsi_mom_thresh']
 
         mom_length = self.p['stochrsi_mom_length']
         mom_ma_length = self.p['stochrsi_mom_ma_length']
