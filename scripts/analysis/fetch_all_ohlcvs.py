@@ -69,7 +69,7 @@ def parse_args():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--no-upsert', dest='upsert', action='store_false',
-        help="Disable upsert when inserting data, can reduce insertion time, "
+        help="Disable upsert while inserting data, can reduce insertion time and cpu usage, "
              "only use this option if no ohlcv in database")
     argv = parser.parse_args()
 
@@ -87,8 +87,6 @@ async def main():
 
     exchange = init_ccxt_exchange(ex)
 
-    upsert = True
-
     symbols = config['analysis']['exchanges'][ex]['markets_all']
 
     for sym in symbols:
@@ -101,10 +99,10 @@ async def main():
         for symbol, timeframe in ohlcv_pairs:
             _symbol = ''.join(symbol.split('/'))  # remove '/'
             coll = mongo.get_collection(db, coll_tamplate.format(ex, _symbol, timeframe))
-            start = await mongo.get_ohlcv_end(ex, symbol, timeframe) - timedelta(hours=30)
+            start = await mongo.get_ohlcv_end(ex, symbol, timeframe) - timedelta(hours=5)
             end = utc_now()
 
-            await fetch_ohlcv_to_mongo(coll, exchange, symbol, timeframe, start, end, upsert=upsert)
+            await fetch_ohlcv_to_mongo(coll, exchange, symbol, timeframe, start, end, upsert=argv.upsert)
 
             logger.info(f"Finished fetching {symbol} {timeframe}")
 
