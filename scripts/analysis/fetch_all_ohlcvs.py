@@ -2,23 +2,19 @@ from setup import run, setup
 setup()
 
 from asyncio import ensure_future
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import logging
 import pymongo
 
 from db import EXMongo
 from analysis.hist_data import fetch_ohlcv
-from utils import init_ccxt_exchange, execute_mongo_ops, config
+from utils import init_ccxt_exchange, execute_mongo_ops, config, utc_now
 
 logger = logging.getLogger()
 
 
-start = datetime(2018, 2, 20)
-end = datetime(2018, 3, 5)
-
-
-async def fetch_ohlcv_to_mongo(coll, exchange, symbol, timeframe, upsert=True):
+async def fetch_ohlcv_to_mongo(coll, exchange, symbol, timeframe, start, end, upsert=True):
 
     res = fetch_ohlcv(exchange, symbol, start, end, timeframe)
     bulk_ops = []
@@ -68,7 +64,21 @@ async def fetch_ohlcv_to_mongo(coll, exchange, symbol, timeframe, upsert=True):
         await execute_mongo_ops(bulk_ops)
 
 
+def parse_args():
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--no-upsert', dest='upsert', action='store_false',
+        help="Disable upsert when inserting data, can reduce insertion time, "
+             "only use this option if no ohlcv in database")
+    argv = parser.parse_args()
+
+    return argv
+
+
 async def main():
+    argv = parse_args()
+
     mongo = EXMongo()
 
     db = config['database']['dbname_exchange']
@@ -79,21 +89,7 @@ async def main():
 
     upsert = True
 
-    symbols = [
-        "BTC/USD",
-        "BCH/USD",
-        "ETH/USD",
-        "ETC/USD",
-        "EOS/USD",
-        "DASH/USD",
-        "IOTA/USD",
-        "LTC/USD",
-        "NEO/USD",
-        "OMG/USD",
-        "XMR/USD",
-        "XRP/USD",
-        "ZEC/USD",
-    ]
+    symbols = config['analysis']['exchanges'][ex]['markets_all']
 
     for sym in symbols:
         ohlcv_pairs = [
@@ -105,10 +101,12 @@ async def main():
         for symbol, timeframe in ohlcv_pairs:
             _symbol = ''.join(symbol.split('/'))  # remove '/'
             coll = mongo.get_collection(db, coll_tamplate.format(ex, _symbol, timeframe))
+            start = await mongo.get_ohlcv_end(ex, symbol, timeframe) - timedelta(hours=30)
+            end = utc_now()
 
-            await fetch_ohlcv_to_mongo(coll, exchange, symbol, timeframe, upsert=upsert)
+            await fetch_ohlcv_to_mongo(coll, exchange, symbol, timeframe, start, end, upsert=upsert)
 
-            logger.info(f"Finished fetching {symbol} {timeframe}.")
+            logger.info(f"Finished fetching {symbol} {timeframe}")
 
     exchange.close()
 

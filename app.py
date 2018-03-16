@@ -32,6 +32,9 @@ def parse_args():
 def main():
     argv = parse_args()
 
+    if argv.args is None:
+        argv.args = ''
+
     if argv.build_ohlcvs:
         os.system(f"python scripts/analysis/build_ohlcvs.py {argv.args}")
 
@@ -63,7 +66,6 @@ def main():
         os.system(f"python scripts/trading/start_trader.py {argv.args}")
 
     elif argv.restart_trader:
-        # eg. --args="--args=\"--log-signal --enable-api\""
         os.system(f"python scripts/trading/restart_trader.py {argv.args}")
 
 

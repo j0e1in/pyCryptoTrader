@@ -176,7 +176,7 @@
         "markets": [
           "XRP/USD"
         ],
-        "markets_not_used": [
+        "markets_all": [
           "BTC/USD",
           "BCH/USD",
           "ETH/USD",
@@ -211,7 +211,7 @@
           "1h",
           "8h"
         ],
-        "timeframes_available": [
+        "timeframes_all": [
           "1m",
           "15m",
           "30m",
