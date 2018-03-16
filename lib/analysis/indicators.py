@@ -539,8 +539,8 @@ class Indicator():
         stochrsi_rebuy = (src.shift(1) < stochrsi_upper) & (src >= stochrsi_upper) & (bot_peak > stochrsi_lower)
         stochrsi_resell = (src.shift(1) > stochrsi_lower) & (src <= stochrsi_lower) & (top_peak < stochrsi_upper)
 
-        rsi_buy = ((rsi <= rsi_upper) & (mom <= -rsi_mom_thresh)) & ~(mdi > adx) # or (rsi <= 10)
-        rsi_sell = ((rsi >= rsi_lower) & (mom >= rsi_mom_thresh)) & ~(pdi > adx) # or (rsi >= 90)
+        rsi_buy = ((rsi <= rsi_lower) & (mom <= -rsi_mom_thresh)) & ~(mdi > adx) # or (rsi <= 10)
+        rsi_sell = ((rsi >= rsi_upper) & (mom >= rsi_mom_thresh)) & ~(pdi > adx) # or (rsi >= 90)
 
         stoch_rsi_close = pd.Series(False, index=src.index)
 
