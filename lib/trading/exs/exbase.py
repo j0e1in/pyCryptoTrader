@@ -213,7 +213,7 @@ class EXBase():
 
                 # 1. Sleep will be slighly shorter than expected
                 # 2. Add extra seconds because exchange server data preperation may delay
-                await asyncio.sleep(countdown.seconds + 25)
+                await asyncio.sleep(countdown.seconds + 40)
 
     async def _start_trade_stream(self):
         # TODO
