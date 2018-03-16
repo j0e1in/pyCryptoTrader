@@ -32,8 +32,6 @@ class PatternStrategy(SingleExchangeStrategy):
         # Use market-specific param set if available
         self.ind.change_param_set(market)
         self.p = self.ind.p
-        pprint(f"Param set for {market}")
-        pprint(self.p)
 
         ohlcv = self.ohlcvs[market][self.trader.config['indicator_tf']]
         # sig = self.ind.wvf_sig(ohlcv)
