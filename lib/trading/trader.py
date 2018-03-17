@@ -111,6 +111,9 @@ class SingleEXTrader():
             self.summary['initial_balance'] = copy.deepcopy(self.ex.wallet)
             self.summary['initial_value'] = await self.ex.calc_account_value()
 
+        if not self.enable_trade:
+            logger.info("Trading disabled")
+
         await self.ex_ready()
         logger.info("Exchange is ready")
 
