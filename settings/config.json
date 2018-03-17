@@ -47,7 +47,7 @@
     "scale_order_far_percent": 0.03,
     "scale_order_count": 20,
 
-    "summary_delay": 30,
+    "summary_delay": 120,
 
     "bitfinex": {
       "margin_rate": 3.33,
