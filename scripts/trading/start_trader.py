@@ -22,7 +22,7 @@ def parse_args():
     parser.add_argument('--log', action='store_true', help='Enable trader logging')
     parser.add_argument('--log-signal', action='store_true', help='Enable periodic indicator signal logging')
     parser.add_argument('--enable-api', action='store_true', help='Enable API server for clients to request data')
-    parser.add_argument('--disable-trade', dest='enable_trade', action='store_false', help='Disable creating orders')
+    parser.add_argument('--disable-trading', dest='enable_trade', action='store_false', help='Disable creating orders')
     parser.add_argument('--ssl', action='store_true', help='Enable SSL, only works if API is enabled')
     argv = parser.parse_args()
 
