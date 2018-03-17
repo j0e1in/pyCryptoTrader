@@ -3,15 +3,18 @@ setup()
 
 import asyncio
 import argparse
+import logging
 
 from api import APIServer
 from db import EXMongo
 from trading.trader import SingleEXTrader
 
 log_file = 'start_trader.log'
+logger = logging.getLogger()
 
 
-async def main():
+def parse_args():
+    import argparse
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--host', default='0.0.0.0', help='Server IP')
@@ -23,6 +26,12 @@ async def main():
     parser.add_argument('--ssl', action='store_true', help='Enable SSL, only works if API is enabled')
     argv = parser.parse_args()
 
+    return argv
+
+
+async def main():
+    argv = parse_args()
+
     mongo = EXMongo()
     trader = SingleEXTrader(mongo, 'bitfinex', 'pattern',
             log=argv.log,
@@ -30,6 +39,9 @@ async def main():
             enable_trade=argv.enable_trade)
 
     if argv.enable_api:
+        with_ssl = 'with' if argv.ssl else 'without'
+        logger.info(f"Starting API server {with_ssl} SSL")
+
         server = APIServer(trader)
         await server.run(access_log=True, enable_ssl=argv.ssl)
 
