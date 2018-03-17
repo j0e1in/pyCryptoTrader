@@ -387,7 +387,7 @@
 
   "database": {
     "_comment_default_host": "localhost or mongo (docker) or an external IP",
-    "default_host": "172.18.0.2",
+    "default_host": "mongo",
     "default_port": 27017,
     "auth": true,
     "username": "ex",
