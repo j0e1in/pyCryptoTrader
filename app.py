@@ -40,7 +40,7 @@ def main():
     argv, argv_remain = parse_args()
 
     argv_remain += append_argv
-    argv_remain = ''.join(argv_remain)
+    argv_remain = ' '.join(argv_remain)
 
     if not argv_remain:
         argv_remain = ''
