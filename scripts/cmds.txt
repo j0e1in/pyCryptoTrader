@@ -15,7 +15,6 @@ killall python
 ## ON LOCAL MACHINE
 
 PROJ_DIR=pyCryptoTrader
-OHLCV_DIR=~/mongo_backup
 USERNAME=j0e1in
 IP=crypto.csie.io
 
