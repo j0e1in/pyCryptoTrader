@@ -1,4 +1,10 @@
+#!/bin/bash
+
 USERNAME=j0e1in
+IP=0.0.0.0 # change this
+
+# Execute over ssh
+# ssh $USERNAME@$IP "bash -s" < scripts/system/dev_server_setup.sh
 
 # Create user
 adduser --disabled-password --gecos "" $USERNAME

@@ -17,18 +17,7 @@ killall python
 PROJ_DIR=pyCryptoTrader
 OHLCV_DIR=~/mongo_backup
 USERNAME=j0e1in
-IP=35.229.144.97
-
-scp $OHLCV_DIR/ohlcvs.zip $USERNAME@$IP:~/
-
-# or backup volume from mongo container
-docker run -v mongo_data:/volume --rm loomchild/volume-backup backup - > mongo_data.tar.bz2
-
-# Copy to remote
-scp mongo_data.tar.bz2 $USERNAME@$IP:~/
-
-# and restore (use scripts/mongodb/mongo_container_setup.sh to restore)
-# cat mongo_data.tar.bz2 | docker run -i -v mongo_data:/volume --rm loomchild/volume-backup restore -
+IP=crypto.csie.io
 
 # Zip and upload source code
 rm -rf $PROJ_DIR.zip
@@ -59,4 +48,15 @@ docker tag gcr.io/docker-reghub/pycryptotrader pycryptotrader
 # Push built image
 docker tag pycryptotrader gcr.io/docker-reghub/pycryptotrader
 gcloud docker -- push gcr.io/docker-reghub/pycryptotrader
+
+
+## Migrate mongodb
+# Backup
+docker run -v mongo_data:/volume --rm loomchild/volume-backup backup - > mongo_data.tar.bz2
+
+# Copy to remote
+scp mongo_data.tar.bz2 $USERNAME@$IP:~/
+
+# Restore (use scripts/mongodb/mongo_container_setup.sh to restore for first time)
+cat mongo_data.tar.bz2 | docker run -i -v mongo_data:/volume --rm loomchild/volume-backup restore -
 
