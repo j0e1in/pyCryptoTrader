@@ -20,12 +20,14 @@ RUN wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz && \
   rm -rf ta-lib && \
   rm ta-lib-0.4.0-src.tar.gz
 
-COPY . /app
+COPY requirements-docker.txt /app/
 
 RUN pip install -U pip && \
   pip install -r requirements-docker.txt && \
   pip install ta-lib  # this module needs to be installed after numpy
 
+COPY . /app
+
 USER admin
 
-CMD ["true"]
+ENTRYPOINT ["python", "app.py"]
