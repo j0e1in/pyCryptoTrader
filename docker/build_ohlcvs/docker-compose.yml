@@ -1,7 +1,7 @@
 version: '3.3'
 services:
   build_ohlcvs:
-    image: pyct
+    image: gcr.io/docker-reghub/pyct
     command: "--build-ohlcvs"
     networks:
       - mongo_net

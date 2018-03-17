@@ -2,9 +2,11 @@ version: '3.3'
 services:
   main:
     build: ./
-    image: pyct
+    image: gcr.io/docker-reghub/pyct
+    deploy:
+      replicas: 0
   trade:
-    image: pyct
+    image: gcr.io/docker-reghub/pyct
     command: "--start-trader --enable-api --ssl --log-signal --log"
     volumes:
       - ./log:/app/log
@@ -20,8 +22,11 @@ services:
         target: /app/private/privkey.pem
     depends_on:
       - mongo
+    deploy:
+      replicas: 1
   mongo:
     image: mongo:3.6
+    command: mongod --smallfiles --logpath=/dev/null --quiet --auth
     networks:
       - mongo_net
     environment:
@@ -31,7 +36,8 @@ services:
       - mongo_data:/data/db
     ports:
       - 27017:27017
-    command: mongod --smallfiles --logpath=/dev/null --quiet --auth
+    deploy:
+      replicas: 1
 
 networks:
   mongo_net:
