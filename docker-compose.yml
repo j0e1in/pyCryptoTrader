@@ -7,12 +7,14 @@ services:
       replicas: 0
   trade:
     image: gcr.io/docker-reghub/pyct
-    command: "--start-trader --enable-api --ssl --log-signal --log"
+    command: "--start-trader --enable-api --ssl --log-signal --log --disable-trade"
     volumes:
       - ./log:/app/log
       - ./settings:/app/settings
     networks:
       - mongo_net
+    ports:
+      - "8000:8000"
     secrets:
       - source: keys.json
         target: /app/private/keys.json
