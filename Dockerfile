@@ -3,7 +3,6 @@ FROM python:3.6-slim
 RUN useradd -ms /bin/bash admin
 
 WORKDIR /app
-COPY . /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
   g++ \
@@ -20,6 +19,8 @@ RUN wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz && \
   cd ..  && \
   rm -rf ta-lib && \
   rm ta-lib-0.4.0-src.tar.gz
+
+COPY . /app
 
 RUN pip install -U pip && \
   pip install -r requirements-docker.txt && \

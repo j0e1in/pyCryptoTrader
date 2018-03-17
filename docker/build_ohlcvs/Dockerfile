@@ -1,3 +1,3 @@
-FROM gcr.io/docker-reghub/pyct
+FROM pyct
 
-CMD ["python app.py --build-ohlcvs"]
+ENTRYPOINT ["python app.py --build-ohlcvs"]

@@ -1,3 +1,7 @@
-FROM gcr.io/docker-reghub/pyct
+FROM pyct
 
-CMD ["python", "app.py", "--restart-trader"]
+EXPOSE 8000
+
+ENTRYPOINT ["python", "app.py", "--start-trader"]
+
+CMD ["--enable-api", "--ssl"]

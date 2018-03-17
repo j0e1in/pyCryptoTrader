@@ -1,11 +1,15 @@
 version: '3.3'
 services:
-  pycryptotrader:
-    image: pycryptotrader:trader-ssl
-    container_name: "pycryptotrader"
+  pyct:
+    build:
+      context: ./
+  pyct_trade:
+    build:
+      context: ./docker/trade
+    command: "--enable-api --log"
     volumes:
-      - $PWD/log:/app/log
-      - $PWD/settings:/app/settings
+      - ./log:/app/log
+      - ./settings:/app/settings
     networks:
       - mongo_net
     secrets:
@@ -16,10 +20,10 @@ services:
       - source: privkey.pem
         target: /app/private/privkey.pem
     depends_on:
+      - pyct
       - mongo
   mongo:
     image: mongo:3.6
-    container_name: "mongo"
     networks:
       - mongo_net
     environment:
@@ -33,7 +37,6 @@ services:
 
 networks:
   mongo_net:
-    external: true
 
 volumes:
   mongo_data:

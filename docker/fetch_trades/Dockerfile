@@ -1,3 +1,3 @@
-FROM gcr.io/docker-reghub/pyct
+FROM pyct
 
-CMD ["python app.py --fetch-trades"]
+ENTRYPOINT ["python app.py --fetch-trades"]
