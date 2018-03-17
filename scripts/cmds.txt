@@ -41,12 +41,12 @@ passwd
 gcloud init
 
 # Pull built image
-gcloud docker -- pull gcr.io/docker-reghub/pycryptotrader
-docker tag gcr.io/docker-reghub/pycryptotrader pycryptotrader
+gcloud docker -- pull gcr.io/docker-reghub/pyct
+docker tag gcr.io/docker-reghub/pyct pycryptotrader
 
 # Push built image
-docker tag pycryptotrader gcr.io/docker-reghub/pycryptotrader
-gcloud docker -- push gcr.io/docker-reghub/pycryptotrader
+docker tag pycryptotrader gcr.io/docker-reghub/pyct
+gcloud docker -- push gcr.io/docker-reghub/pyct
 
 
 ## Migrate mongodb

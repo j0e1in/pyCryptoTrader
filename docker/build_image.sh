@@ -8,7 +8,7 @@ fi
 
 if [ $target = "all" ]; then
   docker build -t pycryptotrader ../
-  docker tag pycryptotrader gcr.io/docker-reghub/pycryptotrader
+  docker tag pycryptotrader gcr.io/docker-reghub/pyct
 
   docker build -t pycryptotrader.trade ./trade
   docker build -t pycryptotrader.optimize ./optimize
@@ -19,7 +19,7 @@ fi
 
 if [ $target = "main" ]; then
   docker build -t pycryptotrader ../
-  docker tag pycryptotrader gcr.io/docker-reghub/pycryptotrader
+  docker tag pycryptotrader gcr.io/docker-reghub/pyct
 fi
 
 if [ $target = "trade" ]; then
