@@ -7,7 +7,6 @@ COPY . /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
   g++ \
-  git \
   make \
   wget \
   && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
@@ -22,7 +21,8 @@ RUN wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz && \
   rm -rf ta-lib && \
   rm ta-lib-0.4.0-src.tar.gz
 
-RUN pip install -r requirements-docker.txt && \
+RUN pip install -U pip && \
+  pip install -r requirements-docker.txt && \
   pip install ta-lib  # this module needs to be installed after numpy
 
 USER admin
