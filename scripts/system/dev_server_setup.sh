@@ -1,4 +1,11 @@
+#!/bin/bash
+
 USERNAME=j0e1in
+IP=0.0.0.0 # change this
+
+# Execute over ssh
+# ssh $USERNAME@$IP "bash -s" < scripts/system/dev_server_setup.sh
+
 
 # Create user
 adduser --disabled-password --gecos "" $USERNAME
@@ -45,3 +52,14 @@ sudo apt-get update
 sudo apt-get install -y mongodb-org
 
 sudo reboot
+
+
+# THEN
+
+## Backup local mongodb, copy to remote and then restore
+# docker run -v mongo_data:/volume --rm loomchild/volume-backup backup - > mongo_data.tar.bz2
+# scp mongo_data.tar.bz2 $USERNAME@$IP:~/
+# cat mongo_data.tar.bz2 | docker run -i -v mongo_data:/volume --rm loomchild/volume-backup restore -
+
+## Init gcloud
+# gcloud init

@@ -1,10 +1,12 @@
 from subprocess import Popen, PIPE
 
 import argparse
+import logging
 import os
 import sys
 import time
 
+logger = logging.getLogger()
 
 def main():
     # Must run restart.py while in the same directory as the target script
@@ -23,7 +25,7 @@ def main():
 
         p = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE)
 
-        print("----------- Process started ----------")
+        logger.info("----------- Process started ----------")
 
         for line in p.stdout:
             sys.stdout.write(line.decode('utf-8'))
@@ -39,9 +41,9 @@ def main():
             err = err.decode('utf-8')
             msg = f"[Error Message]\n{err}"
 
-            print("----------- Restarting Process ----------")
+            logger.info("----------- Restarting Process ----------")
 
-        print(msg)
+        logger.info(msg)
 
         with open('log/restart.log', 'a') as f:
             f.write(msg)

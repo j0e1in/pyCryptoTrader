@@ -1,35 +1,9 @@
 #/bin/bash
 
-target=$1
+version=$1
 
-if [ -z "$*" ]; then
-  echo "Usage: build_image.sh [target: main | trade | optimize | fetch_ohlcv | fetch_trades | build_ohlcvs]"
-fi
-
-if [ $target = "main" ]; then
-  docker build -t pycryptotrader .
-fi
-
-if [ $target = "trade" ]; then
-  docker build -t pycryptotrader:trade ./trade
-fi
-
-if [ $target = "optimize" ]; then
-  docker build -t pycryptotrader:optimize ./optimize
-fi
-
-if [ $target = "fetch_ohlcv" ]; then
-  docker build -t pycryptotrader:fetch_ohlcv ./fetch_ohlcv
-fi
-
-if [ $target = "fetch_trades" ]; then
-  docker build -t pycryptotrader:fetch_trades ./fetch_trades
-fi
-
-if [ $target = "build_ohlcvs" ]; then
-  docker build -t pycryptotrader:build_ohlcvs ./build_ohlcvs
-fi
-
+docker build -t pyct ../
+docker tag pyct gcr.io/docker-reghub/pyct
 
 # export IMG_TYPE=$1
 # export IMG_VERSION=$2
@@ -37,6 +11,6 @@ fi
 # if [ -z "$IMG_TYPE" ] || [ -z "$IMG_VERSION" ]; then
 #   echo "Usage: ./build.sh [jessie | slim | alpine] [version]"
 # else
-#   docker build -t pycryptotrader:$IMG_VERSION-$IMG_TYPE -f Dockerfile-$IMG_TYPE ..
+#   docker build -t pyct:$IMG_VERSION-$IMG_TYPE -f Dockerfile-$IMG_TYPE ..
 # fi
 
