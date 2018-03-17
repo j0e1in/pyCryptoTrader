@@ -56,8 +56,7 @@ gcloud init
 gcloud docker -- pull gcr.io/docker-reghub/pycryptotrader
 docker tag gcr.io/docker-reghub/pycryptotrader pycryptotrader
 
-# or build from source
-cd $PROJ_DIR
-docker build -t pycryptotrader .
-
+# Push built image
+docker tag pycryptotrader gcr.io/docker-reghub/pycryptotrader
+gcloud docker -- push gcr.io/docker-reghub/pycryptotrader
 
