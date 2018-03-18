@@ -193,6 +193,7 @@ class APIServer():
                         "filled": float
                         "remaining": float
                         "price": float
+                        "value" float
                         "timestamp": int
                         "margin": bool
                     },
@@ -209,6 +210,7 @@ class APIServer():
         orders = await req.app.trader.ex.fetch_open_orders()
 
         for ord in orders:
+            ord['value'] = abs(ord['amount']) * ord['price']
             del ord['average']
             del ord['datetime']
             del ord['fee']
@@ -220,23 +222,44 @@ class APIServer():
     @app.route('/account/active/positions/<uid:string>/<ex:string>', methods=['GET'])
     async def active_positions(req, uid, ex):
         """ Query active orders of an exchange.
+            {
+                "positions": [
+                    {
+                        "symbol": string
+                        "side": string
+                        "amount": float
+                        "price": float
+                        "value": float
+                        "timestamp": string
+                        "PL": float
+                    },
+                    ...
+                ]
+            }
         """
         if not req.app.server.verified_access(uid, 'active_positions'):
             abort(401)
 
-        if ex != req.app.trader.ex.exname:
+        trader = req.app.trader
+
+        if ex != trader.ex.exname:
             return response.json({ 'error': 'Exchange is not active.' })
 
-        positions = await req.app.trader.ex.fetch_positions()
+        positions = await trader.ex.fetch_positions()
 
         for i, pos in enumerate(positions):
+            margin_rate = trader.config[trader.ex.exname]['margin_rate']
+            base_value = abs(pos['amount']) / margin_rate * pos['base_price']
+
             positions[i] = {
-                'amount': abs(pos['amount']),
-                'base_price': pos['base_price'],
-                'PL': pos['pl'],
-                'side': 'buy' if pos['amount'] > 0 else 'sell',
                 'symbol': pos['symbol'],
-                'timestamp': pos['timestamp']
+                'side': 'buy' if pos['amount'] > 0 else 'sell',
+                'amount': abs(pos['amount']) / margin_rate,
+                'price': pos['base_price'],
+                'value': base_value,
+                'timestamp': pos['timestamp'],
+                'PL': pos['pl'],
+                'PL(%)': pos['pl'] / base_value * 100,
             }
 
         return response.json({ 'positions': positions })
