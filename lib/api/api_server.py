@@ -207,7 +207,8 @@ class APIServer():
         if ex != req.app.trader.ex.exname:
             return response.json({ 'error': 'Exchange is not active.' })
 
-        if req.headers['dummy-data'] == 'true':
+        if 'dummy-data' in req.headers \
+        and req.headers['dummy-data'] == 'true':
             return response.json(dummy_data['active_orders'])
 
         orders = await req.app.trader.ex.fetch_open_orders()
@@ -248,7 +249,8 @@ class APIServer():
         if ex != trader.ex.exname:
             return response.json({ 'error': 'Exchange is not active.' })
 
-        if req.headers['dummy-data'] == 'true':
+        if 'dummy-data' in req.headers \
+        and req.headers['dummy-data'] == 'true':
             return response.json(dummy_data['active_positions'])
 
         positions = await trader.ex.fetch_positions()
