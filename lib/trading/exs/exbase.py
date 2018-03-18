@@ -426,6 +426,9 @@ class EXBase():
     async def update_withdraw_fees(self):
         not_implemented()
 
+    async def transfer_funds(self):
+        pass # most exchanges do not support, so just ignore it
+
     ##############################
     # EXCHANGE UTILITY FUNCTIONS #
     ##############################
