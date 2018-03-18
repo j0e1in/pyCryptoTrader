@@ -11,7 +11,7 @@ import queue
 import pandas as pd
 import numpy as np
 
-from utils import config, Timer, roundup_dt, timeframe_timedelta, check_periods, INF
+from utils import config, Timer, roundup_dt, tf_td, check_periods, INF
 from analysis.backtest_trader import SimulatedTrader, FastTrader
 
 try:
@@ -199,7 +199,7 @@ class Backtest():
             for curr, amount in wallet.items():
 
                 min_tf = self.timeframes[ex][0]
-                sec = timeframe_timedelta(min_tf).total_seconds()
+                sec = tf_td(min_tf).total_seconds()
                 dt = roundup_dt(dt, sec=sec)
 
                 if curr == 'USD':

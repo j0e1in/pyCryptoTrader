@@ -11,7 +11,7 @@ from utils import \
     is_within, \
     near_end, \
     near_start, \
-    timeframe_timedelta, \
+    tf_td, \
     utc_now
 
 logger = logging.getLogger()
@@ -48,7 +48,7 @@ class PatternStrategy(SingleEXStrategy):
         for market in market_ranks:
             sig = signals[market]
             tf = self.trader.config['indicator_tf']
-            td = timeframe_timedelta(tf)
+            td = tf_td(tf)
 
             # Ensure ohlcv is up-to-date
             if is_within(sig.index[-1], td):
@@ -84,7 +84,7 @@ class PatternStrategy(SingleEXStrategy):
 
             # Reset last_sig_execution on new period
             if near_start(sig.index[-1], td) \
-            and not is_within(last_reset_time, timeframe_timedelta(tf) / 2):
+            and not is_within(last_reset_time, tf_td(tf) / 2):
                 self.last_sig_execution['conf'] = None
                 self.last_sig_execution['time'] = None
                 last_reset_time = utc_now()

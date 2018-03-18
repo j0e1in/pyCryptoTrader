@@ -5,7 +5,7 @@ import time
 import pandas as pd
 
 from utils import sec_ms, ms_sec,\
-    timeframe_timedelta,\
+    tf_td,\
     ms_dt,\
     dt_ms,\
     timeframe_to_freq,\
@@ -152,7 +152,7 @@ async def find_missing_ohlcv(coll, start, end, timeframe):
             coll, ['timestamp', 'open', 'close', 'high', 'low', 'volume']):
         raise ValueError('Collection\'s fields do not match candle\'s.')
 
-    td = timeframe_timedelta(timeframe)
+    td = tf_td(timeframe)
     td = sec_ms(td.seconds)
 
     prev_ts = start - td
@@ -208,7 +208,7 @@ async def build_ohlcv(mongo, exchange, symbol, src_tf, target_tf, *,
     end = datetime(9999, 1, 1) if not end else end
 
     src_df = await mongo.get_ohlcv(exchange, symbol, src_tf, start, end)
-    target_td = timeframe_timedelta(target_tf)
+    target_td = tf_td(target_tf)
     target_df = ohlcv_to_interval(src_df, src_tf, target_td)
 
     await mongo.insert_ohlcv(

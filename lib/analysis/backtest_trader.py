@@ -17,7 +17,7 @@ from utils import not_implemented,\
     dt_max,\
     Timer,\
     to_ordered_dict, \
-    timeframe_timedelta
+    tf_td
 
 # TODO: Use different configs (fee etc.) for different exchanges
 # TODO: Add different order types

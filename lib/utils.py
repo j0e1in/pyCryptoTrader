@@ -95,7 +95,7 @@ def utc_now():
     return datetime.now() - tdelta
 
 
-def timeframe_timedelta(timeframe):
+def tf_td(timeframe):
     """ Convert timeframe to timedelta. """
     if 'M' == timeframe[-1]:
         period = int(timeframe.split('M')[0])
@@ -492,13 +492,13 @@ def near_end(dt, td):
 
 
 def smallest_tf(tfs):
-    tds = [(idx, timeframe_timedelta(tf)) for idx, tf in enumerate(tfs)]
+    tds = [(idx, tf_td(tf)) for idx, tf in enumerate(tfs)]
     tds.sort(key=lambda tup: tup[1])
     return tfs[tds[0][0]]
 
 
 def largest_tf(tfs):
-    tds = [(idx, timeframe_timedelta(tf)) for idx, tf in enumerate(tfs)]
+    tds = [(idx, tf_td(tf)) for idx, tf in enumerate(tfs)]
     tds.sort(key=lambda tup: -tup[1])
     return tfs[tds[0][0]]
 
@@ -528,7 +528,7 @@ def alert_sound(duration, words, n=1):
 
 def ohlcv_to_interval(ohlcv, src_tf, target_td):
     """ Convert ohlcv to higher interval (timeframe). """
-    src_td = timeframe_timedelta(src_tf)
+    src_td = tf_td(src_tf)
 
     if target_td < timedelta(hours=1):
         tmax = 60 # timeframe is under 1 hour

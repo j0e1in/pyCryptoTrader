@@ -22,7 +22,7 @@ from utils import config, \
                   smallest_tf, \
                   alert_sound, \
                   is_within, \
-                  timeframe_timedelta, \
+                  tf_td, \
                   execute_mongo_ops
 
 from analysis.hist_data import build_ohlcv
@@ -162,7 +162,7 @@ class SingleEXTrader():
             return changed
 
         if (utc_now() - last_log_time) > \
-        timeframe_timedelta(self.config['indicator_tf']) / 5 \
+        tf_td(self.config['indicator_tf']) / 5 \
         or sig_changed(sig):
             for market in self.markets:
                 logger.info(f"{market} indicator signal @ {utc_now()}\n{sig[market][-10:]}")
@@ -182,7 +182,7 @@ class SingleEXTrader():
                     if tf != src_tf:
                         src_end_dt = await self.mongo.get_ohlcv_end(self.ex.exname, market, src_tf)
                         target_end_dt = await self.mongo.get_ohlcv_end(self.ex.exname, market, tf)
-                        target_start_dt = target_end_dt - timeframe_timedelta(tf) * 5
+                        target_start_dt = target_end_dt - tf_td(tf) * 5
 
                         # Build ohlcv starting from 5 bars earlier from latest bar
                         await build_ohlcv(self.mongo, self.ex.exname, market, src_tf, tf,
@@ -531,7 +531,7 @@ class SingleEXTrader():
 
         for tf in ohlcvs.keys():
             if tf != sm_tf:
-                start_dt = ohlcvs[tf].index[-1] + timeframe_timedelta(tf)
+                start_dt = ohlcvs[tf].index[-1] + tf_td(tf)
                 end_dt = ohlcvs[sm_tf].index[-1]
 
                 # All timeframes are at the same timestamp, no need to fill

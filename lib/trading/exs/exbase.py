@@ -14,7 +14,7 @@ from utils import \
     roundup_dt, \
     rounddown_dt, \
     ex_name, \
-    timeframe_timedelta, \
+    tf_td, \
     rsym, \
     ms_dt, \
     not_implemented, \
@@ -195,7 +195,7 @@ class EXBase():
             # Fetch only 1m ohlcv
             for market in self.markets:
                 tf = '1m'
-                td = timeframe_timedelta(tf)
+                td = tf_td(tf)
 
                 end = self.ohlcv_start_end[market][tf]['end']
                 cur_time = rounddown_dt(utc_now(), sec=td.seconds)
