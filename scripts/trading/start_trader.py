@@ -39,9 +39,6 @@ async def main():
             enable_trade=argv.enable_trade)
 
     if argv.enable_api:
-        with_ssl = 'with' if argv.ssl else 'without'
-        logger.info(f"Starting API server {with_ssl} SSL...")
-
         server = APIServer(trader)
         await server.run(access_log=True, enable_ssl=argv.ssl)
 

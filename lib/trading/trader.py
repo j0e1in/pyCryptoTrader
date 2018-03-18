@@ -563,6 +563,8 @@ class SingleEXTrader():
 
         self.summary['now'] = now
         self.summary['days'] = (now - start).seconds / 60 / 60 / 24
+        self.summary['#profit_trades'] = 0
+        self.summary['#loss_trades'] = 0
         self.summary['current_balance'] = copy.deepcopy(self.ex.wallet)
         self.summary['current_value'] = await self.ex.calc_account_value()
         self.summary['total_trade_fee'] = await self.ex.calc_trade_fee(start, now)

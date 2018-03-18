@@ -6,9 +6,12 @@ from sanic.exceptions import abort
 import asyncio
 import argparse
 import copy
+import logging
 import json
 
 from utils import dt_ms, config
+
+logger = logging.getLogger()
 
 
 class APIServer():
@@ -57,11 +60,15 @@ class APIServer():
             import ssl
             context = ssl.create_default_context(purpose=ssl.Purpose.CLIENT_AUTH)
             context.load_cert_chain(self.config['cert'], keyfile=self.config['key'])
+
         else:
             context = None
 
         start_server = self.app.create_server(host=host, port=port, ssl=context, *args, **kwargs)
         start_trader = asyncio.ensure_future(self.app.trader.start())
+
+        with_ssl = 'with' if enable_ssl else 'without'
+        logger.info(f"Starting API server {with_ssl} SSL...")
 
         await asyncio.gather(
             start_server,
@@ -140,8 +147,6 @@ class APIServer():
                 "start": timestamp, (bot trading start datetime)
                 "now": timestamp, (datetime as of summary calculation)
                 "days": int,
-                "#normal_orders": int,
-                "#margin_orders": int,
                 "#profit_trades": int,
                 "#loss_trades": int,
                 "initial_balance": {
