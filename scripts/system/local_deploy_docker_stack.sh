@@ -17,4 +17,4 @@ docker stack deploy -c docker-compose-production.yml crypto
 echo "wait for 10 seconds..."
 sleep 10
 
-docker service logs -f crypto_trade"
+docker service logs -f crypto_trade
