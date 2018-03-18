@@ -1,23 +1,29 @@
 #!/bin/bash
 
-TYPE=$1
 
 PROJ_DIR=pyCryptoTrader
 CUR_DIR=$(pwd)
 
-USERNAME=j0e1in
-IP=crypto.csie.io
+USERNAME=$1
+IP=$2
+TYPE=$3
 
 if [[ "$CUR_DIR" != */$PROJ_DIR ]]; then
   echo "ERROR: Please run this script at project root."
   exit 1
 fi
 
+if [ -z $USERNAME ] | [ -z $IP ]; then
+  echo "Usage: remote_deploy_mongo_data_volume.sh [USERNAME] [IP] [TYPE]"
+fi
+
 if [ -z $TYPE ]; then
   TYPE=test
 fi
 
-echo "Deploying docker stack to $USERNAME@$IP..."
+echo "Deploy $TYPE docker stack to $USERNAME@$IP"
+
+read -p "\nPress [Enter] to continue..."
 
 cd ../
 
