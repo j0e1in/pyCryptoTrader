@@ -53,6 +53,8 @@ class SingleEXTrader():
         self.timeframes = self.ex.timeframes
         self.ohlcvs = self.create_empty_ohlcv_store()
 
+        self.max_fund = self.config['max_fund']
+
         self.summary = {
             'start': None,
             'now': None,                # Update in getter
@@ -156,6 +158,9 @@ class SingleEXTrader():
             for market in sig:
                 if (not np.isnan(sig[market].iloc[-1]) or not np.isnan(last_sig[market])) \
                 and (sig[market].iloc[-1] != last_sig[market]):
+                    logger.debug(
+                        f"{market} signal changed from {last_sig[market]} to {sig[market].iloc[-1]}"
+                    )
                     last_sig[market] = sig[market].iloc[-1]
                     changed = True
 
@@ -288,15 +293,23 @@ class SingleEXTrader():
 
         amount = 0
 
-        # Calculate spendable balance
+        # Calculate order amount
         has_opposite_open_position = (symbol_amount < 0) if action == 'long' else (symbol_amount > 0)
         if has_opposite_open_position:
+            # calculate amount to close position
             amount = abs(symbol_amount)
         else:
+            # calculate amount to open position
             available_balance = self.ex.get_balance(curr, wallet_type)
             total_value = available_balance + self_base_value
 
-            spendable = available_balance - total_value * self.config['maintain_portion']
+            # Cap max trading funds
+            if total_value > self.max_fund:
+                available_balance -= (total_value - self.max_fund)
+                total_value = available_balance + self_base_value
+
+            # total_value < 0 shouldn't happen, max(total_value, 0) is just for security of funds
+            spendable = available_balance - max(total_value, 0) * self.config['maintain_portion']
 
             if spendable > 0:
                 spend = spendable * abs(confidence) / 100 * self.config['trade_portion']
@@ -585,6 +598,7 @@ class SingleEXTrader():
 
         min_amount = self.ex.markets_info[symbol]['limits']['amount']['min']
         order_count = min(int(math.sqrt(2 * amount / min_amount) - 1), max_order_count)
+        order_count = max(order_count, 1)
         amount_diff_base = amount / ((order_count + 1) * order_count / 2)
         cur_price = start_price
         dec = 100000000

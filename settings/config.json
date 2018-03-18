@@ -40,7 +40,7 @@
     "max_fund": 5000,
 
     "_conmment_maintain_portion": "ratio of balance in wallet and balance in markets",
-    "maintain_portion": 0.1,
+    "maintain_portion": 0.05,
 
     "_comment_limit_price_diff": "price difference (buffer) to the top price in orderbook",
     "scale_order_near_percent": 0.002,
