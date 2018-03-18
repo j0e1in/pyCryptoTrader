@@ -9,6 +9,7 @@ services:
     image: gcr.io/docker-reghub/pyct
     command: "--start-trader --mongo-host=mongo --enable-api --ssl --log-signal --log --disable-trading"
     volumes:
+      - ./data:/app/data
       - ./log:/app/log
       - ./settings:/app/settings
     networks:

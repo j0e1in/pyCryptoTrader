@@ -25,12 +25,6 @@ def parse_args():
     parser.add_argument('--start-trader', action='store_true', help="Execute start_trader.py")
     parser.add_argument('--restart-trader', action='store_true', help="Execute restart_trader.py")
 
-    # Config
-    parser.add_argument('--mongo-host', type=str, help="Specify mongodb host,\n"
-                                                      "eg. localhost (host connect to mongo on host)\n"
-                                                      "    mongo (container connect to mongo container)\n"
-                                                      "    172.18.0.2 (host connect to mongo container)\n")
-
     argv, argv_remain = parser.parse_known_args()
     return argv, argv_remain
 
