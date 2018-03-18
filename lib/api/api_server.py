@@ -9,7 +9,7 @@ import copy
 import logging
 import json
 
-from utils import dt_ms, config
+from utils import dt_ms, config, dummy_data
 
 logger = logging.getLogger()
 
@@ -207,6 +207,9 @@ class APIServer():
         if ex != req.app.trader.ex.exname:
             return response.json({ 'error': 'Exchange is not active.' })
 
+        if req.headers['dummy-data'] == 'true':
+            return response.json(dummy_data['active_orders'])
+
         orders = await req.app.trader.ex.fetch_open_orders()
 
         for ord in orders:
@@ -245,6 +248,9 @@ class APIServer():
         if ex != trader.ex.exname:
             return response.json({ 'error': 'Exchange is not active.' })
 
+        if req.headers['dummy-data'] == 'true':
+            return response.json(dummy_data['active_positions'])
+
         positions = await trader.ex.fetch_positions()
 
         for i, pos in enumerate(positions):
@@ -279,10 +285,27 @@ class APIServer():
 
         payload = json.loads(req.body)
         if 'level' not in payload:
-            return response.json({ 'error': "Payload should contain field `level`"
-                                  " with one of values: info | debug | warn | error" })
+            return response.json({
+                'error': "Payload should contain field `level` "
+                         "with one of values: info | debug | warn | error"
+            })
 
         req.app.server.log_level = payload['level']
+        return response.json({'ok': True})
+
+    @app.route('/trading/max_fund/<uid:string>', methods=['POST'])
+    async def change_max_fund(req, uid):
+        if not req.app.server.verified_access(uid, 'change_max_fund'):
+            abort(401)
+
+        payload = json.loads(req.body)
+        if 'fund' not in payload:
+            return response.json({
+                'error': "Payload should contain field `fund` with a float value"
+            })
+
+        req.app.trader.max_fund = payload['fund']
+        logger.debug(f'max fund is set to {req.app.trader.max_fund}')
         return response.json({'ok': True})
 
     def verified_access(self, uid, func):

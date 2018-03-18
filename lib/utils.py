@@ -26,13 +26,14 @@ def get_project_root():
     return file_dir
 
 
-def load_config(file):
+def load_json(file):
     with open(file) as f:
         return json.load(f)
 
 
 # TODO: Add set_config and get_config method to let classes set and get global config
-config = load_config('../settings/config.json')
+config = load_json('../settings/config.json')
+dummy_data = load_json('../data/api_dummy_data.json')
 
 
 def load_keys(file=None):
