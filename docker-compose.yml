@@ -7,7 +7,7 @@ services:
       replicas: 0
   trade:
     image: gcr.io/docker-reghub/pyct
-    command: "--start-trader --enable-api --ssl --log-signal --log --disable-trading"
+    command: "--start-trader --mongo-host=mongo --enable-api --ssl --log-signal --log --disable-trading"
     volumes:
       - ./log:/app/log
       - ./settings:/app/settings
