@@ -26,7 +26,7 @@ def parse_args():
     parser.add_argument('--restart-trader', action='store_true', help="Execute restart_trader.py")
 
     argv, argv_remain = parser.parse_known_args()
-    return argv, argv_remain
+    return argv, argv_remain, parser
 
 
 def main():
@@ -39,7 +39,7 @@ def main():
             sys.argv.remove(arg)
             append_argv.append(arg)
 
-    argv, argv_remain = parse_args()
+    argv, argv_remain, parser = parse_args()
 
     argv_remain += append_argv
     argv_remain = ' '.join(argv_remain)
@@ -83,6 +83,8 @@ def main():
     elif argv.restart_trader:
         os.system(f"python scripts/trading/restart_trader.py {argv_remain}")
 
+    else:
+        parser.print_help(sys.stderr)
 
 if __name__ == '__main__':
     main()

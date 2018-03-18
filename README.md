@@ -6,12 +6,15 @@ A full-package program for trading cryptocurrencies automatically, including dat
 
 - Ubuntu 16.04 (Recommended)
 - Mongo 3.6+
-- Docker 17.12+ (Optional)
+- Docker 17.12+ (Optional, recommended)
+- Docker Compose 1.19.0+ (Optional, required if using docker)
 - GCP SDK (gcloud) (Optional)
 
 **Note**: A Ubuntu 16.04 server setup script is available, just execute
 
-`$ ./scripts/system/dev_server_setup.sh`
+`$ ssh [user]@[ip] < ./scripts/system/dev_server_setup.sh`
+
+and above tools will be installed.
 
 # Setup
 
@@ -19,7 +22,7 @@ A full-package program for trading cryptocurrencies automatically, including dat
 
 ```sh
 # Setup mongo container: restore mongodb, create network and volume, and then start the container in auth mode.
-./scripts/mongodb/setup_mongo_container.sh
+./scripts/mongodb/setup_mongo_container.sh mongo_data.tar.bz2
 
 ## Pull docker image or build from source
 # Pull image from gcr
@@ -33,28 +36,49 @@ docker-compose build
 docker swarm init
 
 # Start trading (can modify arguments in `services > trade > command` in docker-compose.yml to meet specific needs)
-docker stack deploy -c docker-compose.yml pyct
+docker stack deploy -c docker-compose.yml crypto
 ```
+
+**Note:** If docker volume mongo_data is setup, can execute 
+
+`$./scripts/system/remote_deploy_docker_stack.sh` on local project root or
+
+`$./scripts/system/local_deploy_docker_stack.sh` on remote project root
+
+to quickly build and deploy.
 
 ## Without Docker
 
 ```sh
-# 
+
 ```
 
 # Usage
 
 ## With Docker
 
+```sh
+# Run with docker-compose
+docker-compose -f [docker-compose.yml] up
+
+# Run with docker stack 
+# (only useful for starting trader, becuase other programs are not services)
+docker stack deploy -c [docker-compose.yml] [stack-name]
 ```
 
-```
+**Note:** Make sure no running container is using mongo_data volume before startup other mongo containers.
 
 ### Examples
 
 ```sh
+# Fetch ohlcvs
+docker-compose -f docker/fetch_ohlcvs/docker-compose.yml up
 
+# Start trader
+docker stack deploy -c docker-compose-production.yml crypto
 ```
+
+**Note:** Customized arguments can be edited in corresponding docker-compose.yml, all arguments are the same as below.
 
 ## Without Docker
 
@@ -105,7 +129,6 @@ python app.py --fetch-ohlcvs --no-upsert
 # Pull image from gcr
 gcloud docker -- pull gcr.io/docker-reghub/pyct
 # Or use docker-compose to pull
-# Above command is required for the first time to gain access permission to gcr.
 docker-compose push
 
 # Push image to gcr
@@ -113,7 +136,7 @@ gcloud docker -- push gcr.io/docker-reghub/pyct
 # Or use docker-compose to push
 docker-compose pull
 
-
+# Note: docker-compose push/pull require gcloud push/pull at the first time to gain access permission
 
 ```
 

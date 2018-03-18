@@ -22,8 +22,8 @@ def parse_args():
     parser.add_argument('--log', action='store_true', help='Enable trader logging')
     parser.add_argument('--log-signal', action='store_true', help='Enable periodic indicator signal logging')
     parser.add_argument('--enable-api', action='store_true', help='Enable API server for clients to request data')
+    parser.add_argument('--ssl', action='store_true', help='Enable SSL, only works if API sever is enabled')
     parser.add_argument('--disable-trading', dest='enable_trade', action='store_false', help='Disable creating orders')
-    parser.add_argument('--ssl', action='store_true', help='Enable SSL, only works if API is enabled')
     parser.add_argument('--mongo-host', type=str, help="Specify mongodb host,\n"
                                                        "eg. localhost (host connect to mongo on host)\n"
                                                        "    mongo (container connect to mongo container)\n"
