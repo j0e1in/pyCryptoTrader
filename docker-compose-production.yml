@@ -1,0 +1,58 @@
+version: '3.3'
+services:
+  main:
+    build: ./
+    image: gcr.io/docker-reghub/pyct
+    deploy:
+      replicas: 0
+  trade:
+    image: gcr.io/docker-reghub/pyct
+    command: "--start-trader --mongo-host=mongo --enable-api --ssl --disable-trading"
+    volumes:
+      - ./data:/app/data
+      - ./log:/app/log
+      - ./settings:/app/settings
+    networks:
+      - mongo_net
+    ports:
+      - "8000:8000"
+    secrets:
+      - source: keys.json
+        target: /app/private/keys.json
+      - source: fullchain.pem
+        target: /app/private/fullchain.pem
+      - source: privkey.pem
+        target: /app/private/privkey.pem
+    depends_on:
+      - mongo
+    deploy:
+      replicas: 1
+  mongo:
+    image: mongo:3.6
+    command: mongod --smallfiles --logpath=/dev/null --quiet --auth
+    networks:
+      - mongo_net
+    environment:
+      - MONGO_DATA_DIR=/data/db
+      - MONGO_LOG_DIR=/dev/null
+    volumes:
+      - mongo_data:/data/db
+    ports:
+      - 27017:27017
+    deploy:
+      replicas: 1
+
+networks:
+  mongo_net:
+
+volumes:
+  mongo_data:
+    external: true
+
+secrets:
+  keys.json:
+    file: ./private/keys.json
+  fullchain.pem:
+    file: ./private/fullchain.pem
+  privkey.pem:
+    file: ./private/privkey.pem
