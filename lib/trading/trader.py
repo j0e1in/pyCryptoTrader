@@ -48,9 +48,6 @@ class SingleEXTrader():
         # Requires self attributes above, put this at last
         self.ex = self.init_exchange(ex_id, ccxt_verbose)
         self.strategy = self.init_strategy(strategy_name)
-
-        self.markets = self.ex.markets
-        self.timeframes = self.ex.timeframes
         self.ohlcvs = self.create_empty_ohlcv_store()
 
         self.max_fund = self.config['max_fund']
@@ -134,9 +131,11 @@ class SingleEXTrader():
     async def start_trading(self):
 
         last_log_time = datetime(1970, 1, 1)
-        last_sig = {market: np.nan for market in self.markets}
+        last_sig = {market: np.nan for market in self.ex.markets}
 
         while True:
+            await self.ex_ready()
+
             # Read latest ohlcv from db
             await self.update_ohlcv()
             await self.execute_margin_order_queue()
@@ -169,7 +168,7 @@ class SingleEXTrader():
         if (utc_now() - last_log_time) > \
         tf_td(self.config['indicator_tf']) / 5 \
         or sig_changed(sig):
-            for market in self.markets:
+            for market in self.ex.markets:
                 logger.info(f"{market} indicator signal @ {utc_now()}\n{sig[market][-10:]}")
 
             last_log_time = utc_now()
@@ -182,8 +181,8 @@ class SingleEXTrader():
             src_tf = '1m'
 
             # Build ohlcvs from 1m
-            for market in self.markets:
-                for tf in self.timeframes:
+            for market in self.ex.markets:
+                for tf in self.ex.timeframes:
                     if tf != src_tf:
                         src_end_dt = await self.mongo.get_ohlcv_end(self.ex.exname, market, src_tf)
                         target_end_dt = await self.mongo.get_ohlcv_end(self.ex.exname, market, tf)
@@ -200,7 +199,7 @@ class SingleEXTrader():
         end = roundup_dt(utc_now(), min=1)
         start = end - td
         self.ohlcvs = await self.mongo.get_ohlcvs_of_symbols(
-            self.ex.exname, self.markets, self.timeframes, start, end)
+            self.ex.exname, self.ex.markets, self.ex.timeframes, start, end)
 
         for symbol, tfs in self.ohlcvs.items():
             sm_tf = smallest_tf(list(self.ohlcvs[symbol].keys()))
@@ -527,10 +526,10 @@ class SingleEXTrader():
         df.set_index('timestamp', inplace=True)
 
         # Each exchange has different timeframes
-        for market in self.markets:
+        for market in self.ex.markets:
             ohlcv[market] = {}
 
-            for tf in self.timeframes:
+            for tf in self.ex.timeframes:
                 ohlcv[market][tf] = df.copy(deep=True)
 
         return ohlcv
@@ -665,3 +664,14 @@ class SingleEXTrader():
             del orders[idx]
 
         return orders
+
+    def add_market(self, market):
+        pass
+        # for market in self.ex.markets:
+        #     # New market is added
+        #     if market not in self.ex.markets_start_dt:
+        #         self.ex.set_market_start_dt(market, utc_now())
+        #         self.reset_orders
+
+    def remove_market(self, market):
+        pass

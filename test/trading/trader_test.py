@@ -55,7 +55,7 @@ async def test_strategy(trader):
 async def test_gen_scale_orders(trader):
     print('-- gen_scale_orders --')
     await trader.ex.update_markets(once=True)
-    orders = trader.gen_scale_orders(trader.markets[0], 'limit', 'buy', 0.54,
+    orders = trader.gen_scale_orders(trader.ex.markets[0], 'limit', 'buy', 0.54,
                                      start_price=1000,
                                      end_price=900,
                                      max_order_count=10)

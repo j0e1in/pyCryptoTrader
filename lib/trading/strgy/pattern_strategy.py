@@ -41,7 +41,7 @@ class PatternStrategy(SingleEXStrategy):
         last_reset_time = datetime(1970, 1, 1)
 
         signals = {}
-        for market in self.trader.markets:
+        for market in self.trader.ex.markets:
             signals[market] = self.calc_signal(market)
 
         market_ranks = self.rank_markets()
@@ -133,7 +133,7 @@ class PatternStrategy(SingleEXStrategy):
             "ETH/USD",
         ]
 
-        trade_markets = copy.deepcopy(self.trader.markets)
+        trade_markets = copy.deepcopy(self.trader.ex.markets)
         rank = []
 
         for market in backtest_profit_rank:

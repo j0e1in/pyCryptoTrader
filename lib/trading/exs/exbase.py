@@ -197,13 +197,14 @@ class EXBase():
                 tf = '1m'
                 td = tf_td(tf)
 
-                end = self.ohlcv_start_end[market][tf]['end']
-                cur_time = rounddown_dt(utc_now(), sec=td.seconds)
+                if market in self.ohlcv_start_end:
+                    end = self.ohlcv_start_end[market][tf]['end']
+                    cur_time = rounddown_dt(utc_now(), sec=td.seconds)
 
-                if end < cur_time:
-                    # Fetching one-by-one is faster and safer(from blocking)
-                    # than gathering all tasks at once
-                    await fetch_ohlcv_to_mongo(market, end, cur_time, tf)
+                    if end < cur_time:
+                        # Fetching one-by-one is faster and safer(from blocking)
+                        # than gathering all tasks at once
+                        await fetch_ohlcv_to_mongo(market, end, cur_time, tf)
 
             last_update = utc_now()
 
