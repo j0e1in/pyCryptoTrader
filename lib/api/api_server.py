@@ -7,12 +7,13 @@ import asyncio
 import argparse
 import copy
 import logging
+import inspect
 import json
 
 from utils import dt_ms, config, dummy_data
 
-logger = logging.getLogger()
-
+logger = logging.getLogger('pyct.')
+log_fmt = "%(asctime)s | %(name)s | %(levelname)5s | %(status)d | %(request)s | %(message)s"
 
 class APIServer():
 
@@ -104,8 +105,11 @@ class APIServer():
                 ]
             }
         """
-        if not req.app.server.verified_access(uid, 'account_info'):
+        if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
             abort(401)
+
+        if not req.app.trader.ex.is_ready():
+            return response.json({ 'error': 'Not ready' })
 
         if ex != req.app.trader.ex.exname:
             return response.json({ 'error': 'Exchange is not active.' })
@@ -168,8 +172,11 @@ class APIServer():
                 "PL_Eff": float
             }
         """
-        if not req.app.server.verified_access(uid, 'account_summary'):
+        if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
             abort(401)
+
+        if not req.app.trader.ex.is_ready():
+            return response.json({ 'error': 'Not ready' })
 
         if ex != req.app.trader.ex.exname:
             return response.json({ 'error': 'Exchange {ex} is not active.' })
@@ -201,13 +208,14 @@ class APIServer():
                 ]
             }
         """
-        if not req.app.server.verified_access(uid, 'active_orders'):
+        if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
             abort(401)
 
         if ex != req.app.trader.ex.exname:
             return response.json({ 'error': 'Exchange is not active.' })
 
-        if req.headers['dummy-data'] == 'true':
+        if 'dummy-data' in req.headers \
+        and req.headers['dummy-data'] == 'true':
             return response.json(dummy_data['active_orders'])
 
         orders = await req.app.trader.ex.fetch_open_orders()
@@ -240,7 +248,7 @@ class APIServer():
                 ]
             }
         """
-        if not req.app.server.verified_access(uid, 'active_positions'):
+        if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
             abort(401)
 
         trader = req.app.trader
@@ -248,7 +256,8 @@ class APIServer():
         if ex != trader.ex.exname:
             return response.json({ 'error': 'Exchange is not active.' })
 
-        if req.headers['dummy-data'] == 'true':
+        if 'dummy-data' in req.headers \
+        and req.headers['dummy-data'] == 'true':
             return response.json(dummy_data['active_positions'])
 
         positions = await trader.ex.fetch_positions()
@@ -280,10 +289,10 @@ class APIServer():
 
     @app.route('/notification/log_level/<uid:string>', methods=['POST'])
     async def change_log_level(req, uid):
-        if not req.app.server.verified_access(uid, 'change_log_level'):
+        if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
             abort(401)
 
-        payload = json.loads(req.body)
+        payload = req.json
         if 'level' not in payload:
             return response.json({
                 'error': "Payload should contain field `level` "
@@ -295,10 +304,10 @@ class APIServer():
 
     @app.route('/trading/max_fund/<uid:string>', methods=['POST'])
     async def change_max_fund(req, uid):
-        if not req.app.server.verified_access(uid, 'change_max_fund'):
+        if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
             abort(401)
 
-        payload = json.loads(req.body)
+        payload = req.json
         if 'fund' not in payload:
             return response.json({
                 'error': "Payload should contain field `fund` with a float value"
@@ -308,10 +317,95 @@ class APIServer():
         logger.debug(f'max fund is set to {req.app.trader.max_fund}')
         return response.json({'ok': True})
 
-    def verified_access(self, uid, func):
-        if uid in self.api_access \
-        and ("all" in self.api_access[uid] \
-        or    func in self.api_access[uid]):
-            return True
+    @app.route('/trading/markets/enable/<uid:string>/<ex:string>', methods=['POST'])
+    async def enable_markets(req, uid, ex):
+        if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
+            abort(401)
+
+        trader = req.app.trader
+        payload = req.json
+
+        if 'markets' not in payload or not isinstance(payload['markets'], list):
+            return response.json({
+                'error': "Payload should contain field `markets` with a list of strings"
+            })
+
+        not_supported = []
+
+        for market in payload['markets']:
+            if market not in trader.ex.markets:
+                if market in trader.config[trader.ex.exname]['markets_all']:
+                    trader.add_market(market)
+                    logger.info(f"{ex} {market} enabled")
+                else:
+                    not_supported.append(market)
+
+        if len(not_supported) > 0:
+            return response.json({
+                'error': 'Some markets are not supported',
+                'markets': not_supported
+            })
         else:
-            return False
+            return response.json({ 'ok': True })
+
+    @app.route('/trading/markets/disable/<uid:string>/<ex:string>', methods=['POST'])
+    async def disable_markets(req, uid, ex):
+        if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
+            abort(401)
+
+        trader = req.app.trader
+        payload = req.json
+
+        if 'markets' not in payload or not isinstance(payload['markets'], list):
+            return response.json({
+                'error': "Payload should contain field `markets` with a list of strings"
+            })
+
+        not_supported = []
+
+        for market in payload['markets']:
+            if market in trader.ex.markets:
+                trader.remove_market(market)
+                logger.info(f"{ex} {market} disabled")
+
+            if market not in trader.config[trader.ex.exname]['markets_all']:
+                not_supported.append(market)
+
+        if len(not_supported) > 0:
+            return response.json({
+                'error': 'Some markets are not supported',
+                'markets': not_supported
+            })
+        else:
+            return response.json({'ok': True})
+
+    @app.route('/trading/enable/<uid:string>', methods=['POST'])
+    async def enable_trading(req, uid):
+        if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
+            abort(401)
+
+        req.app.trader.enable_trade = True
+        logger.info(f"Trading enabled")
+
+        return response.json({ 'ok': True })
+
+    @app.route('/trading/disable/<uid:string>', methods=['POST'])
+    async def disable_trading(req, uid):
+        if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
+            abort(401)
+
+        req.app.trader.enable_trade = False
+        logger.info(f"Trading disabled")
+
+        return response.json({ 'ok': True })
+
+    def verified_access(self, uid, func):
+        if uid in self.api_access:
+            if func in self.api_access[uid]['deny']:
+                return False
+
+            elif ("all" in self.api_access[uid]['allow'] \
+            or    func in self.api_access[uid]['allow']):
+                return True
+
+        return False
