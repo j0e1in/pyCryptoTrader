@@ -60,6 +60,21 @@
         "ETH/USD",
         "XRP/USD"
       ],
+      "markets_all": [
+        "BTC/USD",
+        "BCH/USD",
+        "ETH/USD",
+        "ETC/USD",
+        "EOS/USD",
+        "DASH/USD",
+        "IOTA/USD",
+        "LTC/USD",
+        "NEO/USD",
+        "OMG/USD",
+        "XMR/USD",
+        "XRP/USD",
+        "ZEC/USD"
+      ],
       "timeframes": [
           "1m",
           "8h"
@@ -404,8 +419,19 @@
     "request_timeout": 120,
     "response_timeout": 120,
     "api_access": {
-      "j0e1in": [ "all" ],
-      "wayne": [ "all" ]
+      "j0e1in": {
+        "allow": [ "all" ],
+        "deny": []
+      },
+      "wayne": {
+        "allow": [ "all" ],
+        "deny": [
+          "enable_markets",
+          "disable_markets",
+          "enable_trading",
+          "disable_trading"
+        ]
+      }
     },
     "cert": "../private/fullchain.pem",
     "key": "../private/privkey.pem"
