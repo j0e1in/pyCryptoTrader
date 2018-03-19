@@ -17,7 +17,6 @@ from utils import \
     config, \
     load_keys, \
     utc_now, \
-    rounddown_dt, \
     roundup_dt, \
     filter_by, \
     smallest_tf, \
@@ -145,7 +144,8 @@ class SingleEXTrader():
                 last_log_time, last_sig = self.log_signals(sig, last_log_time, last_sig)
 
             # Wait additional 50 sec for ohlcv of all markets to be fetched
-            countdown = roundup_dt(utc_now(), sec=self.ex.config['ohlcv_fetch_interval']) - utc_now()
+            fetch_interval = timedelta(seconds=self.ex.config['ohlcv_fetch_interval'])
+            countdown = roundup_dt(utc_now(), fetch_interval) - utc_now()
             await asyncio.sleep(countdown.seconds + 50)
 
     def log_signals(self, sig, last_log_time, last_sig):
@@ -196,7 +196,7 @@ class SingleEXTrader():
 
         # Get newest ohlcvs
         td = timedelta(days=self.config['strategy']['data_days'])
-        end = roundup_dt(utc_now(), min=1)
+        end = roundup_dt(utc_now(), timedelta(minutes=1))
         start = end - td
         self.ohlcvs = await self.mongo.get_ohlcvs_of_symbols(
             self.ex.exname, self.ex.markets, self.ex.timeframes, start, end)

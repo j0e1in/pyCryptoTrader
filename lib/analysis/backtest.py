@@ -205,8 +205,7 @@ class Backtest():
             for curr, amount in wallet.items():
 
                 min_tf = self.timeframes[ex][0]
-                sec = tf_td(min_tf).total_seconds()
-                dt = roundup_dt(dt, sec=sec)
+                dt = roundup_dt(dt, tf_td(min_tf))
 
                 if curr == 'USD':
                     total_value += amount

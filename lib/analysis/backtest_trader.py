@@ -257,7 +257,7 @@ class SimulatedTrader():
 
     @staticmethod
     def update_timer(timer, dt):
-        dt = roundup_dt(dt, sec=timer.interval_sec())
+        dt = roundup_dt(dt, timedelta(seconds=timer.interval_sec()))
         timer.set_now(dt)
 
     def tick(self, last=False):

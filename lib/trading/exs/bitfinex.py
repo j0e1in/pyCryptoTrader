@@ -12,7 +12,6 @@ from utils import \
     not_implemented, \
     execute_mongo_ops, \
     sec_ms, \
-    roundup_dt, \
     utc_now, \
     handle_ccxt_request
 
