@@ -7,12 +7,13 @@ import asyncio
 import argparse
 import copy
 import logging
+import inspect
 import json
 
 from utils import dt_ms, config, dummy_data
 
-logger = logging.getLogger()
-
+logger = logging.getLogger('pyct.')
+log_fmt = "%(asctime)s | %(name)s | %(levelname)5s | %(status)d | %(request)s | %(message)s"
 
 class APIServer():
 
@@ -104,8 +105,11 @@ class APIServer():
                 ]
             }
         """
-        if not req.app.server.verified_access(uid, 'account_info'):
+        if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
             abort(401)
+
+        if not req.app.trader.ex.is_ready():
+            return response.json({ 'error': 'Not ready' })
 
         if ex != req.app.trader.ex.exname:
             return response.json({ 'error': 'Exchange is not active.' })
@@ -168,8 +172,11 @@ class APIServer():
                 "PL_Eff": float
             }
         """
-        if not req.app.server.verified_access(uid, 'account_summary'):
+        if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
             abort(401)
+
+        if not req.app.trader.ex.is_ready():
+            return response.json({ 'error': 'Not ready' })
 
         if ex != req.app.trader.ex.exname:
             return response.json({ 'error': 'Exchange {ex} is not active.' })
@@ -201,7 +208,7 @@ class APIServer():
                 ]
             }
         """
-        if not req.app.server.verified_access(uid, 'active_orders'):
+        if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
             abort(401)
 
         if ex != req.app.trader.ex.exname:
@@ -241,7 +248,7 @@ class APIServer():
                 ]
             }
         """
-        if not req.app.server.verified_access(uid, 'active_positions'):
+        if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
             abort(401)
 
         trader = req.app.trader
@@ -282,10 +289,10 @@ class APIServer():
 
     @app.route('/notification/log_level/<uid:string>', methods=['POST'])
     async def change_log_level(req, uid):
-        if not req.app.server.verified_access(uid, 'change_log_level'):
+        if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
             abort(401)
 
-        payload = json.loads(req.body)
+        payload = req.json
         if 'level' not in payload:
             return response.json({
                 'error': "Payload should contain field `level` "
@@ -297,10 +304,10 @@ class APIServer():
 
     @app.route('/trading/max_fund/<uid:string>', methods=['POST'])
     async def change_max_fund(req, uid):
-        if not req.app.server.verified_access(uid, 'change_max_fund'):
+        if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
             abort(401)
 
-        payload = json.loads(req.body)
+        payload = req.json
         if 'fund' not in payload:
             return response.json({
                 'error': "Payload should contain field `fund` with a float value"
