@@ -15,6 +15,7 @@ fi
 
 if [ -z $USERNAME ] | [ -z $IP ]; then
   echo "Usage: remote_deploy_mongo_data_volume.sh [USERNAME] [IP] [TYPE]"
+  exit 1
 fi
 
 if [ -z $TYPE ]; then

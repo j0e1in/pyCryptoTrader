@@ -5,6 +5,7 @@ IP=$2
 
 if [ -z $USERNAME ] | [ -z $IP ]; then
   echo "Usage: remote_deploy_mongo_data_volume.sh [USERNAME] [IP]"
+  exit 1
 fi
 
 echo "Deploy mongo data to $USERNAME@$IP"
