@@ -310,10 +310,95 @@ class APIServer():
         logger.debug(f'max fund is set to {req.app.trader.max_fund}')
         return response.json({'ok': True})
 
-    def verified_access(self, uid, func):
-        if uid in self.api_access \
-        and ("all" in self.api_access[uid] \
-        or    func in self.api_access[uid]):
-            return True
+    @app.route('/trading/markets/enable/<uid:string>/<ex:string>', methods=['POST'])
+    async def enable_markets(req, uid, ex):
+        if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
+            abort(401)
+
+        trader = req.app.trader
+        payload = req.json
+
+        if 'markets' not in payload or not isinstance(payload['markets'], list):
+            return response.json({
+                'error': "Payload should contain field `markets` with a list of strings"
+            })
+
+        not_supported = []
+
+        for market in payload['markets']:
+            if market not in trader.ex.markets:
+                if market in trader.config[trader.ex.exname]['markets_all']:
+                    trader.add_market(market)
+                    logger.info(f"{ex} {market} enabled")
+                else:
+                    not_supported.append(market)
+
+        if len(not_supported) > 0:
+            return response.json({
+                'error': 'Some markets are not supported',
+                'markets': not_supported
+            })
         else:
-            return False
+            return response.json({ 'ok': True })
+
+    @app.route('/trading/markets/disable/<uid:string>/<ex:string>', methods=['POST'])
+    async def disable_markets(req, uid, ex):
+        if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
+            abort(401)
+
+        trader = req.app.trader
+        payload = req.json
+
+        if 'markets' not in payload or not isinstance(payload['markets'], list):
+            return response.json({
+                'error': "Payload should contain field `markets` with a list of strings"
+            })
+
+        not_supported = []
+
+        for market in payload['markets']:
+            if market in trader.ex.markets:
+                trader.remove_market(market)
+                logger.info(f"{ex} {market} disabled")
+
+            if market not in trader.config[trader.ex.exname]['markets_all']:
+                not_supported.append(market)
+
+        if len(not_supported) > 0:
+            return response.json({
+                'error': 'Some markets are not supported',
+                'markets': not_supported
+            })
+        else:
+            return response.json({'ok': True})
+
+    @app.route('/trading/enable/<uid:string>', methods=['POST'])
+    async def enable_trading(req, uid):
+        if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
+            abort(401)
+
+        req.app.trader.enable_trade = True
+        logger.info(f"Trading enabled")
+
+        return response.json({ 'ok': True })
+
+    @app.route('/trading/disable/<uid:string>', methods=['POST'])
+    async def disable_trading(req, uid):
+        if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
+            abort(401)
+
+        req.app.trader.enable_trade = False
+        logger.info(f"Trading disabled")
+
+        return response.json({ 'ok': True })
+
+    def verified_access(self, uid, func):
+        if uid in self.api_access:
+            if func in self.api_access[uid]['deny']:
+                return False
+
+            elif ("all" in self.api_access[uid]['allow'] \
+            or    func in self.api_access[uid]['allow']):
+                return True
+
+        return False
