@@ -6,14 +6,19 @@ from datetime import datetime
 import motor.motor_asyncio as motor
 import pandas as pd
 
+from analysis.hist_data import \
+    fetch_ohlcv, \
+    fetch_trades, \
+    fetch_my_trades, \
+    find_missing_ohlcv, \
+    fill_missing_ohlcv, \
+    build_ohlcv
 from db import EXMongo
-from utils import ms_sec, init_ccxt_exchange, ms_dt, load_keys
-from analysis.hist_data import fetch_ohlcv, \
-                               fetch_trades, \
-                               fetch_my_trades, \
-                               find_missing_ohlcv, \
-                               fill_missing_ohlcv, \
-                               build_ohlcv
+from utils import \
+    ms_sec, \
+    ms_dt, \
+    load_keys, \
+    init_ccxt_exchange
 
 from trading.exchanges import Bitfinex
 

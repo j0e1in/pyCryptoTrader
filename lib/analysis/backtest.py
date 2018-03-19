@@ -11,8 +11,14 @@ import queue
 import pandas as pd
 import numpy as np
 
-from utils import config, Timer, roundup_dt, tf_td, check_periods, INF
 from analysis.backtest_trader import SimulatedTrader, FastTrader
+from utils import \
+    INF, \
+    config, \
+    Timer, \
+    tf_td, \
+    roundup_dt, \
+    check_periods
 
 try:
     from analysis.plot import Plot

@@ -11,10 +11,11 @@ import logging
 
 from analysis.hist_data import fetch_trades
 from db import EXMongo
-from utils import init_ccxt_exchange, \
-                  execute_mongo_ops, \
-                  config, \
-                  utc_now
+from utils import \
+    init_ccxt_exchange, \
+    execute_mongo_ops, \
+    config, \
+    utc_now
 
 
 logger = logging.getLogger()

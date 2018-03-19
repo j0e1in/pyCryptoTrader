@@ -5,7 +5,14 @@ import logging
 import pandas as pd
 import pymongo
 
-from utils import INF, ms_dt, dt_ms, ex_name, config, rsym, execute_mongo_ops
+from utils import \
+    INF, \
+    ms_dt, \
+    dt_ms, \
+    ex_name, \
+    config, \
+    rsym, \
+    execute_mongo_ops
 
 pd.options.mode.chained_assignment = None
 

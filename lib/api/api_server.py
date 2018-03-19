@@ -10,7 +10,10 @@ import logging
 import inspect
 import json
 
-from utils import dt_ms, config, dummy_data
+from utils import \
+    dt_ms, \
+    config, \
+    dummy_data
 
 logger = logging.getLogger('pyct.')
 log_fmt = "%(asctime)s | %(name)s | %(levelname)5s | %(status)d | %(request)s | %(message)s"

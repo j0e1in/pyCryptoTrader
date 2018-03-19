@@ -9,7 +9,11 @@ import pymongo
 
 from db import EXMongo
 from analysis.hist_data import fetch_ohlcv
-from utils import init_ccxt_exchange, execute_mongo_ops, config, utc_now
+from utils import \
+    init_ccxt_exchange, \
+    execute_mongo_ops, \
+    config, \
+    utc_now
 
 logger = logging.getLogger()
 

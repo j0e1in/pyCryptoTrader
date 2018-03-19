@@ -4,7 +4,9 @@ import logging
 import time
 import pandas as pd
 
-from utils import sec_ms, ms_sec,\
+from utils import \
+    sec_ms, \
+    ms_sec,\
     tf_td,\
     ms_dt,\
     dt_ms,\

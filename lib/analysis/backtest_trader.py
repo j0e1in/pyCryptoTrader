@@ -6,7 +6,8 @@ from datetime import timedelta
 from pprint import pprint
 from collections import OrderedDict
 
-from utils import not_implemented,\
+from utils import \
+    not_implemented,\
     config,\
     gen_id,\
     combine,\

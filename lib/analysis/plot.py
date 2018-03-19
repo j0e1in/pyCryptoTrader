@@ -7,7 +7,10 @@ import logging
 import math
 
 from analysis.backtest_trader import SimulatedTrader
-from utils import set_options, config, format_value
+from utils import \
+    set_options, \
+    config, \
+    format_value
 
 logger = logging.getLogger()
 

@@ -13,17 +13,17 @@ import random
 
 from trading import strategy
 from trading import exchanges
-from utils import config, \
-                  load_keys, \
-                  utc_now, \
-                  rounddown_dt, \
-                  roundup_dt, \
-                  filter_by, \
-                  smallest_tf, \
-                  alert_sound, \
-                  is_within, \
-                  tf_td, \
-                  execute_mongo_ops
+from utils import \
+    config, \
+    load_keys, \
+    utc_now, \
+    rounddown_dt, \
+    roundup_dt, \
+    filter_by, \
+    smallest_tf, \
+    alert_sound, \
+    tf_td, \
+    execute_mongo_ops
 
 from analysis.hist_data import build_ohlcv
 
