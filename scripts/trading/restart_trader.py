@@ -6,7 +6,7 @@ import os
 import sys
 import time
 
-logger = logging.getLogger()
+logger = logging.getLogger('pyct')
 
 def main():
     # Must run restart.py while in the same directory as the target script

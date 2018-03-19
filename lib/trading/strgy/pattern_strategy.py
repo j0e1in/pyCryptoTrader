@@ -14,7 +14,7 @@ from utils import \
     tf_td, \
     utc_now
 
-logger = logging.getLogger()
+logger = logging.getLogger('pyct')
 
 
 class PatternStrategy(SingleEXStrategy):

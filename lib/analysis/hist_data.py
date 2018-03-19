@@ -17,7 +17,7 @@ from utils import \
 
 from db import EXMongo
 
-logger = logging.getLogger()
+logger = logging.getLogger('pyct')
 
 
 async def fetch_ohlcv(exchange, symbol, start, end, timeframe='1m', log=True):

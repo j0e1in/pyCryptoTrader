@@ -12,7 +12,7 @@ from utils import \
     config, \
     format_value
 
-logger = logging.getLogger()
+logger = logging.getLogger('pyct')
 
 
 class Plot():

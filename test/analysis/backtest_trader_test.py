@@ -16,7 +16,7 @@ from utils import \
     ex_name, \
     ms_dt
 
-logger = logging.getLogger()
+logger = logging.getLogger('pyct')
 
 MARKET = config['analysis']['exchanges']['bitfinex']['markets'][0]
 

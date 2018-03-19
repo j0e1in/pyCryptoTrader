@@ -17,7 +17,7 @@ from utils import \
 pd.options.mode.chained_assignment = None
 
 
-logger = logging.getLogger()
+logger = logging.getLogger('pyct')
 
 # TODO: Add insert_trades()
 

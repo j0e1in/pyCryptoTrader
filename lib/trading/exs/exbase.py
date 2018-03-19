@@ -23,7 +23,7 @@ from utils import \
     handle_ccxt_request, \
     is_within
 
-logger = logging.getLogger()
+logger = logging.getLogger('pyct')
 
 
 class EXBase():

@@ -15,7 +15,7 @@ import math
 import os
 import sys
 
-logger = logging.getLogger()
+logger = logging.getLogger('pyct')
 
 INF = 9999999
 

@@ -15,7 +15,7 @@ from utils import \
     config, \
     dummy_data
 
-logger = logging.getLogger('pyct.')
+logger = logging.getLogger('pyct')
 log_fmt = "%(asctime)s | %(name)s | %(levelname)5s | %(status)d | %(request)s | %(message)s"
 
 class APIServer():

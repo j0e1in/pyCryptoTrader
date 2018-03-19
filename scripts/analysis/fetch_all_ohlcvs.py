@@ -15,7 +15,7 @@ from utils import \
     config, \
     utc_now
 
-logger = logging.getLogger()
+logger = logging.getLogger('pyct')
 
 
 async def fetch_ohlcv_to_mongo(coll, exchange, symbol, timeframe, start, end, upsert=True):

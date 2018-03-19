@@ -10,7 +10,7 @@ from db import EXMongo
 from trading.trader import SingleEXTrader
 
 log_file = 'start_trader.log'
-logger = logging.getLogger()
+logger = logging.getLogger('pyct')
 
 
 def parse_args():

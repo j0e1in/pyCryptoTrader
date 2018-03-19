@@ -23,7 +23,7 @@ from utils import \
 # TODO: Use different configs (fee etc.) for different exchanges
 # TODO: Add different order types
 
-logger = logging.getLogger()
+logger = logging.getLogger('pyct')
 
 
 class SimulatedTrader():

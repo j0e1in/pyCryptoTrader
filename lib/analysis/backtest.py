@@ -29,7 +29,7 @@ from db import EXMongo
 
 from pprint import pprint
 
-logger = logging.getLogger()
+logger = logging.getLogger('pyct')
 
 # import multiprocessing, logging
 # logger = multiprocessing.log_to_stderr()

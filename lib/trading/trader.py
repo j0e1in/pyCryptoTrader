@@ -27,7 +27,7 @@ from utils import \
 
 from analysis.hist_data import build_ohlcv
 
-logger = logging.getLogger()
+logger = logging.getLogger('pyct')
 
 
 class SingleEXTrader():

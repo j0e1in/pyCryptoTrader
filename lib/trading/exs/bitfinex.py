@@ -16,7 +16,7 @@ from utils import \
     utc_now, \
     handle_ccxt_request
 
-logger = logging.getLogger()
+logger = logging.getLogger('pyct')
 
 
 class Bitfinex(EXBase):

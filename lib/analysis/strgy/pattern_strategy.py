@@ -5,7 +5,7 @@ import logging
 from analysis.indicators import Indicator
 from analysis.strgy.base_strategy import SingleExchangeStrategy
 
-logger = logging.getLogger()
+logger = logging.getLogger('pyct')
 
 
 class PatternStrategy(SingleExchangeStrategy):

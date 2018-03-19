@@ -18,7 +18,7 @@ from utils import \
     utc_now
 
 
-logger = logging.getLogger()
+logger = logging.getLogger('pyct')
 
 
 async def fetch_trades_to_mongo(coll, exchange, symbol, start, end):
