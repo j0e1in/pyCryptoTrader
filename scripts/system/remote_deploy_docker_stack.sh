@@ -24,7 +24,7 @@ fi
 
 echo "Deploy $TYPE docker stack to $USERNAME@$IP"
 
-read -p "\nPress [Enter] to continue..."
+read -p "Press [Enter] to continue..."
 
 cd ../
 
