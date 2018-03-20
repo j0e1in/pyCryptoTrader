@@ -42,7 +42,7 @@ class PatternStrategy(SingleEXStrategy):
         for market in self.trader.ex.markets:
             signals[market] = self.calc_signal(market)
 
-        self.execute(signals)
+        await self.execute(signals)
 
         return signals
 
