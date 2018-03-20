@@ -3,6 +3,8 @@ setup()
 
 from datetime import datetime
 from pprint import pprint
+
+import argparse
 import copy
 import pickle
 
@@ -12,7 +14,7 @@ from db import EXMongo
 from utils import config, print_to_file
 
 
-async def test_single_period(mongo, market):
+async def test_single_period(mongo, market, plot):
     # dt = (datetime(2017, 8, 1), datetime(2018, 3, 5))
     # dt = (datetime(2017, 8, 1), datetime(2017, 12, 10))
     # dt = (datetime(2017, 10, 1), datetime(2018, 2, 20))
@@ -20,7 +22,7 @@ async def test_single_period(mongo, market):
 
     _config = copy.deepcopy(config)
     _config['analysis']['exchanges']['bitfinex']['markets'] = [market]
-    _config['matplot']['enable'] = False
+    _config['matplot']['enable'] = plot
 
     options = {
         'strategy': PatternStrategy('bitfinex'),
@@ -58,7 +60,7 @@ async def test_single_period(mongo, market):
 
     return report
 
-async def test_special_periods_of_markets(mongo):
+async def test_special_periods_of_markets(mongo, plot):
 
     markets = [
         "BTC/USD",
@@ -81,7 +83,7 @@ async def test_special_periods_of_markets(mongo):
     total_pl = 0
 
     for market in markets:
-        report = await test_single_period(mongo, market)
+        report = await test_single_period(mongo, market, plot)
         total_pl += report['PL(%)']
 
     print(f"Total PL(%): {total_pl/len(markets)}")
@@ -130,10 +132,23 @@ async def test_random_periods(mongo):
     summary.to_csv(f'../data/{filename}.csv')
 
 
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('--plot', action='store_true', help="Plot backtest results")
+
+    argv = parser.parse_args()
+
+    return argv
+
+
 async def main():
+    argv = parse_args()
+
     mongo = EXMongo()
 
-    await test_special_periods_of_markets(mongo)
+    await test_special_periods_of_markets(mongo, argv.plot)
     # await test_special_periods(mongo)
     # await test_random_periods(mongo)
 
