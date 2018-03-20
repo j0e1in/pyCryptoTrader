@@ -99,10 +99,7 @@ def utc_now():
 
 def tf_td(timeframe):
     """ Convert timeframe to timedelta. """
-    if 'M' == timeframe[-1]:
-        period = int(timeframe.split('M')[0])
-        return timedelta(months=period)
-    elif 'D' == timeframe[-1]:
+    if 'D' == timeframe[-1]:
         period = int(timeframe.split('D')[0])
         return timedelta(days=period)
     elif 'h' == timeframe[-1]:
