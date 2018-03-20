@@ -1,6 +1,6 @@
 from pprint import pprint
 from collections import OrderedDict
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta
 from pymongo.errors import BulkWriteError
 import asyncio
 import ccxt.async as ccxt
@@ -477,18 +477,6 @@ def is_within(dt, td):
     return True if (utc_now() - dt) <= td else False
 
 
-def near_start(dt, td):
-    ratio = 1 / 10 # smaller means closer to the start
-    rdt = rounddown_dt(dt, sec=td.seconds)
-    return True if (dt - rdt) <= td * ratio else False
-
-
-def near_end(dt, td):
-    ratio = 1 / 4 # smaller means closer to the end
-    rdt = roundup_dt(dt, sec=td.seconds)
-    return True if (rdt - dt) <= td * ratio else False
-
-
 def smallest_tf(tfs):
     tds = [(idx, tf_td(tf)) for idx, tf in enumerate(tfs)]
     tds.sort(key=lambda tup: tup[1])
@@ -510,7 +498,7 @@ def alert_sound(duration, words, n=1):
     """
     freq = 500  # Hz
 
-    for i in range(n):
+    for _ in range(n):
 
         if sys.platform == "linux" or sys.platform == "linux2":  # linux
             # sudo apt install sox
@@ -592,7 +580,6 @@ def ohlcv_to_interval(ohlcv, src_tf, target_td):
 
 
 def print_to_file(data, path):
-    import os
     import errno
 
     def mkdir_p(path):

@@ -163,9 +163,12 @@ class SingleEXTrader():
 
             return changed
 
+        sig_chg = sig_changed(sig)
         if (utc_now() - last_log_time) > \
         tf_td(self.config['indicator_tf']) / 5 \
-        or sig_changed(sig):
+        or sig_chg:
+            print(f"last_log_time: {last_log_time}, time interval: {tf_td(self.config['indicator_tf']) / 5}")
+            print(f"sig_changed: {sig_chg}")
             for market in self.ex.markets:
                 logger.info(f"{market} indicator signal @ {utc_now()}\n{sig[market][-10:]}")
 
@@ -539,6 +542,9 @@ class SingleEXTrader():
                 act(order['symbol'], order['confidence'], order['type'], order['scale_order'])
 
     async def cancel_all_orders(self, symbol):
+        if not self.enable_trading:
+            return {}
+
         open_orders = await self.ex.fetch_open_orders(symbol)
         ids = []
 
