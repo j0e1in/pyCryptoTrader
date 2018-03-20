@@ -47,6 +47,18 @@ async def test_short(trader):
         return_when=FIRST_COMPLETED)
 
 
+async def test_close(trader):
+    print('-- Close --')
+
+    done, pending = await asyncio.wait(
+        [
+            trader.ex.update_markets(),
+            trader.close_position('XRP/USD', confidence=100, type='limit'),
+            trader.ex.update_trade_fees(),
+        ],
+        return_when=FIRST_COMPLETED)
+
+
 async def test_strategy(trader):
     print('-- Strategy --')
     await asyncio.gather(trader.start())
@@ -77,6 +89,7 @@ async def main():
     # await asyncio.gather(test_cancel_all_orders(trader))
     # await asyncio.gather(test_long(trader))
     # await asyncio.gather(test_short(trader))
+    # await asyncio.gather(test_close(trader))
     # await asyncio.gather(test_strategy(trader))
     # await test_gen_scale_orders(trader)
 

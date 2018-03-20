@@ -214,22 +214,44 @@ class SingleEXTrader():
             and open a buy margin order (if has enough balance).
         """
         res = None
-        if self.enable_trade:
-            res = await self._do_long_short(
-                'long', symbol, confidence, type, scale_order=scale_order)
-        return res
+
+        if not self.enable_trading:
+            return True
+
+        res = await self._do_long_short(
+            'long', symbol, confidence, type, scale_order=scale_order)
+
+        return True if res else False
 
     async def short(self, symbol, confidence, type='limit', scale_order=True):
         """ Cancel all orders, close buy positions
             and open a sell margin order (if has enough balance).
         """
         res = None
-        if self.enable_trade:
-            res = await self._do_long_short(
-                'short', symbol, confidence, type, scale_order=scale_order)
-        return res
 
-    async def _do_long_short(self, action, symbol, confidence, type='limit', scale_order=True):
+        if not self.enable_trading:
+            return True
+
+        res = await self._do_long_short(
+            'short', symbol, confidence, type, scale_order=scale_order)
+
+        return True if res else False
+
+    async def close_position(self, symbol, confidence, type='limit', scale_order=True):
+        res = None
+
+        if not self.enable_trading:
+            return True
+
+        res = await self._do_long_short(
+            'close', symbol, 100, type, scale_order=scale_order)
+
+        return True if res else False
+
+
+    async def _do_long_short(self, action, symbol, confidence,
+                             type='limit',
+                             scale_order=True):
 
         async def save_to_db(orders):
             if not isinstance(orders, list):
@@ -263,6 +285,7 @@ class SingleEXTrader():
         positions = await self.ex.fetch_positions()
         orderbook = await self.ex.get_orderbook(symbol)
 
+        # Remove queued margin order
         if symbol in self.margin_order_queue:
             order = self.margin_order_queue[symbol]
             logger.debug(f"{symbol} {order['action']} margin order is removed from queue")
@@ -273,6 +296,16 @@ class SingleEXTrader():
         symbol_amount = 0
         for pos in symbol_positions: # a symbol normally has only one position
             symbol_amount += pos['amount'] # negative amount means 'sell'
+
+        _action = None
+        if action == 'close':
+            # there's no position to close
+            if symbol_amount == 0:
+                return None
+
+            _action = 'close'
+            side = 'buy' if symbol_amount < 0 else 'sell'
+            action = 'long' if side == 'buy' else 'short'
 
         # Calcualte position base value of all markets
         base_value, pl = self.calc_position_value(positions)
@@ -387,7 +420,7 @@ class SingleEXTrader():
                             f"price: {price} amount: {amount} value: {price * amount}")
 
             # Queue open position if current action is to close position
-            if has_opposite_open_position:
+            if has_opposite_open_position and not _action == 'close':
                 self.queue_margin_order(action, symbol, confidence,
                                         type=type,
                                         scale_order=True)

@@ -1,5 +1,3 @@
-from datetime import datetime
-
 import copy
 import logging
 import numpy as np
@@ -8,23 +6,28 @@ import pprint
 from trading.strgy.base_strategy import SingleEXStrategy
 from trading.indicators import Indicator
 from utils import \
+    rounddown_dt, \
+    roundup_dt, \
     is_within, \
-    near_end, \
-    near_start, \
     tf_td, \
-    utc_now
+    utc_now, \
+    MIN_DT
 
 logger = logging.getLogger('pyct')
 
+BUY = 1
+SELL = -1
+CLOSE = 0
+NONE = None
 
 class PatternStrategy(SingleEXStrategy):
 
     def __init__(self, trader, custom_config=None):
         super().__init__(trader, custom_config)
         self.ind = Indicator(custom_config=self._config)
-        self.last_sig_execution = {
-            'conf': None,
-            'time': None,
+        self.last_sig_exec = {
+            'action': NONE,
+            'time': MIN_DT,
         }
 
     def init_vars(self):
@@ -92,20 +95,27 @@ class PatternStrategy(SingleEXStrategy):
         return signals
 
     async def execute_sig(self, sig, market, use_prev_sig=False):
-        action = None
+        action = NONE
         succ = False
         conf = sig[-1] if not use_prev_sig else sig[-2]
 
         if conf > 0:
             logger.debug(pprint.pformat(sig[-10:]))
-            action = 'long'
+            action = BUY
             succ = await self.trader.long(market, conf, type='limit')
+
         elif conf < 0:
             logger.debug(pprint.pformat(sig[-10:]))
-            action = 'short'
+            action = SELL
             succ = await self.trader.short(market, conf, type='limit')
 
         return action if succ else None
+        elif conf == 0:
+            logger.debug(pprint.pformat(sig[-10:]))
+            action = CLOSE
+            succ = await self.trader.close_position(market, conf, type='limit')
+
+        return action if succ else NONE
 
     def calc_signal(self, market):
         """ Main algorithm which calculates signals.
