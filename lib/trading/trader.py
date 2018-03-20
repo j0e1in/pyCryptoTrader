@@ -1,7 +1,6 @@
 from asyncio import ensure_future
 from collections import OrderedDict
 from datetime import timedelta, datetime
-from pprint import pprint
 
 import asyncio
 import copy
@@ -20,7 +19,6 @@ from utils import \
     roundup_dt, \
     filter_by, \
     smallest_tf, \
-    alert_sound, \
     tf_td, \
     execute_mongo_ops
 
@@ -34,13 +32,13 @@ class SingleEXTrader():
     def __init__(self, mongo, ex_id, strategy_name,
                  custom_config=None,
                  ccxt_verbose=False,
-                 enable_trade=True,
+                 disable_trading=False,
                  log=False,
                  log_sig=False):
         self.mongo = mongo
         self._config = custom_config if custom_config else config
         self.config = self._config['trading']
-        self.enable_trade = enable_trade
+        self.enable_trading = not disable_trading
         self.log = log
         self.log_sig = log_sig
 
@@ -109,7 +107,7 @@ class SingleEXTrader():
             self.summary['initial_balance'] = copy.deepcopy(self.ex.wallet)
             self.summary['initial_value'] = await self.ex.calc_account_value()
 
-        if not self.enable_trade:
+        if not self.enable_trading:
             logger.info("Trading disabled")
 
         await self.ex_ready()

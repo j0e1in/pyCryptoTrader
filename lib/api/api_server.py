@@ -387,7 +387,7 @@ class APIServer():
         if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
             abort(401)
 
-        req.app.trader.enable_trade = True
+        # req.app.trader.enable_trading = True
         logger.info(f"Trading enabled")
 
         return response.json({ 'ok': True })
@@ -397,7 +397,7 @@ class APIServer():
         if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
             abort(401)
 
-        req.app.trader.enable_trade = False
+        req.app.trader.enable_trading = False
         logger.info(f"Trading disabled")
 
         return response.json({ 'ok': True })
