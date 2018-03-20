@@ -56,7 +56,7 @@ class PatternStrategy(SingleExchangeStrategy):
         for dt, ss in sig.items():
 
             self.op_execute_position_stop(dt)
-            self.op_force_liquidate_positions(dt)
+            # self.op_force_liquidate_positions(dt)
 
             if ss > 0: # buy
                 ss = abs(ss)
