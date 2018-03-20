@@ -37,9 +37,10 @@
     "margin": false,
     "indicator_tf": "8h",
     "trade_portion": 0.6,
+    "max_fund": 5000,
 
     "_conmment_maintain_portion": "ratio of balance in wallet and balance in markets",
-    "maintain_portion": 0.1,
+    "maintain_portion": 0.05,
 
     "_comment_limit_price_diff": "price difference (buffer) to the top price in orderbook",
     "scale_order_near_percent": 0.002,
@@ -59,6 +60,21 @@
         "ETH/USD",
         "XRP/USD"
       ],
+      "markets_all": [
+        "BTC/USD",
+        "BCH/USD",
+        "ETH/USD",
+        "ETC/USD",
+        "EOS/USD",
+        "DASH/USD",
+        "IOTA/USD",
+        "LTC/USD",
+        "NEO/USD",
+        "OMG/USD",
+        "XMR/USD",
+        "XRP/USD",
+        "ZEC/USD"
+      ],
       "timeframes": [
           "1m",
           "8h"
@@ -73,55 +89,7 @@
         "stop_loss_percent": 0.06,
         "stop_profit_percent": 0.02,
         "ind_conf": 100,
-        "stochrsi_length": 16,
-        "stoch_length": 10,
-        "stochrsi_slowk_length": 2,
-        "stochrsi_slowd_length": 2,
-        "stochrsi_upper": 70,
-        "stochrsi_lower": 30,
-        "stochrsi_adx_length": 35,
-        "stochrsi_di_length": 12,
-        "stochrsi_rsi_length": 14,
-        "stochrsi_rsi_upper": 80,
-        "stochrsi_rsi_lower": 25,
-        "stochrsi_rsi_mom_thresh": 10,
-        "stochrsi_mom_length": 20,
-        "stochrsi_mom_ma_length": 10
-      },
-      "BCH/USD": {
         "stochrsi_length": 18,
-        "stoch_length": 14,
-        "stochrsi_slowk_length": 2,
-        "stochrsi_slowd_length": 2,
-        "stochrsi_upper": 70,
-        "stochrsi_lower": 25,
-        "stochrsi_adx_length": 40,
-        "stochrsi_di_length": 12,
-        "stochrsi_rsi_length": 14,
-        "stochrsi_rsi_upper": 80,
-        "stochrsi_rsi_lower": 25,
-        "stochrsi_rsi_mom_thresh": 20,
-        "stochrsi_mom_length": 20,
-        "stochrsi_mom_ma_length": 10
-      },
-      "BTC/USD": {
-        "stochrsi_length": 12,
-        "stoch_length": 10,
-        "stochrsi_slowk_length": 2,
-        "stochrsi_slowd_length": 2,
-        "stochrsi_upper": 75,
-        "stochrsi_lower": 25,
-        "stochrsi_adx_length": 40,
-        "stochrsi_di_length": 10,
-        "stochrsi_rsi_length": 18,
-        "stochrsi_rsi_upper": 80,
-        "stochrsi_rsi_lower": 25,
-        "stochrsi_rsi_mom_thresh": 10,
-        "stochrsi_mom_length": 20,
-        "stochrsi_mom_ma_length": 10
-      },
-      "ETH/USD": {
-        "stochrsi_length": 16,
         "stoch_length": 10,
         "stochrsi_slowk_length": 2,
         "stochrsi_slowd_length": 2,
@@ -129,26 +97,10 @@
         "stochrsi_lower": 40,
         "stochrsi_adx_length": 30,
         "stochrsi_di_length": 12,
-        "stochrsi_rsi_length": 12,
-        "stochrsi_rsi_upper": 80,
-        "stochrsi_rsi_lower": 25,
-        "stochrsi_rsi_mom_thresh": 10,
-        "stochrsi_mom_length": 20,
-        "stochrsi_mom_ma_length": 10
-      },
-      "XRP/USD": {
-        "stochrsi_length": 18,
-        "stoch_length": 10,
-        "stochrsi_slowk_length": 2,
-        "stochrsi_slowd_length": 2,
-        "stochrsi_upper": 70,
-        "stochrsi_lower": 25,
-        "stochrsi_adx_length": 30,
-        "stochrsi_di_length": 12,
         "stochrsi_rsi_length": 14,
         "stochrsi_rsi_upper": 80,
         "stochrsi_rsi_lower": 25,
-        "stochrsi_rsi_mom_thresh": 10,
+        "stochrsi_rsi_mom_thresh": 20,
         "stochrsi_mom_length": 20,
         "stochrsi_mom_ma_length": 10
       }
@@ -387,7 +339,7 @@
 
   "database": {
     "_comment_default_host": "localhost or mongo (docker) or an external IP",
-    "default_host": "mongo",
+    "default_host": "172.18.0.2",
     "default_port": 27017,
     "auth": true,
     "username": "ex",
@@ -403,8 +355,20 @@
     "request_timeout": 120,
     "response_timeout": 120,
     "api_access": {
-      "j0e1in": [ "all" ],
-      "wayne": [ "all" ]
+      "j0e1in": {
+        "allow": [ "all" ],
+        "deny": []
+      },
+      "wayne": {
+        "allow": [ "all" ],
+        "deny": [
+          "max_fund",
+          "enable_markets",
+          "disable_markets",
+          "enable_trading",
+          "disable_trading"
+        ]
+      }
     },
     "cert": "../private/fullchain.pem",
     "key": "../private/privkey.pem"

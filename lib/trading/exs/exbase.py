@@ -14,7 +14,7 @@ from utils import \
     roundup_dt, \
     rounddown_dt, \
     ex_name, \
-    timeframe_timedelta, \
+    tf_td, \
     rsym, \
     ms_dt, \
     not_implemented, \
@@ -23,7 +23,7 @@ from utils import \
     handle_ccxt_request, \
     is_within
 
-logger = logging.getLogger()
+logger = logging.getLogger('pyct')
 
 
 class EXBase():
@@ -171,12 +171,12 @@ class EXBase():
 
                 await execute_mongo_ops(ops)
 
-        async def is_uptodate():
+        async def is_uptodate(td):
             await self.update_ohlcv_start_end()
 
             for market in self.markets:
                 end = self.ohlcv_start_end[market]['1m']['end']
-                cur_time = rounddown_dt(utc_now(), sec=td.seconds)
+                cur_time = rounddown_dt(utc_now(), td)
 
                 if end < cur_time:
                     return False
@@ -192,24 +192,27 @@ class EXBase():
             if is_within(last_update, timedelta(seconds=10)):
                 await asyncio.sleep(5)
 
+            tf = '1m'
+            td = tf_td(tf)
+
             # Fetch only 1m ohlcv
             for market in self.markets:
-                tf = '1m'
-                td = timeframe_timedelta(tf)
 
-                end = self.ohlcv_start_end[market][tf]['end']
-                cur_time = rounddown_dt(utc_now(), sec=td.seconds)
+                if market in self.ohlcv_start_end:
+                    end = self.ohlcv_start_end[market][tf]['end']
+                    cur_time = rounddown_dt(utc_now(), td)
 
-                if end < cur_time:
-                    # Fetching one-by-one is faster and safer(from blocking)
-                    # than gathering all tasks at once
-                    await fetch_ohlcv_to_mongo(market, end, cur_time, tf)
+                    if end < cur_time:
+                        # Fetching one-by-one is faster and safer(from blocking)
+                        # than gathering all tasks at once
+                        await fetch_ohlcv_to_mongo(market, end, cur_time, tf)
 
             last_update = utc_now()
 
-            if await is_uptodate():
+            if await is_uptodate(td):
                 self.ready['ohlcv'] = True
-                countdown = roundup_dt(utc_now(), sec=self.config['ohlcv_fetch_interval']) - utc_now()
+                fetch_interval = timedelta(seconds=self.config['ohlcv_fetch_interval'])
+                countdown = roundup_dt(utc_now(), fetch_interval) - utc_now()
 
                 # 1. Sleep will be slighly shorter than expected
                 # 2. Add extra seconds because exchange server data preperation may delay
@@ -425,6 +428,9 @@ class EXBase():
 
     async def update_withdraw_fees(self):
         not_implemented()
+
+    async def transfer_funds(self):
+        pass # most exchanges do not support, so just ignore it
 
     ##############################
     # EXCHANGE UTILITY FUNCTIONS #

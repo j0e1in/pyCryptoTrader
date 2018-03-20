@@ -6,16 +6,16 @@ import copy
 import logging
 
 from trading.exs.exbase import EXBase
-from utils import ms_dt, \
-                  dt_ms, \
-                  not_implemented, \
-                  execute_mongo_ops, \
-                  sec_ms, \
-                  roundup_dt, \
-                  utc_now, \
-                  handle_ccxt_request
+from utils import \
+    ms_dt, \
+    dt_ms, \
+    not_implemented, \
+    execute_mongo_ops, \
+    sec_ms, \
+    utc_now, \
+    handle_ccxt_request
 
-logger = logging.getLogger()
+logger = logging.getLogger('pyct')
 
 
 class Bitfinex(EXBase):
@@ -742,6 +742,45 @@ class Bitfinex(EXBase):
             self.withdraw_fees = fees
             self.ready['withdraw_fees'] = True
             await asyncio.sleep(self.config['fee_delay'])
+
+    async def transfer_funds(self, currency, amount, wallet_from, wallet_to):
+        """ Transfer funds between exchange, trading(margin), deposit(funding) wallets.
+            Param
+                currency: str, eg. 'USD', 'BTC'...
+                amount: float
+                wallet_from: 'exchange', 'margin', 'funding'
+                wallet_to: 'exchange', 'margin', 'funding'
+        """
+        self._check_auth()
+
+        if wallet_from == 'margin':
+            walletfrom = 'trading'
+
+        if wallet_from == 'funding':
+            walletfrom = 'deposit'
+
+        if wallet_to == 'margin':
+            walletto = 'trading'
+
+        if wallet_to == 'funding':
+            walletto = 'deposit'
+
+        params = {
+            'currency': currency,
+            'amount': str(amount),
+            'walletfrom': walletfrom,
+            'walletto': walletto,
+        }
+
+        res = await handle_ccxt_request(self.ex.private_post_transfer, params=params)
+        res = res[0]
+
+        if res['status'] == 'success':
+            return True
+        elif res['status'] == 'error':
+            logger.warning(f"Transfer {amount:0.2f} {currency} {wallet_from} -> {wallet_to} failed: "
+                           f"{res['message']}")
+            return False
 
     def parse_order(self, order):
         order['margin'] = self.is_margin_order(order)

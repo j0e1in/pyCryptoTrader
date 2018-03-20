@@ -1,7 +1,6 @@
 from asyncio import ensure_future
 from collections import OrderedDict
 from datetime import timedelta, datetime
-from pprint import pprint
 
 import asyncio
 import copy
@@ -13,21 +12,19 @@ import random
 
 from trading import strategy
 from trading import exchanges
-from utils import config, \
-                  load_keys, \
-                  utc_now, \
-                  rounddown_dt, \
-                  roundup_dt, \
-                  filter_by, \
-                  smallest_tf, \
-                  alert_sound, \
-                  is_within, \
-                  timeframe_timedelta, \
-                  execute_mongo_ops
+from utils import \
+    config, \
+    load_keys, \
+    utc_now, \
+    roundup_dt, \
+    filter_by, \
+    smallest_tf, \
+    tf_td, \
+    execute_mongo_ops
 
 from analysis.hist_data import build_ohlcv
 
-logger = logging.getLogger()
+logger = logging.getLogger('pyct')
 
 
 class SingleEXTrader():
@@ -35,23 +32,22 @@ class SingleEXTrader():
     def __init__(self, mongo, ex_id, strategy_name,
                  custom_config=None,
                  ccxt_verbose=False,
-                 enable_trade=True,
+                 disable_trading=False,
                  log=False,
                  log_sig=False):
         self.mongo = mongo
         self._config = custom_config if custom_config else config
         self.config = self._config['trading']
-        self.enable_trade = enable_trade
+        self.enable_trading = not disable_trading
         self.log = log
         self.log_sig = log_sig
 
         # Requires self attributes above, put this at last
         self.ex = self.init_exchange(ex_id, ccxt_verbose)
         self.strategy = self.init_strategy(strategy_name)
-
-        self.markets = self.ex.markets
-        self.timeframes = self.ex.timeframes
         self.ohlcvs = self.create_empty_ohlcv_store()
+
+        self.max_fund = self.config['max_fund']
 
         self.summary = {
             'start': None,
@@ -111,7 +107,7 @@ class SingleEXTrader():
             self.summary['initial_balance'] = copy.deepcopy(self.ex.wallet)
             self.summary['initial_value'] = await self.ex.calc_account_value()
 
-        if not self.enable_trade:
+        if not self.enable_trading:
             logger.info("Trading disabled")
 
         await self.ex_ready()
@@ -132,9 +128,11 @@ class SingleEXTrader():
     async def start_trading(self):
 
         last_log_time = datetime(1970, 1, 1)
-        last_sig = {market: np.nan for market in self.markets}
+        last_sig = {market: np.nan for market in self.ex.markets}
 
         while True:
+            await self.ex_ready()
+
             # Read latest ohlcv from db
             await self.update_ohlcv()
             await self.execute_margin_order_queue()
@@ -144,7 +142,8 @@ class SingleEXTrader():
                 last_log_time, last_sig = self.log_signals(sig, last_log_time, last_sig)
 
             # Wait additional 50 sec for ohlcv of all markets to be fetched
-            countdown = roundup_dt(utc_now(), sec=self.ex.config['ohlcv_fetch_interval']) - utc_now()
+            fetch_interval = timedelta(seconds=self.ex.config['ohlcv_fetch_interval'])
+            countdown = roundup_dt(utc_now(), fetch_interval) - utc_now()
             await asyncio.sleep(countdown.seconds + 50)
 
     def log_signals(self, sig, last_log_time, last_sig):
@@ -156,15 +155,21 @@ class SingleEXTrader():
             for market in sig:
                 if (not np.isnan(sig[market].iloc[-1]) or not np.isnan(last_sig[market])) \
                 and (sig[market].iloc[-1] != last_sig[market]):
+                    logger.debug(
+                        f"{market} signal changed from {last_sig[market]} to {sig[market].iloc[-1]}"
+                    )
                     last_sig[market] = sig[market].iloc[-1]
                     changed = True
 
             return changed
 
+        sig_chg = sig_changed(sig)
         if (utc_now() - last_log_time) > \
-        timeframe_timedelta(self.config['indicator_tf']) / 5 \
-        or sig_changed(sig):
-            for market in self.markets:
+        tf_td(self.config['indicator_tf']) / 5 \
+        or sig_chg:
+            print(f"last_log_time: {last_log_time}, time interval: {tf_td(self.config['indicator_tf']) / 5}")
+            print(f"sig_changed: {sig_chg}")
+            for market in self.ex.markets:
                 logger.info(f"{market} indicator signal @ {utc_now()}\n{sig[market][-10:]}")
 
             last_log_time = utc_now()
@@ -177,12 +182,12 @@ class SingleEXTrader():
             src_tf = '1m'
 
             # Build ohlcvs from 1m
-            for market in self.markets:
-                for tf in self.timeframes:
+            for market in self.ex.markets:
+                for tf in self.ex.timeframes:
                     if tf != src_tf:
                         src_end_dt = await self.mongo.get_ohlcv_end(self.ex.exname, market, src_tf)
                         target_end_dt = await self.mongo.get_ohlcv_end(self.ex.exname, market, tf)
-                        target_start_dt = target_end_dt - timeframe_timedelta(tf) * 5
+                        target_start_dt = target_end_dt - tf_td(tf) * 5
 
                         # Build ohlcv starting from 5 bars earlier from latest bar
                         await build_ohlcv(self.mongo, self.ex.exname, market, src_tf, tf,
@@ -192,10 +197,10 @@ class SingleEXTrader():
 
         # Get newest ohlcvs
         td = timedelta(days=self.config['strategy']['data_days'])
-        end = roundup_dt(utc_now(), min=1)
+        end = roundup_dt(utc_now(), timedelta(minutes=1))
         start = end - td
         self.ohlcvs = await self.mongo.get_ohlcvs_of_symbols(
-            self.ex.exname, self.markets, self.timeframes, start, end)
+            self.ex.exname, self.ex.markets, self.ex.timeframes, start, end)
 
         for symbol, tfs in self.ohlcvs.items():
             sm_tf = smallest_tf(list(self.ohlcvs[symbol].keys()))
@@ -210,22 +215,44 @@ class SingleEXTrader():
             and open a buy margin order (if has enough balance).
         """
         res = None
-        if self.enable_trade:
-            res = await self._do_long_short(
-                'long', symbol, confidence, type, scale_order=scale_order)
-        return res
+
+        if not self.enable_trading:
+            return True
+
+        res = await self._do_long_short(
+            'long', symbol, confidence, type, scale_order=scale_order)
+
+        return True if res else False
 
     async def short(self, symbol, confidence, type='limit', scale_order=True):
         """ Cancel all orders, close buy positions
             and open a sell margin order (if has enough balance).
         """
         res = None
-        if self.enable_trade:
-            res = await self._do_long_short(
-                'short', symbol, confidence, type, scale_order=scale_order)
-        return res
 
-    async def _do_long_short(self, action, symbol, confidence, type='limit', scale_order=True):
+        if not self.enable_trading:
+            return True
+
+        res = await self._do_long_short(
+            'short', symbol, confidence, type, scale_order=scale_order)
+
+        return True if res else False
+
+    async def close_position(self, symbol, confidence, type='limit', scale_order=True):
+        res = None
+
+        if not self.enable_trading:
+            return True
+
+        res = await self._do_long_short(
+            'close', symbol, 100, type, scale_order=scale_order)
+
+        return True if res else False
+
+
+    async def _do_long_short(self, action, symbol, confidence,
+                             type='limit',
+                             scale_order=True):
 
         async def save_to_db(orders):
             if not isinstance(orders, list):
@@ -259,6 +286,7 @@ class SingleEXTrader():
         positions = await self.ex.fetch_positions()
         orderbook = await self.ex.get_orderbook(symbol)
 
+        # Remove queued margin order
         if symbol in self.margin_order_queue:
             order = self.margin_order_queue[symbol]
             logger.debug(f"{symbol} {order['action']} margin order is removed from queue")
@@ -269,6 +297,16 @@ class SingleEXTrader():
         symbol_amount = 0
         for pos in symbol_positions: # a symbol normally has only one position
             symbol_amount += pos['amount'] # negative amount means 'sell'
+
+        _action = None
+        if action == 'close':
+            # there's no position to close
+            if symbol_amount == 0:
+                return None
+
+            _action = 'close'
+            side = 'buy' if symbol_amount < 0 else 'sell'
+            action = 'long' if side == 'buy' else 'short'
 
         # Calcualte position base value of all markets
         base_value, pl = self.calc_position_value(positions)
@@ -288,15 +326,23 @@ class SingleEXTrader():
 
         amount = 0
 
-        # Calculate spendable balance
+        # Calculate order amount
         has_opposite_open_position = (symbol_amount < 0) if action == 'long' else (symbol_amount > 0)
         if has_opposite_open_position:
+            # calculate amount to close position
             amount = abs(symbol_amount)
         else:
+            # calculate amount to open position
             available_balance = self.ex.get_balance(curr, wallet_type)
             total_value = available_balance + self_base_value
 
-            spendable = available_balance - total_value * self.config['maintain_portion']
+            # Cap max trading funds
+            if total_value > self.max_fund:
+                available_balance -= (total_value - self.max_fund)
+                total_value = available_balance + self_base_value
+
+            # total_value < 0 shouldn't happen, max(total_value, 0) is just for security of funds
+            spendable = available_balance - max(total_value, 0) * self.config['maintain_portion']
 
             if spendable > 0:
                 spend = spendable * abs(confidence) / 100 * self.config['trade_portion']
@@ -375,7 +421,7 @@ class SingleEXTrader():
                             f"price: {price} amount: {amount} value: {price * amount}")
 
             # Queue open position if current action is to close position
-            if has_opposite_open_position:
+            if has_opposite_open_position and not _action == 'close':
                 self.queue_margin_order(action, symbol, confidence,
                                         type=type,
                                         scale_order=True)
@@ -496,6 +542,9 @@ class SingleEXTrader():
                 act(order['symbol'], order['confidence'], order['type'], order['scale_order'])
 
     async def cancel_all_orders(self, symbol):
+        if not self.enable_trading:
+            return {}
+
         open_orders = await self.ex.fetch_open_orders(symbol)
         ids = []
 
@@ -514,10 +563,10 @@ class SingleEXTrader():
         df.set_index('timestamp', inplace=True)
 
         # Each exchange has different timeframes
-        for market in self.markets:
+        for market in self.ex.markets:
             ohlcv[market] = {}
 
-            for tf in self.timeframes:
+            for tf in self.ex.timeframes:
                 ohlcv[market][tf] = df.copy(deep=True)
 
         return ohlcv
@@ -531,7 +580,7 @@ class SingleEXTrader():
 
         for tf in ohlcvs.keys():
             if tf != sm_tf:
-                start_dt = ohlcvs[tf].index[-1] + timeframe_timedelta(tf)
+                start_dt = ohlcvs[tf].index[-1] + tf_td(tf)
                 end_dt = ohlcvs[sm_tf].index[-1]
 
                 # All timeframes are at the same timestamp, no need to fill
@@ -563,6 +612,8 @@ class SingleEXTrader():
 
         self.summary['now'] = now
         self.summary['days'] = (now - start).seconds / 60 / 60 / 24
+        self.summary['#profit_trades'] = 0
+        self.summary['#loss_trades'] = 0
         self.summary['current_balance'] = copy.deepcopy(self.ex.wallet)
         self.summary['current_value'] = await self.ex.calc_account_value()
         self.summary['total_trade_fee'] = await self.ex.calc_trade_fee(start, now)
@@ -583,6 +634,7 @@ class SingleEXTrader():
 
         min_amount = self.ex.markets_info[symbol]['limits']['amount']['min']
         order_count = min(int(math.sqrt(2 * amount / min_amount) - 1), max_order_count)
+        order_count = max(order_count, 1)
         amount_diff_base = amount / ((order_count + 1) * order_count / 2)
         cur_price = start_price
         dec = 100000000
@@ -649,3 +701,14 @@ class SingleEXTrader():
             del orders[idx]
 
         return orders
+
+    def add_market(self, market):
+        pass
+        # for market in self.ex.markets:
+        #     # New market is added
+        #     if market not in self.ex.markets_start_dt:
+        #         self.ex.set_market_start_dt(market, utc_now())
+        #         self.reset_orders
+
+    def remove_market(self, market):
+        pass

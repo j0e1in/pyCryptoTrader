@@ -158,6 +158,13 @@ async def test_update_fees(ex):
     await asyncio.gather(ex.update_trade_fees(), ex.update_withdraw_fees())
 
 
+async def test_transfer_funds(ex):
+    print('-- Transfer funds --')
+    res = await ex.update_wallet()
+    res = await ex.transfer_funds('USD', res['USD']['margin']*1.1, 'margin', 'funding')
+    pprint(res)
+
+
 async def test_calc_trade_fee(ex):
     print('-- Calculate trade fee --')
     res = await ex.calc_trade_fee(
@@ -202,6 +209,7 @@ async def main():
     # await test_fetch_open_positions(ex)
     # await test_fetch_my_recent_trades(ex)
     # await test_update_my_trades(ex)
+    # await test_transfer_funds(ex)
     # await test_calc_trade_fee(ex)
     # await test_calc_position_value(ex)
 

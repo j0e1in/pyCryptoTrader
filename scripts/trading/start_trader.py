@@ -10,7 +10,7 @@ from db import EXMongo
 from trading.trader import SingleEXTrader
 
 log_file = 'start_trader.log'
-logger = logging.getLogger()
+logger = logging.getLogger('pyct')
 
 
 def parse_args():
@@ -22,8 +22,12 @@ def parse_args():
     parser.add_argument('--log', action='store_true', help='Enable trader logging')
     parser.add_argument('--log-signal', action='store_true', help='Enable periodic indicator signal logging')
     parser.add_argument('--enable-api', action='store_true', help='Enable API server for clients to request data')
-    parser.add_argument('--disable-trade', dest='enable_trade', action='store_false', help='Disable creating orders')
-    parser.add_argument('--ssl', action='store_true', help='Enable SSL, only works if API is enabled')
+    parser.add_argument('--ssl', action='store_true', help='Enable SSL, only works if API sever is enabled')
+    parser.add_argument('--disable-trading', action='store_true', help='Disable creating orders')
+    parser.add_argument('--mongo-host', type=str, help="Specify mongodb host,\n"
+                                                       "eg. localhost (host connect to mongo on host)\n"
+                                                       "    mongo (container connect to mongo container)\n"
+                                                       "    172.18.0.2 (host connect to mongo container)\n")
     argv = parser.parse_args()
 
     return argv
@@ -32,16 +36,15 @@ def parse_args():
 async def main():
     argv = parse_args()
 
-    mongo = EXMongo()
+    mongo_host = argv.mongo_host if argv.mongo_host else None
+    mongo = EXMongo(host=mongo_host)
+
     trader = SingleEXTrader(mongo, 'bitfinex', 'pattern',
             log=argv.log,
             log_sig=argv.log_signal,
-            enable_trade=argv.enable_trade)
+            disable_trading=argv.disable_trading)
 
     if argv.enable_api:
-        with_ssl = 'with' if argv.ssl else 'without'
-        logger.info(f"Starting API server {with_ssl} SSL...")
-
         server = APIServer(trader)
         await server.run(access_log=True, enable_ssl=argv.ssl)
 

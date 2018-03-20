@@ -1,9 +1,11 @@
+from argparse import RawTextHelpFormatter
+
 import argparse
 import os
 import sys
 
 def parse_args():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(formatter_class=RawTextHelpFormatter)
 
     # Analysis
     parser.add_argument('--build-ohlcvs', action='store_true', help="Execute build_ohlcv.py")
@@ -23,8 +25,11 @@ def parse_args():
     parser.add_argument('--start-trader', action='store_true', help="Execute start_trader.py")
     parser.add_argument('--restart-trader', action='store_true', help="Execute restart_trader.py")
 
+    parser.add_argument('--none', action='store_true', help="Do not execute anything, this is for docker-compose")
+
+
     argv, argv_remain = parser.parse_known_args()
-    return argv, argv_remain
+    return argv, argv_remain, parser
 
 
 def main():
@@ -37,7 +42,7 @@ def main():
             sys.argv.remove(arg)
             append_argv.append(arg)
 
-    argv, argv_remain = parse_args()
+    argv, argv_remain, parser = parse_args()
 
     argv_remain += append_argv
     argv_remain = ' '.join(argv_remain)
@@ -45,7 +50,10 @@ def main():
     if not argv_remain:
         argv_remain = ''
 
-    if argv.build_ohlcvs:
+    if argv.none:
+        return
+
+    elif argv.build_ohlcvs:
         os.system(f"python scripts/analysis/build_ohlcvs.py {argv_remain}")
 
     elif argv.fetch_ohlcvs:
@@ -81,6 +89,8 @@ def main():
     elif argv.restart_trader:
         os.system(f"python scripts/trading/restart_trader.py {argv_remain}")
 
+    else:
+        parser.print_help(sys.stderr)
 
 if __name__ == '__main__':
     main()

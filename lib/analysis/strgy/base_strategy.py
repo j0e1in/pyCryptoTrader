@@ -5,7 +5,7 @@ import logging
 
 from utils import config
 
-logger = logging.getLogger()
+logger = logging.getLogger('pyct')
 
 
 class SingleExchangeStrategy():

@@ -6,7 +6,8 @@ from datetime import timedelta
 from pprint import pprint
 from collections import OrderedDict
 
-from utils import not_implemented,\
+from utils import \
+    not_implemented,\
     config,\
     gen_id,\
     combine,\
@@ -17,12 +18,12 @@ from utils import not_implemented,\
     dt_max,\
     Timer,\
     to_ordered_dict, \
-    timeframe_timedelta
+    tf_td
 
 # TODO: Use different configs (fee etc.) for different exchanges
 # TODO: Add different order types
 
-logger = logging.getLogger()
+logger = logging.getLogger('pyct')
 
 
 class SimulatedTrader():
@@ -256,7 +257,7 @@ class SimulatedTrader():
 
     @staticmethod
     def update_timer(timer, dt):
-        dt = roundup_dt(dt, sec=timer.interval_sec())
+        dt = roundup_dt(dt, timedelta(seconds=timer.interval_sec()))
         timer.set_now(dt)
 
     def tick(self, last=False):

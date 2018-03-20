@@ -6,9 +6,9 @@ import os
 
 from db import EXMongo
 from analysis.hist_data import build_ohlcv
-from utils import timeframe_timedelta, config
+from utils import tf_td, config
 
-logger = logging.getLogger()
+logger = logging.getLogger('pyct')
 
 
 def parse_args():
@@ -40,7 +40,7 @@ async def main():
             else:
                 src_end_dt = await mongo.get_ohlcv_end(exchange, symbol, src_tf)
                 target_end_dt = await mongo.get_ohlcv_end(exchange, symbol, target_tf)
-                target_start_dt = target_end_dt - timeframe_timedelta(target_tf) * 5
+                target_start_dt = target_end_dt - tf_td(target_tf) * 5
                 logger.info(f"Building {exchange} {symbol} {target_tf} ohlcv "
                             f"from {target_start_dt} to {src_end_dt}")
 

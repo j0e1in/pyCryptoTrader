@@ -11,8 +11,14 @@ import queue
 import pandas as pd
 import numpy as np
 
-from utils import config, Timer, roundup_dt, timeframe_timedelta, check_periods, INF
 from analysis.backtest_trader import SimulatedTrader, FastTrader
+from utils import \
+    INF, \
+    config, \
+    Timer, \
+    tf_td, \
+    roundup_dt, \
+    check_periods
 
 try:
     from analysis.plot import Plot
@@ -23,7 +29,7 @@ from db import EXMongo
 
 from pprint import pprint
 
-logger = logging.getLogger()
+logger = logging.getLogger('pyct')
 
 # import multiprocessing, logging
 # logger = multiprocessing.log_to_stderr()
@@ -199,8 +205,7 @@ class Backtest():
             for curr, amount in wallet.items():
 
                 min_tf = self.timeframes[ex][0]
-                sec = timeframe_timedelta(min_tf).total_seconds()
-                dt = roundup_dt(dt, sec=sec)
+                dt = roundup_dt(dt, tf_td(min_tf))
 
                 if curr == 'USD':
                     total_value += amount
