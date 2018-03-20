@@ -426,6 +426,7 @@
       "wayne": {
         "allow": [ "all" ],
         "deny": [
+          "max_fund",
           "enable_markets",
           "disable_markets",
           "enable_trading",
