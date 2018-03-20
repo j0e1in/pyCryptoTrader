@@ -12,8 +12,8 @@ file_dir = os.path.dirname(file_dir)
 root_dir = os.path.dirname(file_dir)
 
 
-import uvloop
-asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+# import uvloop
+# asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 
 def setup():
