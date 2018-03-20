@@ -13,7 +13,7 @@ async def main():
 
     mongo = EXMongo()
     trader = SingleEXTrader(mongo, 'bitfinex', 'pattern',
-                            enable_trade=False,
+                            disable_trading=True,
                             log=True)
     server = APIServer(trader)
 

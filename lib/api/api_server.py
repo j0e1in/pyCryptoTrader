@@ -10,9 +10,12 @@ import logging
 import inspect
 import json
 
-from utils import dt_ms, config, dummy_data
+from utils import \
+    dt_ms, \
+    config, \
+    dummy_data
 
-logger = logging.getLogger('pyct.')
+logger = logging.getLogger('pyct')
 log_fmt = "%(asctime)s | %(name)s | %(levelname)5s | %(status)d | %(request)s | %(message)s"
 
 class APIServer():
@@ -384,7 +387,7 @@ class APIServer():
         if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
             abort(401)
 
-        req.app.trader.enable_trade = True
+        # req.app.trader.enable_trading = True
         logger.info(f"Trading enabled")
 
         return response.json({ 'ok': True })
@@ -394,7 +397,7 @@ class APIServer():
         if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
             abort(401)
 
-        req.app.trader.enable_trade = False
+        req.app.trader.enable_trading = False
         logger.info(f"Trading disabled")
 
         return response.json({ 'ok': True })

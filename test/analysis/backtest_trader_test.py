@@ -9,9 +9,14 @@ import logging
 from analysis.backtest import Backtest
 from analysis.backtest_trader import SimulatedTrader
 from db import EXMongo
-from utils import Timer, config, init_ccxt_exchange, ex_name, ms_dt
+from utils import \
+    Timer, \
+    config, \
+    init_ccxt_exchange, \
+    ex_name, \
+    ms_dt
 
-logger = logging.getLogger()
+logger = logging.getLogger('pyct')
 
 MARKET = config['analysis']['exchanges']['bitfinex']['markets'][0]
 

@@ -1,7 +1,6 @@
 from asyncio import ensure_future
 from collections import OrderedDict
 from datetime import timedelta, datetime
-from pprint import pprint
 
 import asyncio
 import copy
@@ -13,21 +12,19 @@ import random
 
 from trading import strategy
 from trading import exchanges
-from utils import config, \
-                  load_keys, \
-                  utc_now, \
-                  rounddown_dt, \
-                  roundup_dt, \
-                  filter_by, \
-                  smallest_tf, \
-                  alert_sound, \
-                  is_within, \
-                  tf_td, \
-                  execute_mongo_ops
+from utils import \
+    config, \
+    load_keys, \
+    utc_now, \
+    roundup_dt, \
+    filter_by, \
+    smallest_tf, \
+    tf_td, \
+    execute_mongo_ops
 
 from analysis.hist_data import build_ohlcv
 
-logger = logging.getLogger()
+logger = logging.getLogger('pyct')
 
 
 class SingleEXTrader():
@@ -35,13 +32,13 @@ class SingleEXTrader():
     def __init__(self, mongo, ex_id, strategy_name,
                  custom_config=None,
                  ccxt_verbose=False,
-                 enable_trade=True,
+                 disable_trading=False,
                  log=False,
                  log_sig=False):
         self.mongo = mongo
         self._config = custom_config if custom_config else config
         self.config = self._config['trading']
-        self.enable_trade = enable_trade
+        self.enable_trading = not disable_trading
         self.log = log
         self.log_sig = log_sig
 
@@ -110,7 +107,7 @@ class SingleEXTrader():
             self.summary['initial_balance'] = copy.deepcopy(self.ex.wallet)
             self.summary['initial_value'] = await self.ex.calc_account_value()
 
-        if not self.enable_trade:
+        if not self.enable_trading:
             logger.info("Trading disabled")
 
         await self.ex_ready()
@@ -145,7 +142,8 @@ class SingleEXTrader():
                 last_log_time, last_sig = self.log_signals(sig, last_log_time, last_sig)
 
             # Wait additional 50 sec for ohlcv of all markets to be fetched
-            countdown = roundup_dt(utc_now(), sec=self.ex.config['ohlcv_fetch_interval']) - utc_now()
+            fetch_interval = timedelta(seconds=self.ex.config['ohlcv_fetch_interval'])
+            countdown = roundup_dt(utc_now(), fetch_interval) - utc_now()
             await asyncio.sleep(countdown.seconds + 50)
 
     def log_signals(self, sig, last_log_time, last_sig):
@@ -165,9 +163,12 @@ class SingleEXTrader():
 
             return changed
 
+        sig_chg = sig_changed(sig)
         if (utc_now() - last_log_time) > \
         tf_td(self.config['indicator_tf']) / 5 \
-        or sig_changed(sig):
+        or sig_chg:
+            print(f"last_log_time: {last_log_time}, time interval: {tf_td(self.config['indicator_tf']) / 5}")
+            print(f"sig_changed: {sig_chg}")
             for market in self.ex.markets:
                 logger.info(f"{market} indicator signal @ {utc_now()}\n{sig[market][-10:]}")
 
@@ -196,7 +197,7 @@ class SingleEXTrader():
 
         # Get newest ohlcvs
         td = timedelta(days=self.config['strategy']['data_days'])
-        end = roundup_dt(utc_now(), min=1)
+        end = roundup_dt(utc_now(), timedelta(minutes=1))
         start = end - td
         self.ohlcvs = await self.mongo.get_ohlcvs_of_symbols(
             self.ex.exname, self.ex.markets, self.ex.timeframes, start, end)
@@ -214,22 +215,44 @@ class SingleEXTrader():
             and open a buy margin order (if has enough balance).
         """
         res = None
-        if self.enable_trade:
-            res = await self._do_long_short(
-                'long', symbol, confidence, type, scale_order=scale_order)
-        return res
+
+        if not self.enable_trading:
+            return True
+
+        res = await self._do_long_short(
+            'long', symbol, confidence, type, scale_order=scale_order)
+
+        return True if res else False
 
     async def short(self, symbol, confidence, type='limit', scale_order=True):
         """ Cancel all orders, close buy positions
             and open a sell margin order (if has enough balance).
         """
         res = None
-        if self.enable_trade:
-            res = await self._do_long_short(
-                'short', symbol, confidence, type, scale_order=scale_order)
-        return res
 
-    async def _do_long_short(self, action, symbol, confidence, type='limit', scale_order=True):
+        if not self.enable_trading:
+            return True
+
+        res = await self._do_long_short(
+            'short', symbol, confidence, type, scale_order=scale_order)
+
+        return True if res else False
+
+    async def close_position(self, symbol, confidence, type='limit', scale_order=True):
+        res = None
+
+        if not self.enable_trading:
+            return True
+
+        res = await self._do_long_short(
+            'close', symbol, 100, type, scale_order=scale_order)
+
+        return True if res else False
+
+
+    async def _do_long_short(self, action, symbol, confidence,
+                             type='limit',
+                             scale_order=True):
 
         async def save_to_db(orders):
             if not isinstance(orders, list):
@@ -263,6 +286,7 @@ class SingleEXTrader():
         positions = await self.ex.fetch_positions()
         orderbook = await self.ex.get_orderbook(symbol)
 
+        # Remove queued margin order
         if symbol in self.margin_order_queue:
             order = self.margin_order_queue[symbol]
             logger.debug(f"{symbol} {order['action']} margin order is removed from queue")
@@ -273,6 +297,16 @@ class SingleEXTrader():
         symbol_amount = 0
         for pos in symbol_positions: # a symbol normally has only one position
             symbol_amount += pos['amount'] # negative amount means 'sell'
+
+        _action = None
+        if action == 'close':
+            # there's no position to close
+            if symbol_amount == 0:
+                return None
+
+            _action = 'close'
+            side = 'buy' if symbol_amount < 0 else 'sell'
+            action = 'long' if side == 'buy' else 'short'
 
         # Calcualte position base value of all markets
         base_value, pl = self.calc_position_value(positions)
@@ -387,7 +421,7 @@ class SingleEXTrader():
                             f"price: {price} amount: {amount} value: {price * amount}")
 
             # Queue open position if current action is to close position
-            if has_opposite_open_position:
+            if has_opposite_open_position and not _action == 'close':
                 self.queue_margin_order(action, symbol, confidence,
                                         type=type,
                                         scale_order=True)
@@ -508,6 +542,9 @@ class SingleEXTrader():
                 act(order['symbol'], order['confidence'], order['type'], order['scale_order'])
 
     async def cancel_all_orders(self, symbol):
+        if not self.enable_trading:
+            return {}
+
         open_orders = await self.ex.fetch_open_orders(symbol)
         ids = []
 

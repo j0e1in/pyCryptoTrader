@@ -31,3 +31,5 @@ COPY . /app
 USER admin
 
 ENTRYPOINT ["python", "app.py"]
+
+CMD ["--none"]

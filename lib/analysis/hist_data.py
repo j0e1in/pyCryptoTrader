@@ -4,7 +4,9 @@ import logging
 import time
 import pandas as pd
 
-from utils import sec_ms, ms_sec,\
+from utils import \
+    sec_ms, \
+    ms_sec,\
     tf_td,\
     ms_dt,\
     dt_ms,\
@@ -15,7 +17,7 @@ from utils import sec_ms, ms_sec,\
 
 from db import EXMongo
 
-logger = logging.getLogger()
+logger = logging.getLogger('pyct')
 
 
 async def fetch_ohlcv(exchange, symbol, start, end, timeframe='1m', log=True):

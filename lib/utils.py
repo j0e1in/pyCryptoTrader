@@ -1,6 +1,6 @@
 from pprint import pprint
 from collections import OrderedDict
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta
 from pymongo.errors import BulkWriteError
 import asyncio
 import ccxt.async as ccxt
@@ -15,9 +15,10 @@ import math
 import os
 import sys
 
-logger = logging.getLogger()
+logger = logging.getLogger('pyct')
 
 INF = 9999999
+MIN_DT = datetime(1970, 1, 1)
 
 
 def get_project_root():
@@ -200,15 +201,13 @@ def select_time(df, start, end):
     return df.loc[(df.index >= start) & (df.index < end)]
 
 
-def roundup_dt(dt, day=0, hour=0, min=0, sec=0):
+def roundup_dt(dt, td):
     """ Round up datetime object to specified interval,
         eg. min = 20, 10:03 => 10:20 (roundup_dt(dt, min=20))
         eg. sec = 120, 10:00 => 10:02 (roundup_dt(dt, sec=120))
     """
     if isinstance(dt, pd.Timestamp):
         dt = dt.to_pydatetime()
-
-    td = timedelta(days=day, hours=hour, minutes=min, seconds=sec)
 
     day = td.days
     hour = int(td.seconds/60/60)
@@ -234,20 +233,18 @@ def roundup_dt(dt, day=0, hour=0, min=0, sec=0):
         fill = timedelta(seconds=sec - (dt.second % sec))
         rest = timedelta(microseconds=dt.microsecond)
     else:
-        raise ValueError("Invalid parameters in roundup_dt.")
+        raise ValueError("Invalid parameters")
 
     return dt + fill - rest
 
 
-def rounddown_dt(dt, day=0, hour=0, min=0, sec=0):
+def rounddown_dt(dt, td):
     """ Round up datetime object to specified interval,
         eg. min = 20, 10:03 => 10:20 (roundup_dt(dt, min=20))
         eg. sec = 120, 10:00 => 10:02 (roundup_dt(dt, sec=120))
     """
     if isinstance(dt, pd.Timestamp):
         dt = dt.to_pydatetime()
-
-    td = timedelta(days=day, hours=hour, minutes=min, seconds=sec)
 
     day = td.days
     hour = int(td.seconds/60/60)
@@ -273,7 +270,7 @@ def rounddown_dt(dt, day=0, hour=0, min=0, sec=0):
         fill = timedelta(seconds=(dt.second % sec))
         rest = timedelta(microseconds=dt.microsecond)
     else:
-        raise ValueError("Invalid parameters in rounddown_dt.")
+        raise ValueError("Invalid parameters")
 
     return dt - fill - rest
 
@@ -480,18 +477,6 @@ def is_within(dt, td):
     return True if (utc_now() - dt) <= td else False
 
 
-def near_start(dt, td):
-    ratio = 1 / 10 # smaller means closer to the start
-    rdt = rounddown_dt(dt, sec=td.seconds)
-    return True if (dt - rdt) <= td * ratio else False
-
-
-def near_end(dt, td):
-    ratio = 1 / 4 # smaller means closer to the end
-    rdt = roundup_dt(dt, sec=td.seconds)
-    return True if (rdt - dt) <= td * ratio else False
-
-
 def smallest_tf(tfs):
     tds = [(idx, tf_td(tf)) for idx, tf in enumerate(tfs)]
     tds.sort(key=lambda tup: tup[1])
@@ -513,7 +498,7 @@ def alert_sound(duration, words, n=1):
     """
     freq = 500  # Hz
 
-    for i in range(n):
+    for _ in range(n):
 
         if sys.platform == "linux" or sys.platform == "linux2":  # linux
             # sudo apt install sox
@@ -595,7 +580,6 @@ def ohlcv_to_interval(ohlcv, src_tf, target_td):
 
 
 def print_to_file(data, path):
-    import os
     import errno
 
     def mkdir_p(path):

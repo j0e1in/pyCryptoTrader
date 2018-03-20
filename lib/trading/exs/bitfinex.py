@@ -6,16 +6,16 @@ import copy
 import logging
 
 from trading.exs.exbase import EXBase
-from utils import ms_dt, \
-                  dt_ms, \
-                  not_implemented, \
-                  execute_mongo_ops, \
-                  sec_ms, \
-                  roundup_dt, \
-                  utc_now, \
-                  handle_ccxt_request
+from utils import \
+    ms_dt, \
+    dt_ms, \
+    not_implemented, \
+    execute_mongo_ops, \
+    sec_ms, \
+    utc_now, \
+    handle_ccxt_request
 
-logger = logging.getLogger()
+logger = logging.getLogger('pyct')
 
 
 class Bitfinex(EXBase):

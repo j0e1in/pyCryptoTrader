@@ -8,7 +8,7 @@ from db import EXMongo
 from analysis.hist_data import build_ohlcv
 from utils import tf_td, config
 
-logger = logging.getLogger()
+logger = logging.getLogger('pyct')
 
 
 def parse_args():
