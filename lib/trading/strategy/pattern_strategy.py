@@ -3,7 +3,7 @@ import logging
 import numpy as np
 import pprint
 
-from trading.strgy.base_strategy import SingleEXStrategy
+from trading.strategy import SingleEXStrategy
 from trading.indicators import Indicator
 from utils import \
     rounddown_dt, \

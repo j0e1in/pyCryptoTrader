@@ -1,4 +1,0 @@
-from analysis.strgy import base_strategy, pattern_strategy
-
-SingleExchangeStrategy = base_strategy.SingleExchangeStrategy
-PatternStrategy = pattern_strategy.PatternStrategy

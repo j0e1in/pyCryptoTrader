@@ -3,7 +3,7 @@ from pprint import pprint
 import logging
 
 from analysis.indicators import Indicator
-from analysis.strgy.base_strategy import SingleExchangeStrategy
+from analysis.strategy import SingleExchangeStrategy
 
 logger = logging.getLogger('pyct')
 

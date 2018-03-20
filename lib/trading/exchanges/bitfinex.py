@@ -5,7 +5,7 @@ import ccxt.async as ccxt
 import copy
 import logging
 
-from trading.exs.exbase import EXBase
+from trading.exchanges import EXBase
 from utils import \
     ms_dt, \
     dt_ms, \
