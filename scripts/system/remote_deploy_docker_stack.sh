@@ -1,6 +1,5 @@
 #!/bin/bash
 
-
 PROJ_DIR=pyCryptoTrader
 CUR_DIR=$(pwd)
 
@@ -13,13 +12,9 @@ if [[ "$CUR_DIR" != */$PROJ_DIR ]]; then
   exit 1
 fi
 
-if [ -z $USERNAME ] | [ -z $IP ]; then
+if [ -z $USERNAME ] | [ -z $IP ] | [ -z $TYPE ]; then
   echo "Usage: remote_deploy_mongo_data_volume.sh [USERNAME] [IP] [TYPE]"
   exit 1
-fi
-
-if [ -z $TYPE ]; then
-  TYPE=test
 fi
 
 echo "Deploy $TYPE docker stack to $USERNAME@$IP"
@@ -36,13 +31,17 @@ ssh $USERNAME@$IP "PROJ_DIR=pyCryptoTrader && \
                    rm -rf $PROJ_DIR && \
                    unzip -q $PROJ_DIR.zip && \
                    cd $PROJ_DIR && \
+                   \
                    docker-compose build && \
+                   \
                    docker stack rm crypto && \
                    echo \"wait for 20 seconds...\" && \
                    sleep 20 && \
+                   \
                    docker stack deploy -c docker-compose-$TYPE.yml crypto && \
                    echo \"wait for 10 seconds...\" && \
                    sleep 10 && \
+                   \
                    docker service logs -f crypto_trade"
 
 
