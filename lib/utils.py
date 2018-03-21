@@ -412,13 +412,9 @@ async def handle_ccxt_request(func, *args, **kwargs):
                 logger.warning(f"ExchangeError, {type(err)} {str(err)}")
                 raise err
 
-            elif isinstance(err, ccxt.ExchangeNotAvailable):
+            elif isinstance(err, ccxt.ExchangeNotAvailable)\
+            or   isinstance(err, ccxt.InvalidNonce):
                 logger.warning(f"{type(err)} {str(err)}")
-
-            elif isinstance(err, KeyError) \
-            and not str(err).find('message') >= 0:
-                logger.error(f"KeyError, {str(err)}")
-                raise err
 
             if isinstance(err, functools.partial):
                 err_repr = err.__class__.__name__
