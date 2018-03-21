@@ -149,30 +149,26 @@ class SingleEXTrader():
     def log_signals(self, sig, last_log_time, last_sig):
         """ Log signal periodically or on signal change. """
 
-        def sig_changed(sig):
-            changed = False
+        def sig_changed(sig, market):
+            if (not np.isnan(sig[market].iloc[-1]) or not np.isnan(last_sig[market])) \
+            and (sig[market].iloc[-1] != last_sig[market]):
+                logger.debug(f"{market} signal changed from "
+                             f"{last_sig[market]} to {sig[market].iloc[-1]}")
+                last_sig[market] = sig[market].iloc[-1]
+                return True
 
-            for market in sig:
-                if (not np.isnan(sig[market].iloc[-1]) or not np.isnan(last_sig[market])) \
-                and (sig[market].iloc[-1] != last_sig[market]):
-                    logger.debug(
-                        f"{market} signal changed from {last_sig[market]} to {sig[market].iloc[-1]}"
-                    )
-                    last_sig[market] = sig[market].iloc[-1]
-                    changed = True
+            return False
 
-            return changed
-
-        sig_chg = sig_changed(sig)
         if (utc_now() - last_log_time) > \
-        tf_td(self.config['indicator_tf']) / 5 \
-        or sig_chg:
-            print(f"last_log_time: {last_log_time}, time interval: {tf_td(self.config['indicator_tf']) / 5}")
-            print(f"sig_changed: {sig_chg}")
+        tf_td(self.config['indicator_tf']) / 5:
             for market in self.ex.markets:
                 logger.info(f"{market} indicator signal @ {utc_now()}\n{sig[market][-10:]}")
 
             last_log_time = utc_now()
+        else:
+            for market in self.ex.markets:
+                if sig_changed(sig, market):
+                    logger.info(f"{market} indicator signal @ {utc_now()}\n{sig[market][-10:]}")
 
         return last_log_time, last_sig
 
