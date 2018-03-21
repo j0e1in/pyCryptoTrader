@@ -500,10 +500,23 @@ class ParamOptimizer():
         else:
             raise ValueError(f"{param_name} is not in config['parmas']")
 
+    def count(self):
+        n = 1
+        for k in self.param_d:
+            n *= len(self.param_d[k])
+        return n
+
     def get_combinations(self):
-        return gen_combinations(self.param_d.values(),
-                                columns=self.param_d.keys(),
-                                types=get_types(self.param_d))
+        return gen_combinations(
+            self.param_d.values(),
+            columns=self.param_d.keys(),
+            types=get_types(self.param_d))
+
+    def get_combinations_large(self, f):
+        return gen_combinations_large(
+            self.param_d.values(),
+            columns=self.param_d.keys(),
+            to_file=f)
 
     async def run(self, combs, periods):
         if not check_periods(periods):
@@ -581,6 +594,41 @@ def gen_combinations(arrays, columns=None, types=None):
         df[k] = df[k].astype(t)
 
     return df
+
+
+def gen_combinations_large(arr, columns=None, to_file=None):
+    """ Generate large number of combinations without memory limitations. """
+    pos = np.zeros(len(arr))
+
+    if not isinstance(arr, list):
+        arr = list(arr)
+
+    if to_file:
+        to_file.write(','.join(map(str, columns)) + '\n')
+
+    n_combs = 1
+
+    for i in range(len(arr)):
+        n_combs *= len(arr[i])
+
+    # from ipdb import set_trace; set_trace()
+    for _ in range(n_combs):
+
+        cc = []
+        for i in range(len(arr)):
+            cc.append(arr[i][int(pos[i])])
+
+        if to_file:
+            to_file.write(','.join(map(str, cc)) + '\n')
+        else:
+            yield cc
+
+        for i in range(len(arr)):
+            if pos[i] < len(arr[i]) - 1:
+                pos[i] += 1
+                break
+            else:
+                pos[i] = 0
 
 
 def get_types(d):
