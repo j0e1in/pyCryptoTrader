@@ -5,6 +5,7 @@ from pymongo.errors import BulkWriteError
 import asyncio
 import ccxt.async as ccxt
 import calendar
+import functools
 import inspect
 import logging
 import json
@@ -406,21 +407,31 @@ async def handle_ccxt_request(func, *args, **kwargs):
             elif isinstance(err, ccxt.ExchangeError) \
             and not (str(err).find("Web server is returning an unknown error") >= 0
             or       str(err).find("Ratelimit") >= 0
-            or       str(err).find("Cannot connect to host") >= 0):
+            or       str(err).find("Cannot connect to host") >= 0
+            or       str(err).find("unavailable") >= 0):
                 logger.warning(f"ExchangeError, {type(err)} {str(err)}")
                 raise err
 
-            elif isinstance(err, ccxt.ExchangeNotAvailable) \
-            and (str(err).find("time_interval: invalid") >= 0):
-                logger.warning(f"ExchangeNotAvailable, {type(err)} {str(err)}")
+            elif isinstance(err, ccxt.ExchangeNotAvailable):
+                logger.warning(f"{type(err)} {str(err)}")
 
-            # caused by ccxt.bitfinex handle_errors in bitfinex.py line 634
             elif isinstance(err, KeyError) \
-                    and not str(err).find('message') >= 0:
-                logger.warning(f"KeyError, {str(err)}")
+            and not str(err).find('message') >= 0:
+                logger.error(f"KeyError, {str(err)}")
                 raise err
 
-            logger.info(f'# {type(err).__name__} # retry {func.__name__} in {wait} seconds...')
+            if isinstance(err, functools.partial):
+                err_repr = err.__class__.__name__
+            else:
+                err_repr = err.__class__.__name__
+
+            if isinstance(func, functools.partial):
+                func_repr = func.args[0]
+            else:
+                func_repr = func.__func__.__name__
+
+            logger.info(f'# {err_repr} # retry {func_repr} in {wait} seconds...')
+
             await asyncio.sleep(wait)
 
         else:
