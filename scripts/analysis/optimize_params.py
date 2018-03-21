@@ -100,11 +100,17 @@ def generate_params(mongo, ex, argv):
     optimizer.optimize_range('stochrsi_rsi_length', 10, 20, 2)
     optimizer.optimize_range('stochrsi_rsi_mom_thresh', 10, 30, 10)
 
-    combs = optimizer.get_combinations()
-    print(f"Generated {len(combs)} sets of parameter settings.")
+    combs = optimizer.count()
+    print(f"Generating {combs} sets of parameter settings...")
 
-    with open(f'../data/{prefix}combs.pkl', 'wb') as f:
-        pickle.dump(combs, f)
+    if combs < 5000000:
+        combs = optimizer.get_combinations()
+
+        with open(f'../data/{prefix}combs.pkl', 'wb') as f:
+            pickle.dump(combs, f)
+    else:
+        with open(f'../data/{prefix}combs.csv', 'w') as f:
+            optimizer.get_combinations_large(f)
 
 
 def parse_args():
