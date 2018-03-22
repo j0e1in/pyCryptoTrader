@@ -2,19 +2,20 @@ from pprint import pprint
 from collections import OrderedDict
 from datetime import datetime, timedelta
 from pymongo.errors import BulkWriteError
+
 import asyncio
 import ccxt.async as ccxt
 import calendar
 import functools
 import inspect
 import logging
-import json
-import pandas as pd
-import numpy as np
-import uuid
+import jstyleson as json
 import math
+import numpy as np
 import os
+import pandas as pd
 import sys
+import uuid
 
 logger = logging.getLogger('pyct')
 
@@ -38,12 +39,12 @@ config = load_json('../settings/config.json')
 dummy_data = load_json('../data/api_dummy_data.json')
 
 
-def load_keys(file=None):
+def load_keys(id, file=None):
     if not file:
         file = config['key_file']
 
     with open(file) as f:
-        return json.load(f)
+        return json.load(f)[id]
 
 
 def combine(a, b):

@@ -222,14 +222,7 @@ class APIServer():
             return response.json(dummy_data['active_orders'])
 
         orders = await req.app.trader.ex.fetch_open_orders()
-
-        for ord in orders:
-            ord['value'] = abs(ord['amount']) * ord['price']
-            del ord['average']
-            del ord['datetime']
-            del ord['fee']
-            del ord['id']
-            del ord['status']
+        orders = api_parse_orders(orders)
 
         return response.json({ 'orders': orders })
 
@@ -264,21 +257,8 @@ class APIServer():
             return response.json(dummy_data['active_positions'])
 
         positions = await trader.ex.fetch_positions()
-
-        for i, pos in enumerate(positions):
-            margin_rate = trader.config[trader.ex.exname]['margin_rate']
-            base_value = abs(pos['amount']) / margin_rate * pos['base_price']
-
-            positions[i] = {
-                'symbol': pos['symbol'],
-                'side': 'buy' if pos['amount'] > 0 else 'sell',
-                'amount': abs(pos['amount']) / margin_rate,
-                'price': pos['base_price'],
-                'value': base_value,
-                'timestamp': pos['timestamp'],
-                'PL': pos['pl'],
-                'PL(%)': pos['pl'] / base_value * 100,
-            }
+        positions = api_parse_positions(
+            positions, trader.config[trader.ex.exname]['margin_rate'])
 
         return response.json({ 'positions': positions })
 
@@ -412,3 +392,36 @@ class APIServer():
                 return True
 
         return False
+
+
+def api_parse_orders(orders):
+    for ord in orders:
+        ord['value'] = abs(ord['amount']) * ord['price']
+        ord.pop('average')
+        ord.pop('datetime')
+        ord.pop('fee')
+        ord.pop('id')
+        ord.pop('status')
+
+    return orders
+
+
+def api_parse_positions(positions, margin_rate):
+    price_name = 'base_price' if 'base_price' in positions[0] else 'price'
+    pl_name = 'pl' if 'pl' in positions[0] else 'PL'
+
+    for i, pos in enumerate(positions):
+        base_value = abs(pos['amount']) / margin_rate * pos[price_name]
+
+        positions[i] = {
+            'symbol': pos['symbol'],
+            'side': 'buy' if pos['amount'] > 0 else 'sell',
+            'amount': abs(pos['amount']) / margin_rate,
+            'price': pos[price_name],
+            'value': base_value,
+            'timestamp': pos['timestamp'],
+            'PL': pos[pl_name],
+            'PL(%)': pos[pl_name] / base_value * 100,
+        }
+
+    return positions

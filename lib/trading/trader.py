@@ -29,7 +29,7 @@ logger = logging.getLogger('pyct')
 
 class SingleEXTrader():
 
-    def __init__(self, mongo, ex_id, strategy_name,
+    def __init__(self, mongo, id, ex_id, strategy_name,
                  custom_config=None,
                  ccxt_verbose=False,
                  disable_trading=False,
