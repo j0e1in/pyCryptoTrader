@@ -1,5 +1,6 @@
 ccxt==1.11.149
 chromalog
+jstyleson
 matplotlib
 motor
 multiprocess
