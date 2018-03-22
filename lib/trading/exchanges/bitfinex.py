@@ -814,6 +814,23 @@ class Bitfinex(EXBase):
 
         return value
 
+    async def calc_order_value(self):
+        """ Calulate total value of all open orders. """
+        MR = self._config['trading'][self.exname]['margin_rate']
+
+        orders = await self.fetch_open_orders()
+        value = 0
+
+        for order in orders:
+            order_val = order['price'] * abs(order['remaining'])
+
+            if order['margin']:
+                order_val /= MR
+
+            value += order_val
+
+        return value
+
     async def calc_all_position_value(self):
         """ Calculate total value of all open positions. """
         MR = self._config['trading'][self.exname]['margin_rate']

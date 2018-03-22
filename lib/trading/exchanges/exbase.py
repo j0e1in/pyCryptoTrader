@@ -467,6 +467,9 @@ class EXBase():
         """ Calculate total value of all currencies using latest 1m ohlcv. """
         not_implemented()
 
+    async def calc_order_value(self):
+        not_implemented()
+
     async def calc_all_position_value(self):
         not_implemented()
 
@@ -487,8 +490,9 @@ class EXBase():
 
     async def calc_account_value(self):
         wallet_value = await self.calc_wallet_value()
+        order_value = await self.calc_order_value()
         position_value = await self.calc_all_position_value()
-        return wallet_value + position_value
+        return wallet_value + order_value + position_value
 
     async def calc_value_of(self, curr, amount):
         if curr == 'USD' or amount == 0:
