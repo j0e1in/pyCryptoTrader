@@ -85,7 +85,7 @@
     },
     "params": {
       "common": {
-        "trade_portion": 0.7,
+        "trade_portion": 0.5,
         "stop_loss_percent": 0.06,
         "stop_profit_percent": 0.02,
         "ind_conf": 100,
