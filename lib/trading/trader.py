@@ -43,6 +43,7 @@ class SingleEXTrader():
         self.log_sig = log_sig
 
         # Requires self attributes above, put this at last
+        self.id = id
         self.ex = self.init_exchange(ex_id, ccxt_verbose)
         self.strategy = self.init_strategy(strategy_name)
         self.ohlcvs = self.create_empty_ohlcv_store()
@@ -68,7 +69,7 @@ class SingleEXTrader():
 
     def init_exchange(self, ex_id, ccxt_verbose=False):
         """ Make an instance of a custom EX class. """
-        key = load_keys(self._config['key_file'])[ex_id]
+        key = load_keys(self.id)[ex_id]
         ex_class = getattr(exchanges, str.capitalize(ex_id))
         return ex_class(self.mongo, key['apiKey'], key['secret'],
                         custom_config=self._config,

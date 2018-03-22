@@ -1,13 +1,13 @@
 {
   "mode": "dev",
   "use_multicore": true,
-  "max_processes": 16,
+  "max_processes": 8,
   "request_max_retry": 5,
 
-  "_comment_request_timeout": "ccxt default is 10000 (10 sec)",
+  // ccxt default is 10000 (10 sec)
   "request_timeout": 15000,
 
-  "_comment_key_file": "file path to api keys, use relative path from utils.py",
+  // file path to api keys, use relative path from utils.py
   "key_file": "../private/keys.json",
 
   "ccxt": {
@@ -22,8 +22,7 @@
 
   "backtest": {
     "fast_mode": true,
-    "_comment_base_timeframe": "in second",
-    "base_timeframe": 60,
+    "base_timeframe": 60, // in second
     "margin": true
   },
 
@@ -42,7 +41,7 @@
     "_conmment_maintain_portion": "ratio of balance in wallet and balance in markets",
     "maintain_portion": 0.05,
 
-    "_comment_limit_price_diff": "price difference (buffer) to the top price in orderbook",
+    // price difference (buffer) to the top price in orderbook
     "scale_order_near_percent": 0.002,
     "scale_order_close_far_percent": 0.005,
     "scale_order_far_percent": 0.03,
@@ -178,7 +177,7 @@
     "force_liquidate_percent": 0.15,
     "indicator_tf": "8h",
 
-    "_comment_min_order_value": "minimal USD value is allwed to open an order",
+    // minimal USD value is allwed to open an order
     "min_order_value": 10,
 
     "funds": {
@@ -188,7 +187,7 @@
     },
     "exchanges": {
       "bitfinex": {
-        "_comment_markets": "markets to trade",
+        // markets to trade
         "markets": [
           "XRP/USD"
         ],
@@ -403,7 +402,7 @@
   },
 
   "database": {
-    "_comment_default_host": "localhost or mongo (docker) or an external IP",
+    // localhost or mongo (docker) or an external IP"
     "default_host": "172.18.0.2",
     "default_port": 27017,
     "auth": true,
@@ -437,6 +436,10 @@
     },
     "cert": "../private/fullchain.pem",
     "key": "../private/privkey.pem"
+  },
+
+  "apiclient": {
+    "messenger_host": "trader.csie.io"
   }
 }
 
