@@ -106,7 +106,6 @@ class PatternStrategy(SingleEXStrategy):
 
     async def execute_sig(self, sig, market, use_prev_sig=False):
         action = NONE
-        succ = False
         conf = sig[-1] if not use_prev_sig else sig[-2]
 
         logger = logging.getLogger('pyct')
@@ -115,29 +114,28 @@ class PatternStrategy(SingleEXStrategy):
             logger.debug(f"Create {market} buy order")
             logger.debug(f"{market} indicator signal @ {utc_now()}\n{sig[-5:]}")
             action = BUY
-            succ = await self.trader.long(market, conf, type='limit')
+            await self.trader.long(market, conf, type='limit')
 
         elif conf < 0:
             logger.debug(f"Create {market} sell order")
             logger.debug(f"{market} indicator signal @ {utc_now()}\n{sig[-5:]}")
             action = SELL
-            succ = await self.trader.short(market, conf, type='limit')
+            await self.trader.short(market, conf, type='limit')
 
         elif conf == 0:
             logger.debug(f"Close {market} positions")
             logger.debug(f"{market} indicator signal @ {utc_now()}\n{sig[-5:]}")
             action = CLOSE
-            succ = await self.trader.close_position(market, conf, type='limit')
+            await self.trader.close_position(market, conf, type='limit')
 
         elif np.isnan(conf):
             if self.last_sig_exec[market]['action'] != to_action(conf):
                 logger.debug(f"Cancel {market} orders")
                 logger.debug(f"{market} indicator signal @ {utc_now()}\n{sig[-5:]}")
                 action = CANCEL
-                succ = True
                 await self.trader.cancel_all_orders(market)
 
-        return action if succ else NONE
+        return action
 
     def calc_signal(self, market):
         """ Main algorithm which calculates signals.
