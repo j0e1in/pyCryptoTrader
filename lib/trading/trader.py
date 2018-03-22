@@ -615,7 +615,7 @@ class SingleEXTrader():
         self.summary['total_trade_fee'] = await self.ex.calc_trade_fee(start, now)
         self.summary['total_margin_fee'] = self.ex.calc_margin_fee(start, now)
         self.summary['PL'] = self.summary['current_value'] - self.summary['initial_value']
-        self.summary['PL(%)'] = self.summary['PL'] / self.summary['initial_value']
+        self.summary['PL(%)'] = self.summary['PL'] / self.summary['initial_value'] * 100
         self.summary['PL_Eff'] = self.summary['PL(%)'] / self.summary['days'] * 0.3
 
         return self.summary
