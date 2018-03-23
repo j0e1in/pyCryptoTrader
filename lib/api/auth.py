@@ -113,3 +113,10 @@ class AuthyManager():
             return ''
 
         return keys[uid]['authy_userid']
+
+    async def user_exist(self, userid):
+        collname = f"authy_users"
+        coll = self.mongo.get_collection(
+            self._config['database']['dbname_api'], collname)
+        res = await coll.find_one({'userid': userid})
+        return False if not res else True
