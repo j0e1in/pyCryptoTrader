@@ -10,6 +10,7 @@ from analysis.backtest_trader import SimulatedTrader
 from utils import \
     set_options, \
     config, \
+    tf_td, \
     format_value
 
 logger = logging.getLogger('pyct')
@@ -111,10 +112,13 @@ class Plot():
             if order['canceled']:
                 continue
 
+            # offset to shift annotation one bar right to match tradingview's
+            annot_shift_right = tf_td(config['analysis']['indicator_tf'])
+
             if order['margin']:
                 # Annotate margin open
                 side = order['side']
-                time = order['open_time']
+                time = order['open_time'] + annot_shift_right
                 price = format_value(order['open_price'])
                 cost = format_value(order['cost'])
                 # text = f"#{order['#']}\nmargin\nopen\nP: {price}\nV: {cost}"
@@ -123,7 +127,7 @@ class Plot():
 
                 # Annotate margin close
                 side = 'buy' if order['side'] == 'sell' else 'sell'
-                time = order['close_time']
+                time = order['close_time'] + annot_shift_right
                 price = format_value(order['close_price'])
                 earn = format_value(order['close_price'] * order['amount'] * (1-self._config['analysis']['fee']))
                 # text = f"#{order['#']}\nmargin\nclose\nP: {price}\nV: {earn}"
@@ -132,7 +136,7 @@ class Plot():
 
             else: # Annotate normal orders
                 side = order['side']
-                time = order['close_time']
+                time = order['close_time'] + annot_shift_right
                 price = format_value(order['open_price'])
                 cost = format_value(order['cost'])
                 if side == 'buy':

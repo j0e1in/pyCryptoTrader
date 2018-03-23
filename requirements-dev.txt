@@ -1,5 +1,6 @@
-ccxt==1.11.116
+ccxt==1.11.149
 chromalog
+jstyleson
 matplotlib
 motor
 multiprocess
@@ -7,4 +8,10 @@ numpy
 pandas
 pymongo
 sanic
+
+# aiohttp
+aiohttp
+cchardet
+aiodns
+
 # ta-lib # Needs to be installed after numpy (in seperated commands)

@@ -1,9 +1,8 @@
 import copy
 import logging
 import numpy as np
-import pprint
 
-from trading.strgy.base_strategy import SingleEXStrategy
+from trading.strategy import SingleEXStrategy
 from trading.indicators import Indicator
 from utils import \
     rounddown_dt, \
@@ -27,10 +26,13 @@ class PatternStrategy(SingleEXStrategy):
     def __init__(self, trader, custom_config=None):
         super().__init__(trader, custom_config)
         self.ind = Indicator(custom_config=self._config)
-        self.last_sig_exec = {
-            'action': NONE,
-            'time': MIN_DT,
-        }
+        self.last_sig_exec = {}
+
+        for market in trader.ex.markets:
+            self.last_sig_exec[market] = {
+                'action': NONE,
+                'time': MIN_DT,
+            }
 
     def init_vars(self):
         """ Variables declared here are reset everytime when ohlcv is updated. """
@@ -51,8 +53,8 @@ class PatternStrategy(SingleEXStrategy):
             action = await self.execute_sig(sig, market, use_prev_sig=use_prev_sig)
 
             if action != NONE:
-                self.last_sig_exec['time'] = sig.index[-1]
-                self.last_sig_exec['action'] = action
+                self.last_sig_exec[market]['time'] = sig.index[-1]
+                self.last_sig_exec[market]['action'] = action
 
             return action
 
@@ -70,14 +72,14 @@ class PatternStrategy(SingleEXStrategy):
                 if near_end(sig.index[-1], tftd):
                     logger.debug("near_end")
                     # If is not yet executed
-                    if not executed(sig, self.last_sig_exec, tftd):
+                    if not executed(sig, self.last_sig_exec, market, tftd):
                         logger.debug(f"case 1")
                         actions[market] = await exec_sig(sig, market, use_prev_sig=False)
 
                     # If a sig has been executed in this interval,
                     # but sig changed and also exceeds the buffer time
-                    elif changed(sig, self.last_sig_exec, tftd):
-                        in_buffer_time = (sig.index[-1] - self.last_sig_exec['time']) < buffer_time
+                    elif changed(sig, self.last_sig_exec, market, tftd):
+                        in_buffer_time = (sig.index[-1] - self.last_sig_exec[market]['time']) < buffer_time
                         if in_buffer_time:
                             logger.debug(f"in buffer time")
 
@@ -89,14 +91,14 @@ class PatternStrategy(SingleEXStrategy):
                     logger.debug("near_start")
                     # If last internal's sig is not executed
                     # (sig activated/changed at last minute)
-                    if not executed(sig, self.last_sig_exec, tftd):
+                    if not executed(sig, self.last_sig_exec, market, tftd):
                         logger.debug(f"case 3")
                         actions[market] = await exec_sig(sig, market, use_prev_sig=True)
 
                     # If last internal's sig has been executed
                     # but sig changed
-                    elif changed(sig, self.last_sig_exec, tftd):
-                        if self.last_sig_exec['time'] < rounddown_dt(sig.index[-1], tftd):
+                    elif changed(sig, self.last_sig_exec, market, tftd):
+                        if self.last_sig_exec[market]['time'] < rounddown_dt(sig.index[-1], tftd):
                             logger.debug(f"case 4")
                             actions[market] = await exec_sig(sig, market, use_prev_sig=True)
 
@@ -104,7 +106,6 @@ class PatternStrategy(SingleEXStrategy):
 
     async def execute_sig(self, sig, market, use_prev_sig=False):
         action = NONE
-        succ = False
         conf = sig[-1] if not use_prev_sig else sig[-2]
 
         logger = logging.getLogger('pyct')
@@ -113,29 +114,28 @@ class PatternStrategy(SingleEXStrategy):
             logger.debug(f"Create {market} buy order")
             logger.debug(f"{market} indicator signal @ {utc_now()}\n{sig[-5:]}")
             action = BUY
-            succ = await self.trader.long(market, conf, type='limit')
+            await self.trader.long(market, conf, type='limit')
 
         elif conf < 0:
             logger.debug(f"Create {market} sell order")
             logger.debug(f"{market} indicator signal @ {utc_now()}\n{sig[-5:]}")
             action = SELL
-            succ = await self.trader.short(market, conf, type='limit')
+            await self.trader.short(market, conf, type='limit')
 
         elif conf == 0:
             logger.debug(f"Close {market} positions")
             logger.debug(f"{market} indicator signal @ {utc_now()}\n{sig[-5:]}")
             action = CLOSE
-            succ = await self.trader.close_position(market, conf, type='limit')
+            await self.trader.close_position(market, conf, type='limit')
 
         elif np.isnan(conf):
-            if self.last_sig_exec['action'] != to_action(conf):
+            if self.last_sig_exec[market]['action'] != to_action(conf):
                 logger.debug(f"Cancel {market} orders")
                 logger.debug(f"{market} indicator signal @ {utc_now()}\n{sig[-5:]}")
                 action = CANCEL
-                succ = True
                 await self.trader.cancel_all_orders(market)
 
-        return action if succ else NONE
+        return action
 
     def calc_signal(self, market):
         """ Main algorithm which calculates signals.
@@ -189,10 +189,10 @@ def near_end(dt, td):
     return True if (rdt - dt) <= td * ratio else False
 
 
-def executed(sig, last_sig_exec, tftd):
+def executed(sig, last_sig_exec, market, tftd):
     """ Determine if last sig execution is at the latest 'near_end' period """
-    action = last_sig_exec['action']
-    time = last_sig_exec['time']
+    action = last_sig_exec[market]['action']
+    time = last_sig_exec[market]['time']
 
     if near_end(sig.index[-1], tftd):
         if near_end(time, tftd) \
@@ -228,13 +228,13 @@ def executed(sig, last_sig_exec, tftd):
     raise RuntimeError("Should only call this function if near_start or near_end")
 
 
-def changed(sig, last_sig_exec, tftd):
+def changed(sig, last_sig_exec, market, tftd):
     """ Determine if latest signal has changed """
-    if not executed(sig, last_sig_exec, tftd):
+    if not executed(sig, last_sig_exec, market, tftd):
         logger.warning(f"executed is False")
         return False
 
-    last_action = last_sig_exec['action']
+    last_action = last_sig_exec[market]['action']
 
     if near_end(sig.index[-1], tftd):
         if last_action != to_action(sig.iloc[-1]):

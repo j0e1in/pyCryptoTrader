@@ -2,18 +2,20 @@ from pprint import pprint
 from collections import OrderedDict
 from datetime import datetime, timedelta
 from pymongo.errors import BulkWriteError
+
 import asyncio
 import ccxt.async as ccxt
 import calendar
+import functools
 import inspect
 import logging
-import json
-import pandas as pd
-import numpy as np
-import uuid
+import jstyleson as json
 import math
+import numpy as np
 import os
+import pandas as pd
 import sys
+import uuid
 
 logger = logging.getLogger('pyct')
 
@@ -37,12 +39,12 @@ config = load_json('../settings/config.json')
 dummy_data = load_json('../data/api_dummy_data.json')
 
 
-def load_keys(file=None):
+def load_keys(id, file=None):
     if not file:
         file = config['key_file']
 
     with open(file) as f:
-        return json.load(f)
+        return json.load(f)[id]
 
 
 def combine(a, b):
@@ -99,10 +101,7 @@ def utc_now():
 
 def tf_td(timeframe):
     """ Convert timeframe to timedelta. """
-    if 'M' == timeframe[-1]:
-        period = int(timeframe.split('M')[0])
-        return timedelta(months=period)
-    elif 'D' == timeframe[-1]:
+    if 'D' == timeframe[-1]:
         period = int(timeframe.split('D')[0])
         return timedelta(days=period)
     elif 'h' == timeframe[-1]:
@@ -409,21 +408,27 @@ async def handle_ccxt_request(func, *args, **kwargs):
             elif isinstance(err, ccxt.ExchangeError) \
             and not (str(err).find("Web server is returning an unknown error") >= 0
             or       str(err).find("Ratelimit") >= 0
-            or       str(err).find("Cannot connect to host") >= 0):
+            or       str(err).find("Cannot connect to host") >= 0
+            or       str(err).find("unavailable") >= 0):
                 logger.warning(f"ExchangeError, {type(err)} {str(err)}")
                 raise err
 
-            elif isinstance(err, ccxt.ExchangeNotAvailable) \
-            and (str(err).find("time_interval: invalid") >= 0):
-                logger.warning(f"ExchangeNotAvailable, {type(err)} {str(err)}")
+            elif isinstance(err, ccxt.ExchangeNotAvailable)\
+            or   isinstance(err, ccxt.InvalidNonce):
+                logger.warning(f"{type(err)} {str(err)}")
 
-            # caused by ccxt.bitfinex handle_errors in bitfinex.py line 634
-            elif isinstance(err, KeyError) \
-                    and not str(err).find('message') >= 0:
-                logger.warning(f"KeyError, {str(err)}")
-                raise err
+            if isinstance(err, functools.partial):
+                err_repr = err.__class__.__name__
+            else:
+                err_repr = err.__class__.__name__
 
-            logger.info(f'# {type(err).__name__} # retry {func.__name__} in {wait} seconds...')
+            if isinstance(func, functools.partial):
+                func_repr = func.args[0]
+            else:
+                func_repr = func.__func__.__name__
+
+            logger.info(f'# {err_repr} # retry {func_repr} in {wait} seconds...')
+
             await asyncio.sleep(wait)
 
         else:

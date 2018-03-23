@@ -2,18 +2,25 @@
 
 PROJ_DIR=pyCryptoTrader
 CUR_DIR=$(pwd)
+TYPE=$1
 
 if [[ "$CUR_DIR" != */$PROJ_DIR ]]; then
   echo "ERROR: Please run this script at project root."
   exit 1
 fi
 
+if [ -z $TYPE ]; then
+  echo "Usage: local_deploy_docker_stack.sh [TYPE]"
+  exit 1
+fi
+
 docker-compose build
+
 docker stack rm crypto
 echo "wait for 20 seconds..."
 sleep 20
 
-docker stack deploy -c docker-compose-production.yml crypto
+docker stack deploy -c docker-compose-$TYPE.yml crypto
 echo "wait for 10 seconds..."
 sleep 10
 

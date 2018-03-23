@@ -29,7 +29,7 @@ logger = logging.getLogger('pyct')
 
 class SingleEXTrader():
 
-    def __init__(self, mongo, ex_id, strategy_name,
+    def __init__(self, mongo, id, ex_id, strategy_name,
                  custom_config=None,
                  ccxt_verbose=False,
                  disable_trading=False,
@@ -43,6 +43,7 @@ class SingleEXTrader():
         self.log_sig = log_sig
 
         # Requires self attributes above, put this at last
+        self.id = id
         self.ex = self.init_exchange(ex_id, ccxt_verbose)
         self.strategy = self.init_strategy(strategy_name)
         self.ohlcvs = self.create_empty_ohlcv_store()
@@ -68,7 +69,7 @@ class SingleEXTrader():
 
     def init_exchange(self, ex_id, ccxt_verbose=False):
         """ Make an instance of a custom EX class. """
-        key = load_keys(self._config['key_file'])[ex_id]
+        key = load_keys(self.id)[ex_id]
         ex_class = getattr(exchanges, str.capitalize(ex_id))
         return ex_class(self.mongo, key['apiKey'], key['secret'],
                         custom_config=self._config,
@@ -149,30 +150,26 @@ class SingleEXTrader():
     def log_signals(self, sig, last_log_time, last_sig):
         """ Log signal periodically or on signal change. """
 
-        def sig_changed(sig):
-            changed = False
+        def sig_changed(sig, market):
+            if (not np.isnan(sig[market].iloc[-1]) or not np.isnan(last_sig[market])) \
+            and (sig[market].iloc[-1] != last_sig[market]):
+                logger.debug(f"{market} signal changed from "
+                             f"{last_sig[market]} to {sig[market].iloc[-1]}")
+                last_sig[market] = sig[market].iloc[-1]
+                return True
 
-            for market in sig:
-                if (not np.isnan(sig[market].iloc[-1]) or not np.isnan(last_sig[market])) \
-                and (sig[market].iloc[-1] != last_sig[market]):
-                    logger.debug(
-                        f"{market} signal changed from {last_sig[market]} to {sig[market].iloc[-1]}"
-                    )
-                    last_sig[market] = sig[market].iloc[-1]
-                    changed = True
+            return False
 
-            return changed
-
-        sig_chg = sig_changed(sig)
         if (utc_now() - last_log_time) > \
-        tf_td(self.config['indicator_tf']) / 5 \
-        or sig_chg:
-            print(f"last_log_time: {last_log_time}, time interval: {tf_td(self.config['indicator_tf']) / 5}")
-            print(f"sig_changed: {sig_chg}")
+        tf_td(self.config['indicator_tf']) / 5:
             for market in self.ex.markets:
                 logger.info(f"{market} indicator signal @ {utc_now()}\n{sig[market][-10:]}")
 
             last_log_time = utc_now()
+        else:
+            for market in self.ex.markets:
+                if sig_changed(sig, market):
+                    logger.info(f"{market} indicator signal @ {utc_now()}\n{sig[market][-10:]}")
 
         return last_log_time, last_sig
 
@@ -619,7 +616,7 @@ class SingleEXTrader():
         self.summary['total_trade_fee'] = await self.ex.calc_trade_fee(start, now)
         self.summary['total_margin_fee'] = self.ex.calc_margin_fee(start, now)
         self.summary['PL'] = self.summary['current_value'] - self.summary['initial_value']
-        self.summary['PL(%)'] = self.summary['PL'] / self.summary['initial_value']
+        self.summary['PL(%)'] = self.summary['PL'] / self.summary['initial_value'] * 100
         self.summary['PL_Eff'] = self.summary['PL(%)'] / self.summary['days'] * 0.3
 
         return self.summary

@@ -5,7 +5,7 @@ import ccxt.async as ccxt
 import copy
 import logging
 
-from trading.exs.exbase import EXBase
+from trading.exchanges import EXBase
 from utils import \
     ms_dt, \
     dt_ms, \
@@ -811,6 +811,23 @@ class Bitfinex(EXBase):
             amount += self.wallet[curr]['margin']
             amount += self.wallet[curr]['funding']
             value += await self.calc_value_of(curr, amount)
+
+        return value
+
+    async def calc_order_value(self):
+        """ Calulate total value of all open orders. """
+        MR = self._config['trading'][self.exname]['margin_rate']
+
+        orders = await self.fetch_open_orders()
+        value = 0
+
+        for order in orders:
+            order_val = order['price'] * abs(order['remaining'])
+
+            if order['margin']:
+                order_val /= MR
+
+            value += order_val
 
         return value
 

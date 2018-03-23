@@ -174,16 +174,22 @@ async def test_calc_trade_fee(ex):
     pprint(res)
 
 
-async def test_calc_position_value(ex):
+async def test_calc_order_value(ex):
+    print('-- Calculate order value --')
+    res = await ex.calc_order_value()
+    pprint(res)
+
+
+async def test_calc_all_position_value(ex):
     print('-- Calculate position value --')
-    res = await ex.calc_position_value()
+    res = await ex.calc_all_position_value()
     pprint(res)
 
 
 async def main():
     mongo = EXMongo()
 
-    key = load_keys(get_project_root() + '/private/keys.json')['bitfinex']
+    key = load_keys('j0e1in')['bitfinex']
     ex = Bitfinex(mongo, key['apiKey'], key['secret'], ccxt_verbose=False, log=True)
     await ex.ex.load_markets()
 
@@ -211,7 +217,8 @@ async def main():
     # await test_update_my_trades(ex)
     # await test_transfer_funds(ex)
     # await test_calc_trade_fee(ex)
-    # await test_calc_position_value(ex)
+    # await test_calc_order_value(ex)
+    # await test_calc_all_position_value(ex)
 
     # await test_update_fees(ex)
 
