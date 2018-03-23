@@ -26,18 +26,19 @@ class AuthyManager():
             email, phone, country_code)
 
         if user.ok():
-            collname = f"authy_users"
-            coll = self.mongo.get_collection(
-                self._config['database']['dbname_api'], collname)
+            if await self.user_exist(user.id):
+                return False, f"User already exists"
+            else:
+                collname = f"authy_users"
+                coll = self.mongo.get_collection(
+                    self._config['database']['dbname_api'], collname)
 
-            await coll.update_one(
-                    {'userid': user.id},
-                    {'$set': {
-                        'userid': user.id,
-                        'email': email,
-                        'phone': phone,
-                        'country_code': country_code,
-                    }}, upsert=True)
+                await coll.insert_one({
+                    'userid': user.id,
+                    'email': email,
+                    'phone': phone,
+                    'country_code': country_code,
+                })
 
             return True, ''
         else:
@@ -70,7 +71,7 @@ class AuthyManager():
             message,
             seconds_to_expire=self.config['seconds_to_expire'],
             details=details)
-            # hidden_details=hidden_details)
+        # hidden_details=hidden_details)
 
         res = await loop.run_in_executor(None, wrapped_func)
 
@@ -107,5 +108,16 @@ class AuthyManager():
             return False, ''
 
     def get_userid(self, uid):
-        userid = load_keys()[uid]['authy_userid']
-        return userid
+        keys = load_keys()
+
+        if uid not in keys:
+            return ''
+
+        return keys[uid]['authy_userid']
+
+    async def user_exist(self, userid):
+        collname = f"authy_users"
+        coll = self.mongo.get_collection(
+            self._config['database']['dbname_api'], collname)
+        res = await coll.find_one({'userid': userid})
+        return False if not res else True

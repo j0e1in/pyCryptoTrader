@@ -454,7 +454,13 @@ class APIServer():
         return False
 
     async def send_2fa_request(self, uid, msg):
+        # Convert uid to userid
+        # and check if the userid is in mongodb
         userid = self.authy.get_userid(uid)
+        if not userid \
+        or not await self.authy.user_exist(userid):
+            return False, response.json({'error': f'Authy user does not exist.'})
+
         res, status = await self.authy.one_touch(userid, msg)
         if not res:
             return False, response.json(
