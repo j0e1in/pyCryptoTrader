@@ -11,7 +11,7 @@ services:
     volumes:
       - ./data:/app/data
       - ./log:/app/log
-      - ./settings:/app/settings
+      - ./settings:/app/settings:ro
     networks:
       - mongo_net
     ports:
