@@ -26,18 +26,19 @@ class AuthyManager():
             email, phone, country_code)
 
         if user.ok():
-            collname = f"authy_users"
-            coll = self.mongo.get_collection(
-                self._config['database']['dbname_api'], collname)
+            if await self.user_exist(user.id):
+                return False, f"User already exists"
+            else:
+                collname = f"authy_users"
+                coll = self.mongo.get_collection(
+                    self._config['database']['dbname_api'], collname)
 
-            await coll.update_one(
-                    {'userid': user.id},
-                    {'$set': {
-                        'userid': user.id,
-                        'email': email,
-                        'phone': phone,
-                        'country_code': country_code,
-                    }}, upsert=True)
+                await coll.insert_one({
+                    'userid': user.id,
+                    'email': email,
+                    'phone': phone,
+                    'country_code': country_code,
+                })
 
             return True, ''
         else:
