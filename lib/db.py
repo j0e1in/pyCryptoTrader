@@ -25,9 +25,8 @@ logger = logging.getLogger('pyct')
 class EXMongo():
 
     def __init__(self, *, host=None, port=None, uri=None, custom_config=None):
-        _config = custom_config if custom_config else config
-        self.config = _config['database']
-        self._config = _config
+        self._config = custom_config if custom_config else config
+        self.config = self._config['database']
 
         if not host:
             host = self.config['default_host']
