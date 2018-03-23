@@ -7,6 +7,7 @@ multiprocess
 numpy
 pandas
 pymongo
+python-dotenv
 sanic
 
 # aiohttp

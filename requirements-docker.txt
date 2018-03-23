@@ -4,9 +4,10 @@ jstyleson
 motor
 multiprocess
 numpy
-sanic
 pandas
 pymongo
+python-dotenv
+sanic
 
 # aiohttp
 aiohttp
