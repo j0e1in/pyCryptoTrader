@@ -59,7 +59,7 @@ async def main():
 
     mongo = EXMongo()
 
-    trader = SingleEXTrader(mongo, 'j0e1in', 'bitfinex', 'pattern',
+    trader = SingleEXTrader(mongo, 'bitfinex', 'pattern',
                             disable_trading=True, log=True)
 
     notifier = Messenger(trader, ssl=True)

@@ -29,7 +29,8 @@ logger = logging.getLogger('pyct')
 
 class SingleEXTrader():
 
-    def __init__(self, mongo, id, ex_id, strategy_name,
+    def __init__(self, mongo, ex_id, strategy_name,
+                 userid=None,
                  custom_config=None,
                  ccxt_verbose=False,
                  disable_trading=False,
@@ -43,7 +44,7 @@ class SingleEXTrader():
         self.log_sig = log_sig
 
         # Requires self attributes above, put this at last
-        self.id = id
+        self.id = userid if userid else config['userid']
         self.ex = self.init_exchange(ex_id, ccxt_verbose)
         self.strategy = self.init_strategy(strategy_name)
         self.ohlcvs = self.create_empty_ohlcv_store()

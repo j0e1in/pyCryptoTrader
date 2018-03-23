@@ -33,11 +33,18 @@ def load_json(file):
     with open(file) as f:
         return json.load(f)
 
+def load_config(file):
+    _config = load_json(file)
 
-# TODO: Add set_config and get_config method to let classes set and get global config
-config = load_json('../settings/config.json')
-dummy_data = load_json('../data/api_dummy_data.json')
+    # Overwrite settings.json if the key
+    # is in config
+    for env, val in os.environ.items():
+        if env.startswith('PYCT_'):
+            k = env.split('PYCT_')[1].lower()
+            if k in _config:
+                _config[k] = val
 
+    return _config
 
 def load_keys(id, file=None):
     if not file:
@@ -45,6 +52,17 @@ def load_keys(id, file=None):
 
     with open(file) as f:
         return json.load(f)[id]
+
+def load_env():
+    return { k.split('PYCT_')[1]: v \
+        for k, v in os.environ.items() \
+            if k.startswith('PYCT_') }
+
+# TODO: Add set_config and get_config method to let
+# classes set and get global config, like get_event_loop
+env = load_env()
+config = load_config('../settings/config.json')
+dummy_data = load_json('../data/api_dummy_data.json')
 
 
 def combine(a, b):

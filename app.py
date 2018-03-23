@@ -1,4 +1,5 @@
 from argparse import RawTextHelpFormatter
+from dotenv import load_dotenv
 
 import argparse
 import os
@@ -27,6 +28,9 @@ def parse_args():
 
     parser.add_argument('--none', action='store_true', help="Do not execute anything, this is for docker-compose")
 
+    # Optional argument
+    parser.add_argument('--env', type=str, help="Env file to load")
+
 
     argv, argv_remain = parser.parse_known_args()
     return argv, argv_remain, parser
@@ -49,6 +53,9 @@ def main():
 
     if not argv_remain:
         argv_remain = ''
+
+    if argv.env:
+        load_dotenv(dotenv_path=argv.env)
 
     if argv.none:
         return

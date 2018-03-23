@@ -1,5 +1,7 @@
 {
   "mode": "dev",
+  "userid": "j0e1in",
+
   "use_multicore": true,
   "max_processes": 8,
   "request_max_retry": 5,
