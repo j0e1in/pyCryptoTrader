@@ -85,6 +85,34 @@ class APIServer():
     async def after_server_stop(app, loop):
         await app.trader.ex.ex.close()
 
+    @app.route('/authy/create_user', methods=['POST'])
+    async def authy_create_user(req):
+        """ Add authy user to database, and authy will send 2FA to their account. """
+        # TODO: use payload info to verify access
+        # if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
+        #     abort(401)
+
+        payload = req.json
+        if not payload \
+        or 'email' not in payload \
+        or 'phone' not in payload \
+        or 'country_code' not in payload:
+            return response.json({
+                'error': "Payload should contain fields "
+                         "`email`, `phone` and `country_code`"
+            })
+
+        succ, res = await req.app.server.authy.create_user(
+            payload['email'],
+            payload['phone'],
+            payload['country_code']
+        )
+        if succ:
+            return response.json({'ok': True})
+        else:
+            return response.json({'error': res})
+
+
     @app.route('/account/info/<uid:string>/<ex:string>', methods=['GET'])
     async def account_info(req, uid, ex):
         """ Query current exchange account's trading state.
@@ -278,7 +306,7 @@ class APIServer():
             abort(401)
 
         payload = req.json
-        if 'level' not in payload:
+        if not payload or 'level' not in payload:
             return response.json({
                 'error': "Payload should contain field `level` "
                          "with one of values: info | debug | warn | error"
@@ -293,13 +321,13 @@ class APIServer():
             abort(401)
 
         payload = req.json
-        if 'fund' not in payload:
+        if not payload or 'fund' not in payload:
             return response.json({
                 'error': "Payload should contain field `fund` with a float value"
             })
 
         msg = f"Change max fund to ${payload['fund']}"
-        accept, res = req.app.send_2fa_request(uid, msg)
+        accept, res = await req.app.server.send_2fa_request(uid, msg)
 
         if not accept:
             return res
@@ -316,13 +344,13 @@ class APIServer():
         trader = req.app.trader
         payload = req.json
 
-        if 'markets' not in payload or not isinstance(payload['markets'], list):
+        if not payload or 'markets' not in payload or not isinstance(payload['markets'], list):
             return response.json({
                 'error': "Payload should contain field `markets` with a list of strings"
             })
 
         msg = "Enable markets"
-        accept, res = req.app.send_2fa_request(uid, msg)
+        accept, res = await req.app.server.send_2fa_request(uid, msg)
 
         if not accept:
             return res
@@ -353,13 +381,13 @@ class APIServer():
         trader = req.app.trader
         payload = req.json
 
-        if 'markets' not in payload or not isinstance(payload['markets'], list):
+        if not payload or 'markets' not in payload or not isinstance(payload['markets'], list):
             return response.json({
                 'error': "Payload should contain field `markets` with a list of strings"
             })
 
         msg = "Disable markets"
-        accept, res = req.app.send_2fa_request(uid, msg)
+        accept, res = await req.app.server.send_2fa_request(uid, msg)
 
         if not accept:
             return res
@@ -388,7 +416,7 @@ class APIServer():
             abort(401)
 
         msg = "Enable trading"
-        accept, res = req.app.send_2fa_request(uid, msg)
+        accept, res = await req.app.server.send_2fa_request(uid, msg)
 
         if not accept:
             return res
@@ -404,7 +432,7 @@ class APIServer():
             abort(401)
 
         msg = "Disable trading"
-        accept, res = req.app.send_2fa_request(uid, msg)
+        accept, res = await req.app.server.send_2fa_request(uid, msg)
 
         if not accept:
             return res
@@ -425,9 +453,9 @@ class APIServer():
 
         return False
 
-    def send_2fa_request(self, uid, msg):
+    async def send_2fa_request(self, uid, msg):
         userid = self.authy.get_userid(uid)
-        res, status = self.authy.one_touch(userid, msg)
+        res, status = await self.authy.one_touch(userid, msg)
         if not res:
             return False, response.json(
                 {'error': f'2FA request {status}'})

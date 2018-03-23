@@ -53,7 +53,7 @@ def load_keys(file=None):
         file = config['key_file']
 
     with open(file) as f:
-        return json.load(f)[id]
+        return json.load(f)
 
 
 def load_env():

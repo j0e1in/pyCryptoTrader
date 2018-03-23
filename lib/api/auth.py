@@ -1,11 +1,14 @@
 from authy.api import AuthyApiClient
 from time import sleep
 
+import asyncio
+import functools
 import logging
 
 from utils import load_keys, config
 
 logger = logging.getLogger('pytc')
+loop = asyncio.get_event_loop()
 
 class AuthyManager():
 
@@ -15,14 +18,15 @@ class AuthyManager():
         self.mongo = mongo
 
         apikey = apikey if apikey else load_keys()['AUTHY_APIKEY']
-        from ipdb import set_trace; set_trace()
         self.authy_app = AuthyApiClient(apikey)
 
     async def create_user(self, email, phone, country_code):
-        collname = f"authy_users"
-        user = self.authy_app.users.create(email, phone, country_code)
+        user = await loop.run_in_executor(None,
+            self.authy_app.users.create,
+            email, phone, country_code)
 
         if user.ok():
+            collname = f"authy_users"
             coll = self.mongo.get_collection(
                 self._config['database']['dbname_api'], collname)
 
@@ -35,10 +39,10 @@ class AuthyManager():
                         'country_code': country_code,
                     }}, upsert=True)
 
-            return True
+            return True, ''
         else:
             logger.error(f"Creating authy user {email} failed: {user.errors()}")
-            return False
+            return False, user.errors()
 
     async def one_touch(self, userid, message):
 
@@ -49,6 +53,7 @@ class AuthyManager():
 
             await coll.insert_one(request)
 
+        # Get email from database
         collname = f"authy_users"
         coll = self.mongo.get_collection(
             self._config['database']['dbname_api'], collname)
@@ -58,11 +63,16 @@ class AuthyManager():
             'Username': cred['email'],
         }
 
-        res = self.authy_app.one_touch.send_request(userid, message,
+        # Wrap kwargs to function because run_in_executor doesn't accept
+        wrapped_func = functools.partial(
+            self.authy_app.one_touch.send_request,
+            userid,
+            message,
             seconds_to_expire=self.config['seconds_to_expire'],
             details=details)
-        # hidden_details=hidden_details,
-        # logos=logos)
+            # hidden_details=hidden_details)
+
+        res = await loop.run_in_executor(None, wrapped_func)
 
         if res.ok():
             uuid = res.get_uuid()
@@ -74,7 +84,8 @@ class AuthyManager():
 
         if res.ok():
             while True:
-                res = self.authy_app.one_touch.get_approval_status(uuid)
+                res = await loop.run_in_executor(None,
+                    self.authy_app.one_touch.get_approval_status, uuid)
                 req = res.content['approval_request']
                 status = req['status']
 

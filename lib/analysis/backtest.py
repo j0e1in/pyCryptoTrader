@@ -611,7 +611,6 @@ def gen_combinations_large(arr, columns=None, to_file=None):
     for i in range(len(arr)):
         n_combs *= len(arr[i])
 
-    # from ipdb import set_trace; set_trace()
     for _ in range(n_combs):
 
         cc = []
