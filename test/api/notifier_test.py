@@ -67,7 +67,7 @@ async def main():
     # await test_notify_open_orders_succ(notifier)
     # await test_notify_open_orders_failed(notifier)
     # await test_notify_position_danger(notifier)
-    await test_notify_position_large_pl(notifier)
+    # await test_notify_position_large_pl(notifier)
     # await test_notify_log(notifier)
     # await test_notify_start(notifier)
     # await test_notify_msg(notifier)
