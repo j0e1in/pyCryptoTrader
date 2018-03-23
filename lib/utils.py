@@ -33,6 +33,7 @@ def load_json(file):
     with open(file) as f:
         return json.load(f)
 
+
 def load_config(file):
     _config = load_json(file)
 
@@ -46,6 +47,7 @@ def load_config(file):
 
     return _config
 
+
 def load_keys(id, file=None):
     if not file:
         file = config['key_file']
@@ -53,10 +55,12 @@ def load_keys(id, file=None):
     with open(file) as f:
         return json.load(f)[id]
 
+
 def load_env():
     return { k.split('PYCT_')[1]: v \
         for k, v in os.environ.items() \
             if k.startswith('PYCT_') }
+
 
 # TODO: Add set_config and get_config method to let
 # classes set and get global config, like get_event_loop

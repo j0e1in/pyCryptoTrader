@@ -20,6 +20,7 @@ from utils import \
     filter_by, \
     smallest_tf, \
     tf_td, \
+    MIN_DT, \
     execute_mongo_ops
 
 from analysis.hist_data import build_ohlcv
@@ -129,7 +130,7 @@ class SingleEXTrader():
 
     async def start_trading(self):
 
-        last_log_time = datetime(1970, 1, 1)
+        last_log_time = MIN_DT
         last_sig = {market: np.nan for market in self.ex.markets}
 
         while True:

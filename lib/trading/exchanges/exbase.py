@@ -17,6 +17,7 @@ from utils import \
     tf_td, \
     rsym, \
     ms_dt, \
+    MIN_DT, \
     not_implemented, \
     init_ccxt_exchange, \
     execute_mongo_ops, \
@@ -184,7 +185,7 @@ class EXBase():
             return True
 
         logger.info("Start ohlcv data stream...")
-        last_update = datetime(1970, 1, 1)
+        last_update = MIN_DT
 
         while True:
             await self.update_ohlcv_start_end()
@@ -242,7 +243,7 @@ class EXBase():
             if last_trade:
                 start = last_trade['datetime'] - timedelta(days=3)
             else:
-                start = datetime(1970, 1, 1)
+                start = MIN_DT
 
             end = utc_now()
 
