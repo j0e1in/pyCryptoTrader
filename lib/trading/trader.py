@@ -20,6 +20,7 @@ from utils import \
     filter_by, \
     smallest_tf, \
     tf_td, \
+    MIN_DT, \
     execute_mongo_ops
 
 from analysis.hist_data import build_ohlcv
@@ -70,7 +71,7 @@ class SingleEXTrader():
 
     def init_exchange(self, ex_id, ccxt_verbose=False):
         """ Make an instance of a custom EX class. """
-        key = load_keys(self.id)[ex_id]
+        key = load_keys()[self.id][ex_id]
         ex_class = getattr(exchanges, str.capitalize(ex_id))
         return ex_class(self.mongo, key['apiKey'], key['secret'],
                         custom_config=self._config,
@@ -129,7 +130,7 @@ class SingleEXTrader():
 
     async def start_trading(self):
 
-        last_log_time = datetime(1970, 1, 1)
+        last_log_time = MIN_DT
         last_sig = {market: np.nan for market in self.ex.markets}
 
         while True:

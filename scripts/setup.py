@@ -23,10 +23,10 @@ def setup():
     from utils import config
     level = logging.INFO if config['mode'] == 'production' else logging.DEBUG
 
-    chromalog.basicConfig(level=level,
-                          stream=sys.stdout,
+    chromalog.basicConfig(stream=sys.stdout,
                           format=log_fmt)
 
+    logging.getLogger('pyct').setLevel(level)
     logging.getLogger('ccxt').setLevel(logging.WARNING)
 
 

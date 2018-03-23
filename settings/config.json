@@ -412,7 +412,8 @@
     "password": "vv112358",
     "auth_db": "admin",
     "dbname_exchange": "exchange",
-    "dbname_trade": "trading"
+    "dbname_trade": "trading",
+    "dbname_api": "api"
   },
 
   "apiserver": {
@@ -442,6 +443,10 @@
 
   "apiclient": {
     "messenger_host": "trader.csie.io"
+  },
+
+  "authy": {
+    "seconds_to_expire": 300
   }
 }
 
