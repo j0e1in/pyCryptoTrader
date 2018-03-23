@@ -429,7 +429,7 @@
       "wayne": {
         "allow": [ "all" ],
         "deny": [
-          "max_fund",
+          "change_max_fund",
           "enable_markets",
           "disable_markets",
           "enable_trading",

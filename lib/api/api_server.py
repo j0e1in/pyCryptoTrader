@@ -455,6 +455,10 @@ class APIServer():
 
     async def send_2fa_request(self, uid, msg):
         userid = self.authy.get_userid(uid)
+
+        if not userid:
+            return False, response.json({'error': f'Authy user does not exist.'})
+
         res, status = await self.authy.one_touch(userid, msg)
         if not res:
             return False, response.json(

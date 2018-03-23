@@ -70,7 +70,7 @@ class AuthyManager():
             message,
             seconds_to_expire=self.config['seconds_to_expire'],
             details=details)
-            # hidden_details=hidden_details)
+        # hidden_details=hidden_details)
 
         res = await loop.run_in_executor(None, wrapped_func)
 
@@ -107,5 +107,9 @@ class AuthyManager():
             return False, ''
 
     def get_userid(self, uid):
-        userid = load_keys()[uid]['authy_userid']
-        return userid
+        keys = load_keys()
+
+        if uid not in keys:
+            return ''
+
+        return keys[uid]['authy_userid']
