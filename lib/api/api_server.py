@@ -298,6 +298,12 @@ class APIServer():
                 'error': "Payload should contain field `fund` with a float value"
             })
 
+        msg = f"Change max fund to ${payload['fund']}"
+        accept, res = req.app.send_2fa_request(uid, msg)
+
+        if not accept:
+            return res
+
         req.app.trader.max_fund = payload['fund']
         logger.debug(f'max fund is set to {req.app.trader.max_fund}')
         return response.json({'ok': True})
@@ -314,6 +320,12 @@ class APIServer():
             return response.json({
                 'error': "Payload should contain field `markets` with a list of strings"
             })
+
+        msg = "Enable markets"
+        accept, res = req.app.send_2fa_request(uid, msg)
+
+        if not accept:
+            return res
 
         not_supported = []
 
@@ -346,6 +358,12 @@ class APIServer():
                 'error': "Payload should contain field `markets` with a list of strings"
             })
 
+        msg = "Disable markets"
+        accept, res = req.app.send_2fa_request(uid, msg)
+
+        if not accept:
+            return res
+
         not_supported = []
 
         for market in payload['markets']:
@@ -369,6 +387,12 @@ class APIServer():
         if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
             abort(401)
 
+        msg = "Enable trading"
+        accept, res = req.app.send_2fa_request(uid, msg)
+
+        if not accept:
+            return res
+
         # req.app.trader.enable_trading = True
         logger.info(f"Trading enabled")
 
@@ -378,6 +402,12 @@ class APIServer():
     async def disable_trading(req, uid):
         if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
             abort(401)
+
+        msg = "Disable trading"
+        accept, res = req.app.send_2fa_request(uid, msg)
+
+        if not accept:
+            return res
 
         req.app.trader.enable_trading = False
         logger.info(f"Trading disabled")
@@ -394,6 +424,15 @@ class APIServer():
                 return True
 
         return False
+
+    def send_2fa_request(self, uid, msg):
+        userid = self.authy.get_userid(uid)
+        res, status = self.authy.one_touch(userid, msg)
+        if not res:
+            return False, response.json(
+                {'error': f'2FA request {status}'})
+        else:
+            return True, ''
 
 
 def api_parse_orders(orders):
