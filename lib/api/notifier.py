@@ -21,7 +21,7 @@ class Messenger():
         self.trader = trader
 
         self.session = aiohttp.ClientSession()
-        self.secret = load_keys(trader.id)['FB_APP_SECRET']
+        self.secret = load_keys()[trader.id]['FB_APP_SECRET']
 
         self.default = {}
         self.default['header'] = {

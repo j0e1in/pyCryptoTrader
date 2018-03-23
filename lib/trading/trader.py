@@ -71,7 +71,7 @@ class SingleEXTrader():
 
     def init_exchange(self, ex_id, ccxt_verbose=False):
         """ Make an instance of a custom EX class. """
-        key = load_keys(self.id)[ex_id]
+        key = load_keys()[self.id][ex_id]
         ex_class = getattr(exchanges, str.capitalize(ex_id))
         return ex_class(self.mongo, key['apiKey'], key['secret'],
                         custom_config=self._config,

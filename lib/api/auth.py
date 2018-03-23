@@ -14,7 +14,8 @@ class AuthyManager():
         self.config = self._config['authy']
         self.mongo = mongo
 
-        apikey = apikey if apikey else load_keys('AUTHY_APIKEY')
+        apikey = apikey if apikey else load_keys()['AUTHY_APIKEY']
+        from ipdb import set_trace; set_trace()
         self.authy_app = AuthyApiClient(apikey)
 
     async def create_user(self, email, phone, country_code):
@@ -69,7 +70,7 @@ class AuthyManager():
             logger.error(
                 f"Error occured while sending request to {cred['email']}: {res.errors()}"
             )
-            return False
+            return False, ''
 
         if res.ok():
             while True:
@@ -83,13 +84,17 @@ class AuthyManager():
                     continue
                 elif status == 'approved':
                     await save_transaction(req)
-                    return True
+                    return True, status
                 elif status == 'denied' \
                 or   status == 'expired':
                     await save_transaction(req)
-                    return False
+                    return False, status
         else:
             logger.error(
                 f"Error occured while getting status for {cred['email']}: {res.errors()}"
             )
-            return False
+            return False, ''
+
+    def get_userid(self, uid):
+        userid = load_keys()[uid]['authy_userid']
+        return userid

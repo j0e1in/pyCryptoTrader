@@ -48,7 +48,7 @@ def load_config(file):
     return _config
 
 
-def load_keys(id, file=None):
+def load_keys(file=None):
     if not file:
         file = config['key_file']
 
