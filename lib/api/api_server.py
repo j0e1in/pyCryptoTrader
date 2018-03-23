@@ -10,6 +10,7 @@ import logging
 import inspect
 import json
 
+from api.auth import AuthyManager
 from utils import \
     dt_ms, \
     config, \
@@ -45,6 +46,7 @@ class APIServer():
         self.app.config.RESPONSE_TIMEOUT = config['apiserver']['response_timeout']
 
         self.log_level = 'info'
+        self.authy = AuthyManager(trader.mongo)
 
     async def run(self, host='0.0.0.0', port=8000, enable_ssl=False, *args, **kwargs):
         """ Start server and provide some cli options. """
