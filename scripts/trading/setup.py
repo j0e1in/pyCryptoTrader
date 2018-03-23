@@ -12,8 +12,8 @@ file_dir = os.path.dirname(file_dir)
 root_dir = os.path.dirname(file_dir)
 
 
-# import uvloop
-# asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+import uvloop
+asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 
 def setup():
@@ -24,10 +24,10 @@ def setup():
     from utils import config
     level = logging.INFO if config['mode'] == 'production' else logging.DEBUG
 
-    chromalog.basicConfig(level=level,
-                          stream=sys.stdout,
+    chromalog.basicConfig(stream=sys.stdout,
                           format=log_fmt)
 
+    logging.getLogger('pyct').setLevel(level)
     logging.getLogger('ccxt').setLevel(logging.WARNING)
 
 

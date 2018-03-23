@@ -5,7 +5,8 @@ import time
 import os
 import sys
 
-log_fmt = '%(asctime)s | %(filename)s | %(funcName)s | %(levelname)5s | %(message)s'
+# log_fmt = '%(asctime)s | %(filename)s | %(funcName)s | %(levelname)5s | %(message)s'
+log_fmt = '%(asctime)s | %(name)s | %(levelname)5s | %(message)s'
 
 file_dir = os.path.dirname(os.path.abspath(__file__))
 file_dir = os.path.dirname(file_dir)
@@ -24,10 +25,10 @@ def setup():
     from utils import config
     level = logging.INFO if config['mode'] == 'production' else logging.DEBUG
 
-    chromalog.basicConfig(level=level,
-                          stream=sys.stdout,
+    chromalog.basicConfig(stream=sys.stdout,
                           format=log_fmt)
 
+    logging.getLogger('pyct').setLevel(level)
     logging.getLogger('ccxt').setLevel(logging.WARNING)
 
 
