@@ -1,6 +1,8 @@
 from setup import setup, run
 setup()
 
+from datetime import datetime
+
 import asyncio
 import argparse
 import logging
@@ -8,8 +10,12 @@ import logging
 from api import APIServer
 from db import EXMongo
 from trading.trader import SingleEXTrader
+from utils import config
 
-log_file = 'start_trader.log'
+
+timestr = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+log_file = f"start_trader_{config['userid']}_{timestr}.log"
+
 logger = logging.getLogger('pyct')
 
 
@@ -56,4 +62,4 @@ async def main():
 
 
 if __name__ == '__main__':
-    run(main, debug=False, log_file=log_file)
+    run(main, log_file=log_file)
