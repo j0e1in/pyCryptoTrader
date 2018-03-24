@@ -6,7 +6,9 @@ from pprint import pprint
 from api.notifier import Messenger
 from db import EXMongo
 from trading.trader import SingleEXTrader
-from utils import dummy_data
+from utils import config, load_json
+
+dummy_data = load_json(config['dummy_data_file'])
 
 
 async def test_notify_open_orders_succ(notifier):

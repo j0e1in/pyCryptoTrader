@@ -66,7 +66,6 @@ def load_env():
 # classes set and get global config, like get_event_loop
 env = load_env()
 config = load_config('../settings/config.json')
-dummy_data = load_json('../data/api_dummy_data.json')
 
 
 def combine(a, b):

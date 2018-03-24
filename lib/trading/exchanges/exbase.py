@@ -59,12 +59,14 @@ class EXBase():
     """
 
     def __init__(self, mongo, ex_id, apikey=None, secret=None,
-                 custom_config=None, ccxt_verbose=False, log=False):
+                 custom_config=None, ccxt_verbose=False, log=False,
+                 disable_ohlcv_stream=False):
         self.mongo = mongo
         self.exname = ex_name(ex_id)
         self.apikey = apikey
         self.secret = secret
         self.log = log
+        self.disable_ohlcv_stream = disable_ohlcv_stream
 
         self._config = custom_config if custom_config else config
         self.config = self._config['ccxt']
@@ -116,7 +118,8 @@ class EXBase():
                 log: bool, if True, log data stream actions
         """
         tasks = []
-        if 'ohlcv' in data_streams:
+        if 'ohlcv' in data_streams \
+        and not self.disable_ohlcv_stream:
             tasks.append(self._start_ohlcv_stream())
         else:
             self.ready['ohlcv'] = True
@@ -172,18 +175,6 @@ class EXBase():
 
                 await execute_mongo_ops(ops)
 
-        async def is_uptodate(td):
-            await self.update_ohlcv_start_end()
-
-            for market in self.markets:
-                end = self.ohlcv_start_end[market]['1m']['end']
-                cur_time = rounddown_dt(utc_now(), td)
-
-                if end < cur_time:
-                    return False
-
-            return True
-
         logger.info("Start ohlcv data stream...")
         last_update = MIN_DT
 
@@ -210,7 +201,7 @@ class EXBase():
 
             last_update = utc_now()
 
-            if await is_uptodate(td):
+            if await self.is_ohlcv_uptodate():
                 self.ready['ohlcv'] = True
                 fetch_interval = timedelta(seconds=self.config['ohlcv_fetch_interval'])
                 countdown = roundup_dt(utc_now(), fetch_interval) - utc_now()
@@ -509,3 +500,17 @@ class EXBase():
 
     def set_market_start_dt(self, market, dt):
         self.markets_start_dt[market] = dt
+
+    async def is_ohlcv_uptodate(self):
+        await self.update_ohlcv_start_end()
+
+        td = timedelta(seconds=self.config['ohlcv_fetch_interval'])
+
+        for market in self.markets:
+            end = self.ohlcv_start_end[market]['1m']['end']
+            cur_time = rounddown_dt(utc_now(), td)
+
+            if end < cur_time:
+                return False
+
+        return True
