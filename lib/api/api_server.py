@@ -10,13 +10,17 @@ import logging
 import inspect
 import json
 
+from api.auth import AuthyManager
 from utils import \
     dt_ms, \
     config, \
-    dummy_data
+    load_json
 
 logger = logging.getLogger('pyct')
 log_fmt = "%(asctime)s | %(name)s | %(levelname)5s | %(status)d | %(request)s | %(message)s"
+
+dummy_data = load_json(config['dummy_data_file'])
+
 
 class APIServer():
 
@@ -45,6 +49,7 @@ class APIServer():
         self.app.config.RESPONSE_TIMEOUT = config['apiserver']['response_timeout']
 
         self.log_level = 'info'
+        self.authy = AuthyManager(trader.mongo)
 
     async def run(self, host='0.0.0.0', port=8000, enable_ssl=False, *args, **kwargs):
         """ Start server and provide some cli options. """
@@ -82,6 +87,34 @@ class APIServer():
     @app.listener('after_server_stop')
     async def after_server_stop(app, loop):
         await app.trader.ex.ex.close()
+
+    @app.route('/authy/create_user', methods=['POST'])
+    async def authy_create_user(req):
+        """ Add authy user to database, and authy will send 2FA to their account. """
+        # TODO: use payload info to verify access
+        # if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
+        #     abort(401)
+
+        payload = req.json
+        if not payload \
+        or 'email' not in payload \
+        or 'phone' not in payload \
+        or 'country_code' not in payload:
+            return response.json({
+                'error': "Payload should contain fields "
+                         "`email`, `phone` and `country_code`"
+            })
+
+        succ, res = await req.app.server.authy.create_user(
+            payload['email'],
+            payload['phone'],
+            payload['country_code']
+        )
+        if succ:
+            return response.json({'ok': True})
+        else:
+            return response.json({'error': res})
+
 
     @app.route('/account/info/<uid:string>/<ex:string>', methods=['GET'])
     async def account_info(req, uid, ex):
@@ -276,7 +309,7 @@ class APIServer():
             abort(401)
 
         payload = req.json
-        if 'level' not in payload:
+        if not payload or 'level' not in payload:
             return response.json({
                 'error': "Payload should contain field `level` "
                          "with one of values: info | debug | warn | error"
@@ -291,10 +324,16 @@ class APIServer():
             abort(401)
 
         payload = req.json
-        if 'fund' not in payload:
+        if not payload or 'fund' not in payload:
             return response.json({
                 'error': "Payload should contain field `fund` with a float value"
             })
+
+        msg = f"Change max fund to ${payload['fund']}"
+        accept, res = await req.app.server.send_2fa_request(uid, msg)
+
+        if not accept:
+            return res
 
         req.app.trader.max_fund = payload['fund']
         logger.debug(f'max fund is set to {req.app.trader.max_fund}')
@@ -308,10 +347,17 @@ class APIServer():
         trader = req.app.trader
         payload = req.json
 
-        if 'markets' not in payload or not isinstance(payload['markets'], list):
+        if not payload or 'markets' not in payload or not isinstance(payload['markets'], list):
             return response.json({
                 'error': "Payload should contain field `markets` with a list of strings"
             })
+
+        markets = [str(market) for market in payload['markets']]
+        msg = "Enable markets " + ', '.join(markets)
+        accept, res = await req.app.server.send_2fa_request(uid, msg)
+
+        if not accept:
+            return res
 
         not_supported = []
 
@@ -339,10 +385,17 @@ class APIServer():
         trader = req.app.trader
         payload = req.json
 
-        if 'markets' not in payload or not isinstance(payload['markets'], list):
+        if not payload or 'markets' not in payload or not isinstance(payload['markets'], list):
             return response.json({
                 'error': "Payload should contain field `markets` with a list of strings"
             })
+
+        markets = [str(market) for market in payload['markets']]
+        msg = "Disable markets: " + ', '.join(markets)
+        accept, res = await req.app.server.send_2fa_request(uid, msg)
+
+        if not accept:
+            return res
 
         not_supported = []
 
@@ -367,6 +420,12 @@ class APIServer():
         if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
             abort(401)
 
+        msg = "Enable trading"
+        accept, res = await req.app.server.send_2fa_request(uid, msg)
+
+        if not accept:
+            return res
+
         # req.app.trader.enable_trading = True
         logger.info(f"Trading enabled")
 
@@ -376,6 +435,12 @@ class APIServer():
     async def disable_trading(req, uid):
         if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
             abort(401)
+
+        msg = "Disable trading"
+        accept, res = await req.app.server.send_2fa_request(uid, msg)
+
+        if not accept:
+            return res
 
         req.app.trader.enable_trading = False
         logger.info(f"Trading disabled")
@@ -392,6 +457,21 @@ class APIServer():
                 return True
 
         return False
+
+    async def send_2fa_request(self, uid, msg):
+        # Convert uid to userid
+        # and check if the userid is in mongodb
+        userid = self.authy.get_userid(uid)
+        if not userid \
+        or not await self.authy.user_exist(userid):
+            return False, response.json({'error': f'Authy user does not exist.'})
+
+        res, status = await self.authy.one_touch(userid, msg)
+        if not res:
+            return False, response.json(
+                {'error': f'2FA request {status}'})
+        else:
+            return True, ''
 
 
 def api_parse_orders(orders):

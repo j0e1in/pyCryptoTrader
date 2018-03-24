@@ -1,5 +1,7 @@
 {
   "mode": "dev",
+  "userid": "j0e1in",
+
   "use_multicore": true,
   "max_processes": 8,
   "request_max_retry": 5,
@@ -7,11 +9,13 @@
   // ccxt default is 10000 (10 sec)
   "request_timeout": 15000,
 
-  // file path to api keys, use relative path from utils.py
+  // File path to files loaded in utils
+  // Use relative path from utils.py
   "key_file": "../private/keys.json",
+  "dummy_data_file": "../data/api_dummy_data.json",
 
   "ccxt": {
-    "wait": 35,
+    "wait": 30,
     "rate_limit": 3000,
     "fee_delay": 3600,
     "orderbook_delay": 25,
@@ -53,6 +57,7 @@
       "margin_rate": 3.33,
       "min_trade_value": 30,
 
+      // markets to trade
       "markets": [
         "BCH/USD",
         "BTC/USD",
@@ -228,8 +233,6 @@
         ],
         "timeframes_all": [
           "1m",
-          "15m",
-          "30m",
           "1h",
           "2h",
           "3h",
@@ -410,7 +413,8 @@
     "password": "vv112358",
     "auth_db": "admin",
     "dbname_exchange": "exchange",
-    "dbname_trade": "trading"
+    "dbname_trade": "trading",
+    "dbname_api": "api"
   },
 
   "apiserver": {
@@ -426,7 +430,7 @@
       "wayne": {
         "allow": [ "all" ],
         "deny": [
-          "max_fund",
+          "change_max_fund",
           "enable_markets",
           "disable_markets",
           "enable_trading",
@@ -440,6 +444,10 @@
 
   "apiclient": {
     "messenger_host": "trader.csie.io"
+  },
+
+  "authy": {
+    "seconds_to_expire": 300
   }
 }
 

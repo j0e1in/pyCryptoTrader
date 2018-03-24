@@ -20,6 +20,7 @@ from utils import \
     filter_by, \
     smallest_tf, \
     tf_td, \
+    MIN_DT, \
     execute_mongo_ops
 
 from analysis.hist_data import build_ohlcv
@@ -29,12 +30,15 @@ logger = logging.getLogger('pyct')
 
 class SingleEXTrader():
 
-    def __init__(self, mongo, id, ex_id, strategy_name,
+    def __init__(self, mongo, ex_id, strategy_name,
+                 userid=None,
                  custom_config=None,
                  ccxt_verbose=False,
                  disable_trading=False,
+                 disable_ohlcv_stream=False,
                  log=False,
                  log_sig=False):
+
         self.mongo = mongo
         self._config = custom_config if custom_config else config
         self.config = self._config['trading']
@@ -43,8 +47,9 @@ class SingleEXTrader():
         self.log_sig = log_sig
 
         # Requires self attributes above, put this at last
-        self.id = id
-        self.ex = self.init_exchange(ex_id, ccxt_verbose)
+        self.id = userid if userid else config['userid']
+        self.ex = self.init_exchange(ex_id, ccxt_verbose,
+            disable_ohlcv_stream=disable_ohlcv_stream)
         self.strategy = self.init_strategy(strategy_name)
         self.ohlcvs = self.create_empty_ohlcv_store()
 
@@ -67,14 +72,18 @@ class SingleEXTrader():
 
         self.margin_order_queue = OrderedDict()
 
-    def init_exchange(self, ex_id, ccxt_verbose=False):
+    def init_exchange(self, ex_id, ccxt_verbose=False, disable_ohlcv_stream=False):
         """ Make an instance of a custom EX class. """
-        key = load_keys(self.id)[ex_id]
+        key = load_keys()[self.id][ex_id]
         ex_class = getattr(exchanges, str.capitalize(ex_id))
-        return ex_class(self.mongo, key['apiKey'], key['secret'],
-                        custom_config=self._config,
-                        ccxt_verbose=ccxt_verbose,
-                        log=self.log)
+        return ex_class(
+            self.mongo,
+            key['apiKey'],
+            key['secret'],
+            custom_config=self._config,
+            ccxt_verbose=ccxt_verbose,
+            log=self.log,
+            disable_ohlcv_stream=disable_ohlcv_stream)
 
     def init_strategy(self, name):
         if name == 'pattern':
@@ -128,24 +137,24 @@ class SingleEXTrader():
 
     async def start_trading(self):
 
-        last_log_time = datetime(1970, 1, 1)
+        last_log_time = MIN_DT
         last_sig = {market: np.nan for market in self.ex.markets}
 
         while True:
-            await self.ex_ready()
 
-            # Read latest ohlcv from db
-            await self.update_ohlcv()
-            await self.execute_margin_order_queue()
-            sig = await self.strategy.run()
+            if await self.ex.is_ohlcv_uptodate():
+                # Read latest ohlcv from db
+                await self.update_ohlcv()
+                await self.execute_margin_order_queue()
+                sig = await self.strategy.run()
 
-            if self.log_sig:
-                last_log_time, last_sig = self.log_signals(sig, last_log_time, last_sig)
+                if self.log_sig:
+                    last_log_time, last_sig = self.log_signals(sig, last_log_time, last_sig)
 
             # Wait additional 50 sec for ohlcv of all markets to be fetched
             fetch_interval = timedelta(seconds=self.ex.config['ohlcv_fetch_interval'])
             countdown = roundup_dt(utc_now(), fetch_interval) - utc_now()
-            await asyncio.sleep(countdown.seconds + 50)
+            await asyncio.sleep(countdown.seconds + 90)
 
     def log_signals(self, sig, last_log_time, last_sig):
         """ Log signal periodically or on signal change. """

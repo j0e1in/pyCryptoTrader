@@ -1,0 +1,43 @@
+version: '3.3'
+services:
+  ohlcv:
+    image: gcr.io/docker-reghub/pyct
+    command: "--ohlcv-stream --mongo-host=mongo"
+    volumes:
+      - ./log:/app/log
+      - ./settings:/app/settings:ro
+    networks:
+      - mongo_net_stack
+    secrets:
+      - source: keys.json
+        target: /app/private/keys.json
+    depends_on:
+      - mongo
+    deploy:
+      replicas: 1
+  mongo:
+    image: mongo:3.6
+    command: mongod --smallfiles --logpath=/dev/null --quiet --auth
+    networks:
+      - mongo_net_stack
+    environment:
+      - MONGO_DATA_DIR=/data/db
+      - MONGO_LOG_DIR=/dev/null
+    volumes:
+      - mongo_data:/data/db
+    ports:
+      - 27017:27017
+    deploy:
+      replicas: 1
+
+networks:
+  mongo_net_stack:
+    external: true
+
+volumes:
+  mongo_data:
+    external: true
+
+secrets:
+  keys.json:
+    file: ./private/keys.json

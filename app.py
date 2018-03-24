@@ -1,4 +1,5 @@
 from argparse import RawTextHelpFormatter
+from dotenv import load_dotenv
 
 import argparse
 import os
@@ -22,10 +23,14 @@ def parse_args():
     parser.add_argument('--drop-trades', action='store_true', help="Execute drop_ohlcvs.js")
 
     # Trading
+    parser.add_argument('--ohlcv-stream', action='store_true', help="Execute ohlcv_stream.py")
     parser.add_argument('--start-trader', action='store_true', help="Execute start_trader.py")
     parser.add_argument('--restart-trader', action='store_true', help="Execute restart_trader.py")
 
     parser.add_argument('--none', action='store_true', help="Do not execute anything, this is for docker-compose")
+
+    # Optional argument
+    parser.add_argument('--env', type=str, help="Env file to load")
 
 
     argv, argv_remain = parser.parse_known_args()
@@ -49,6 +54,9 @@ def main():
 
     if not argv_remain:
         argv_remain = ''
+
+    if argv.env:
+        load_dotenv(dotenv_path=argv.env)
 
     if argv.none:
         return
@@ -82,6 +90,9 @@ def main():
 
     elif argv.drop_trades:
         os.system(f"mongo {argv_remain} < scripts/mongodb/drop_trades.js")
+
+    elif argv.ohlcv_stream:
+        os.system(f"python scripts/trading/ohlcv_stream.py {argv_remain}")
 
     elif argv.start_trader:
         os.system(f"python scripts/trading/start_trader.py {argv_remain}")

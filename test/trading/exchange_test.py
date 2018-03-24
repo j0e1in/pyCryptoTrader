@@ -7,7 +7,7 @@ import asyncio
 
 from db import EXMongo
 from trading.exchanges import Bitfinex
-from utils import get_project_root, load_keys
+from utils import get_project_root, load_keys, config
 
 
 async def test_update_wallet(ex):
@@ -189,7 +189,7 @@ async def test_calc_all_position_value(ex):
 async def main():
     mongo = EXMongo()
 
-    key = load_keys('j0e1in')['bitfinex']
+    key = load_keys()[config['userid']]['bitfinex']
     ex = Bitfinex(mongo, key['apiKey'], key['secret'], ccxt_verbose=False, log=True)
     await ex.ex.load_markets()
 

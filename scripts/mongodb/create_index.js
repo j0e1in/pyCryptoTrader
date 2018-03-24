@@ -96,3 +96,35 @@ for (i = 0; i < coll.length; i++) {
         collection.createIndex({ "timestamp": 1 })
     }
 }
+
+use api
+
+coll = db.getCollectionNames()
+
+// Create unique id index and timestamp index for trades
+
+collection = db.getCollection('authy_users')
+
+// Find duplicates
+collection.aggregate(
+    [
+        {
+            "$group": {
+                "_id": { "userid": "$userid" },
+                "dups": { "$push": "$_id" },
+                "count": { "$sum": 1 }
+            }
+        },
+        { "$match": { "count": { "$gt": 1 } } }
+    ],
+
+    { "allowDiskUse": true }
+
+    // Remove duplicates
+).forEach(function (doc) {
+    doc.dups.shift();
+    collection.remove({ "_id": { "$in": doc.dups } });
+})
+
+// Create unique index
+collection.createIndex({ "userid": 1 }, { unique: true })

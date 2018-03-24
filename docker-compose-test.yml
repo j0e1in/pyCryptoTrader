@@ -7,13 +7,22 @@ services:
       replicas: 0
   trade:
     image: gcr.io/docker-reghub/pyct
-    command: "--start-trader --mongo-host=mongo --enable-api --ssl --disable-trading"
+    command: >
+              --start-trader
+              --mongo-host=mongo
+              --disable-ohlcv-stream
+              --enable-api
+              --env .env
+              --ssl
+              --disable-trading
+    env_file:
+      - .env
     volumes:
       - ./data:/app/data
       - ./log:/app/log
-      - ./settings:/app/settings
+      - ./settings:/app/settings:ro
     networks:
-      - mongo_net
+      - mongo_net_stack
     ports:
       - "8000:8000"
     secrets:
@@ -23,27 +32,12 @@ services:
         target: /app/private/fullchain.pem
       - source: privkey.pem
         target: /app/private/privkey.pem
-    depends_on:
-      - mongo
-    deploy:
-      replicas: 1
-  mongo:
-    image: mongo:3.6
-    command: mongod --smallfiles --logpath=/dev/null --quiet --auth
-    networks:
-      - mongo_net
-    environment:
-      - MONGO_DATA_DIR=/data/db
-      - MONGO_LOG_DIR=/dev/null
-    volumes:
-      - mongo_data:/data/db
-    ports:
-      - 27017:27017
     deploy:
       replicas: 1
 
 networks:
-  mongo_net:
+  mongo_net_stack:
+    external: true
 
 volumes:
   mongo_data:
