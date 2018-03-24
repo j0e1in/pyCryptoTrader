@@ -9,8 +9,10 @@
   // ccxt default is 10000 (10 sec)
   "request_timeout": 15000,
 
-  // file path to api keys, use relative path from utils.py
+  // File path to files loaded in utils
+  // Use relative path from utils.py
   "key_file": "../private/keys.json",
+  "dummy_data_file": "../data/api_dummy_data.json",
 
   "ccxt": {
     "wait": 30,

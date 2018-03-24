@@ -14,10 +14,13 @@ from api.auth import AuthyManager
 from utils import \
     dt_ms, \
     config, \
-    dummy_data
+    load_json
 
 logger = logging.getLogger('pyct')
 log_fmt = "%(asctime)s | %(name)s | %(levelname)5s | %(status)d | %(request)s | %(message)s"
+
+dummy_data = load_json(config['dummy_data_file'])
+
 
 class APIServer():
 

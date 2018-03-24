@@ -3,11 +3,9 @@ setup()
 
 from pprint import pformat
 
-import asyncio
 import argparse
 import logging
 
-from api import APIServer
 from db import EXMongo
 from trading.trader import SingleEXTrader
 from utils import config
