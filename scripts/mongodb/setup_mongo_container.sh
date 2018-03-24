@@ -8,6 +8,8 @@ if [ -z "$*" ]; then
 fi
 
 docker network create mongo_net
+docker network create -d overlay mongo_net_stack
+
 docker volume create mongo_data
 
 docker run -d \
