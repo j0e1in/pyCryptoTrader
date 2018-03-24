@@ -1,6 +1,8 @@
 from setup import setup, run
 setup()
 
+from pprint import pformat
+
 import asyncio
 import argparse
 import logging
@@ -9,6 +11,8 @@ from api import APIServer
 from db import EXMongo
 from trading.trader import SingleEXTrader
 from utils import config
+
+logger = logging.getLogger('pyct')
 
 def parse_args():
     import argparse
@@ -30,6 +34,13 @@ async def main():
     config['ccxt']['rate_limit'] = \
         argv.rate_limit if argv.rate_limit else 4000
 
+    # Let ohlcv stream fetch all markets
+    config['trading']['bitfinex']['markets'] = \
+        config['trading']['bitfinex']['markets_all']
+
+    logger.info(f"Start fetching markets:\n" \
+                f"{pformat(config['trading']['bitfinex']['markets'])}")
+
     mongo_host = argv.mongo_host if argv.mongo_host else None
     mongo = EXMongo(host=mongo_host)
 
@@ -37,6 +48,7 @@ async def main():
             custom_config=config,
             disable_trading=True, log=True)
 
+    # Start only ohlcv stream
     await trader.ex._start_ohlcv_stream()
     await trader.ex.ex.close()
 

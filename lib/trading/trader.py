@@ -38,6 +38,7 @@ class SingleEXTrader():
                  disable_ohlcv_stream=False,
                  log=False,
                  log_sig=False):
+
         self.mongo = mongo
         self._config = custom_config if custom_config else config
         self.config = self._config['trading']

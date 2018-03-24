@@ -13,7 +13,7 @@
   "key_file": "../private/keys.json",
 
   "ccxt": {
-    "wait": 35,
+    "wait": 30,
     "rate_limit": 3000,
     "fee_delay": 3600,
     "orderbook_delay": 25,
@@ -55,6 +55,7 @@
       "margin_rate": 3.33,
       "min_trade_value": 30,
 
+      // markets to trade
       "markets": [
         "BCH/USD",
         "BTC/USD",
