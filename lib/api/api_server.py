@@ -349,7 +349,8 @@ class APIServer():
                 'error': "Payload should contain field `markets` with a list of strings"
             })
 
-        msg = "Enable markets"
+        markets = [str(market) for market in payload['markets']]
+        msg = "Enable markets " + ', '.join(markets)
         accept, res = await req.app.server.send_2fa_request(uid, msg)
 
         if not accept:
@@ -386,7 +387,8 @@ class APIServer():
                 'error': "Payload should contain field `markets` with a list of strings"
             })
 
-        msg = "Disable markets"
+        markets = [str(market) for market in payload['markets']]
+        msg = "Disable markets: " + ', '.join(markets)
         accept, res = await req.app.server.send_2fa_request(uid, msg)
 
         if not accept:
