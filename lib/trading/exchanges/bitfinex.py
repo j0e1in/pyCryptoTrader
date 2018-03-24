@@ -41,13 +41,8 @@ class Bitfinex(EXBase):
     # cancel_order (O)
     # withdraw
 
-    def __init__(self, mongo, apikey=None, secret=None,
-                 custom_config=None, ccxt_verbose=False, log=False):
-
-        super().__init__(mongo, 'bitfinex', apikey, secret,
-                         custom_config=custom_config,
-                         ccxt_verbose=ccxt_verbose,
-                         log=log)
+    def __init__(self, mongo, *args, **kwargs):
+        super().__init__(mongo, 'bitfinex', *args, **kwargs)
 
     def init_wallet(self):
         tmp = {'exchange': 0, 'margin': 0, 'funding': 0}

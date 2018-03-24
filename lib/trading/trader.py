@@ -35,6 +35,7 @@ class SingleEXTrader():
                  custom_config=None,
                  ccxt_verbose=False,
                  disable_trading=False,
+                 disable_ohlcv_stream=False,
                  log=False,
                  log_sig=False):
         self.mongo = mongo
@@ -46,7 +47,8 @@ class SingleEXTrader():
 
         # Requires self attributes above, put this at last
         self.id = userid if userid else config['userid']
-        self.ex = self.init_exchange(ex_id, ccxt_verbose)
+        self.ex = self.init_exchange(ex_id, ccxt_verbose,
+            disable_ohlcv_stream=disable_ohlcv_stream)
         self.strategy = self.init_strategy(strategy_name)
         self.ohlcvs = self.create_empty_ohlcv_store()
 
@@ -69,14 +71,18 @@ class SingleEXTrader():
 
         self.margin_order_queue = OrderedDict()
 
-    def init_exchange(self, ex_id, ccxt_verbose=False):
+    def init_exchange(self, ex_id, ccxt_verbose=False, disable_ohlcv_stream=False):
         """ Make an instance of a custom EX class. """
         key = load_keys()[self.id][ex_id]
         ex_class = getattr(exchanges, str.capitalize(ex_id))
-        return ex_class(self.mongo, key['apiKey'], key['secret'],
-                        custom_config=self._config,
-                        ccxt_verbose=ccxt_verbose,
-                        log=self.log)
+        return ex_class(
+            self.mongo,
+            key['apiKey'],
+            key['secret'],
+            custom_config=self._config,
+            ccxt_verbose=ccxt_verbose,
+            log=self.log,
+            disable_ohlcv_stream=disable_ohlcv_stream)
 
     def init_strategy(self, name):
         if name == 'pattern':
@@ -134,15 +140,15 @@ class SingleEXTrader():
         last_sig = {market: np.nan for market in self.ex.markets}
 
         while True:
-            await self.ex_ready()
 
-            # Read latest ohlcv from db
-            await self.update_ohlcv()
-            await self.execute_margin_order_queue()
-            sig = await self.strategy.run()
+            if await self.ex.is_ohlcv_uptodate():
+                # Read latest ohlcv from db
+                await self.update_ohlcv()
+                await self.execute_margin_order_queue()
+                sig = await self.strategy.run()
 
-            if self.log_sig:
-                last_log_time, last_sig = self.log_signals(sig, last_log_time, last_sig)
+                if self.log_sig:
+                    last_log_time, last_sig = self.log_signals(sig, last_log_time, last_sig)
 
             # Wait additional 50 sec for ohlcv of all markets to be fetched
             fetch_interval = timedelta(seconds=self.ex.config['ohlcv_fetch_interval'])
