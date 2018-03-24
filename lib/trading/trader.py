@@ -153,7 +153,7 @@ class SingleEXTrader():
             # Wait additional 50 sec for ohlcv of all markets to be fetched
             fetch_interval = timedelta(seconds=self.ex.config['ohlcv_fetch_interval'])
             countdown = roundup_dt(utc_now(), fetch_interval) - utc_now()
-            await asyncio.sleep(countdown.seconds + 50)
+            await asyncio.sleep(countdown.seconds + 90)
 
     def log_signals(self, sig, last_log_time, last_sig):
         """ Log signal periodically or on signal change. """
