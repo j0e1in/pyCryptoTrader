@@ -4,6 +4,7 @@ services:
     image: gcr.io/docker-reghub/pyct
     command: "--ohlcv-stream --mongo-host=mongo"
     volumes:
+      - ./data:/app/data
       - ./log:/app/log
       - ./settings:/app/settings:ro
     networks:
