@@ -280,7 +280,7 @@ class Bitfinex(EXBase):
               'symbol': 'BTC/USD',
               'timestamp': '1515947276.0'}]
         """
-        def parse_position(position):
+        def parse_position(pos):
             pos['amount'] = float(pos['amount'])
             pos['base_price'] = float(pos['base'])
             pos['pl'] = float(pos['pl'])
@@ -288,8 +288,8 @@ class Bitfinex(EXBase):
             pos['timestamp'] = sec_ms(pos['timestamp'])
             pos['datetime'] = ms_dt(pos['timestamp'])
 
-            del pos['base']
-            del pos['swap']
+            pos.pop('base', None)
+            pos.pop('swap', None)
             return pos
 
         self._check_auth()
@@ -553,10 +553,26 @@ class Bitfinex(EXBase):
 
         except ccxt.InvalidOrder as err:
             logger.warning(f"{str(err)}")
-            # TODO: pass invalid order msg to client: MessengerServer.notify_error(err, order)
+
+            if self.notifier:
+                await self.notifier.notify_open_orders_failed({
+                    "exchange": self.exname,
+                    "symbol": symbol,
+                    "type": type,
+                    "side": side,
+                    "amount": amount,
+                    "price": price,
+                    "timestamp": dt_ms(utc_now()),
+                    "margin": self.is_margin_order(type),
+                })
+
             return {}
 
         order = self.parse_order(res)
+
+        if self.notifier:
+            await self.notifier.notify_open_orders_succ(order)
+
         return order
 
     async def create_order_multi(self, orders):
@@ -603,7 +619,10 @@ class Bitfinex(EXBase):
 
         except ccxt.InvalidOrder as err:
             logger.warning(f"{str(err)}")
-            # TODO: pass invalid order msg to client: MessengerServer.notify_error(err, order)
+
+            if self.notifier:
+                await self.notifier.notify_log('warn', str(err))
+
             return {}
 
         orders = []
@@ -613,6 +632,9 @@ class Bitfinex(EXBase):
                 orders.append(
                     self.parse_order(
                         self.ex.parse_order(order, market)))
+
+        if self.notifier:
+            await self.notifier.notify_open_orders_succ(orders)
 
         return orders
 
@@ -789,14 +811,17 @@ class Bitfinex(EXBase):
             return False
 
     def parse_order(self, order):
-        order['margin'] = self.is_margin_order(order)
+        order['margin'] = self.is_margin_order(order['info']['type'])
         order['datetime'] = ms_dt(order['timestamp'])
         del order['info']
         return order
 
     @staticmethod
-    def is_margin_order(order):
-        return True if 'exchange' not in order['info']['type'] else False
+    def is_margin_order(type):
+        if not isinstance(type, str):
+            raise ValueError("type should be str")
+
+        return True if 'exchange' not in type else False
 
     @staticmethod
     def to_ccxt_symbol(symbol):

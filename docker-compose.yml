@@ -10,7 +10,6 @@ services:
     command: >
               --start-trader
               --mongo-host=mongo
-              --disable-ohlcv-stream
               --enable-api
               --env .env
               --disable-trading
