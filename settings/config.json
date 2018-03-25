@@ -441,7 +441,9 @@
   },
 
   "apiclient": {
-    "messenger_host": "trader.csie.io"
+    "messenger_host": "trader.csie.io",
+    "large_pl_threshold": 15, // in percentage
+    "danger_pl_threshold": 12 // in percentage
   },
 
   "authy": {

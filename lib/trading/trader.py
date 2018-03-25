@@ -48,9 +48,13 @@ class SingleEXTrader():
         self.log = log
         self.log_sig = log_sig
 
-        # Requires self attributes above, put this at last
+        # Requires self attributes above
+        # Order of this initialization matters
         self.userid = userid if userid else config['userid']
-        self.ex = self.init_exchange(ex_id, ccxt_verbose,
+        self.notifier = Messenger(self, self._config, disable=disable_notification)
+        self.ex = self.init_exchange(ex_id,
+            notifier=self.notifier,
+            ccxt_verbose=ccxt_verbose,
             disable_ohlcv_stream=disable_ohlcv_stream)
         self.strategy = self.init_strategy(strategy_name)
         self.ohlcvs = self.create_empty_ohlcv_store()
@@ -74,10 +78,12 @@ class SingleEXTrader():
 
         self.margin_order_queue = OrderedDict()
 
-        self.notifier = Messenger(self, self._config, disable=disable_notification)
 
-
-    def init_exchange(self, ex_id, ccxt_verbose=False, disable_ohlcv_stream=False):
+    def init_exchange(self,
+                      ex_id,
+                      notifier=None,
+                      ccxt_verbose=False,
+                      disable_ohlcv_stream=False):
         """ Make an instance of a custom EX class. """
         key = load_keys()[self.userid][ex_id]
         ex_class = getattr(exchanges, str.capitalize(ex_id))
@@ -88,6 +94,7 @@ class SingleEXTrader():
             custom_config=self._config,
             ccxt_verbose=ccxt_verbose,
             log=self.log,
+            notifier=notifier,
             disable_ohlcv_stream=disable_ohlcv_stream)
 
     def init_strategy(self, name):
@@ -132,6 +139,8 @@ class SingleEXTrader():
 
         await _set_startup_status()
 
+        await self.notifier.notify_start()
+
         logger.info("Start trading...")
         await self.start_trading()
 
@@ -146,6 +155,7 @@ class SingleEXTrader():
 
         last_log_time = MIN_DT
         last_sig = {market: np.nan for market in self.ex.markets}
+        ohlcv_alive = True
 
         while True:
 
@@ -155,12 +165,18 @@ class SingleEXTrader():
                 await self.execute_margin_order_queue()
                 sig = await self.strategy.run()
 
+                if not ohlcv_alive:
+                    await self.notifier.notify_msg("Ohlcv stream is alive")
+                    ohlcv_alive = True
+
                 if self.log_sig:
                     last_log_time, last_sig = self.log_signals(sig, last_log_time, last_sig)
             else:
-                await self.check_ohlcv_is_updating()
+                ohlcv_alive = await self.check_ohlcv_is_updating()
 
-            # Wait additional 50 sec for ohlcv of all markets to be fetched
+            await self.check_position_status()
+
+            # Wait additional 90 sec for ohlcv of all markets to be fetched
             fetch_interval = timedelta(seconds=self.ex.config['ohlcv_fetch_interval'])
             countdown = roundup_dt(utc_now(), fetch_interval) - utc_now()
             await asyncio.sleep(countdown.seconds + 90)
@@ -779,6 +795,32 @@ class SingleEXTrader():
 
         # This function didn't return, means ohlcv stream is down,
         # send notification to clients
-        await self.notifier.notify_msg("Ohlcv stream is down.")
+        await self.notifier.notify_msg("Ohlcv stream is down")
 
         return False
+
+    async def check_position_status(self):
+        """ Check if any position is in danger or matches large PL(%) """
+        pos_large_pl = []
+        pos_danger_pl = []
+        margin_rate = self.config[self.ex.exname]['margin_rate']
+        positions = await self.ex.fetch_positions()
+
+        for pos in positions:
+            base_value = pos['base_price'] * abs(pos['amount'])
+
+            # Use PL(%) without margin funding
+            pl_perc = pos['pl'] * margin_rate / base_value * 100
+            if pl_perc >= self._config['apiclient']['large_pl_threshold']:
+                pos_large_pl.append(pos)
+
+            # Use PL(%) with margin funding
+            pl_perc = -pos['pl'] / base_value * 100
+            if pl_perc >= self._config['apiclient']['danger_pl_threshold']:
+                pos_danger_pl.append(pos)
+
+        if pos_large_pl:
+            await self.notifier.notify_position_large_pl(pos_large_pl)
+
+        if pos_danger_pl:
+            await self.notifier.notify_position_danger(pos_danger_pl)

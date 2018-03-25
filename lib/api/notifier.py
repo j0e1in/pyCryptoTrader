@@ -225,7 +225,7 @@ class Messenger():
     async def notify_start(self):
         """ Notify for starting trader server """
         route = f"/notification/start/{self.trader.userid}"
-        payload = {'message': 'Trader server is ready.'}
+        payload = {'message': 'Trader server has started'}
 
         return await self.request('post', route, payload)
 
