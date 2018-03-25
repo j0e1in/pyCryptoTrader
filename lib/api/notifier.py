@@ -21,7 +21,7 @@ class Messenger():
         self.trader = trader
 
         self.session = aiohttp.ClientSession()
-        self.secret = load_keys()[trader.id]['FB_APP_SECRET']
+        self.secret = load_keys()[trader.userid]['FB_APP_SECRET']
 
         self.default = {}
         self.default['header'] = {
@@ -87,7 +87,7 @@ class Messenger():
 
         summary['price'] /= len(orders)
 
-        route = f"/notification/order/open/{self.trader.id}"
+        route = f"/notification/order/open/{self.trader.userid}"
         payload = {'orders': orders, 'summary': summary}
 
         return await self.request('post', route, payload)
@@ -145,7 +145,7 @@ class Messenger():
 
         summary['price'] /= len(orders)
 
-        route = f"/notification/order/failed/{self.trader.id}"
+        route = f"/notification/order/failed/{self.trader.userid}"
         payload = {'orders': orders, 'summary': summary}
 
         return await self.request('post', route, payload)
@@ -185,7 +185,7 @@ class Messenger():
         for position in positions:
             position['exchange'] = self.trader.ex.exname
 
-        route = f"/notification/position/danger/{self.trader.id}"
+        route = f"/notification/position/danger/{self.trader.userid}"
         payload = {'positions': positions}
 
         return await self.request('post', route, payload)
@@ -216,14 +216,14 @@ class Messenger():
         for position in positions:
             position['exchange'] = self.trader.ex.exname
 
-        route = f"/notification/position/large_pl/{self.trader.id}"
+        route = f"/notification/position/large_pl/{self.trader.userid}"
         payload = {'positions': positions}
 
         return await self.request('post', route, payload)
 
     async def notify_start(self):
         """ Notify for starting trader server """
-        route = f"/notification/start/{self.trader.id}"
+        route = f"/notification/start/{self.trader.userid}"
         payload = {'message': 'Trader server is ready.'}
 
         return await self.request('post', route, payload)
@@ -236,14 +236,14 @@ class Messenger():
                 "message": string
             }
         """
-        route = f"/notification/log/{self.trader.id}"
+        route = f"/notification/log/{self.trader.userid}"
         payload = {'level': level, 'message': msg}
 
         return await self.request('post', route, payload)
 
     async def notify_msg(self, msg):
         """ Send any message """
-        route = f"/notification/message/{self.trader.id}"
+        route = f"/notification/message/{self.trader.userid}"
         payload = {'message': msg}
 
         return await self.request('post', route, payload)

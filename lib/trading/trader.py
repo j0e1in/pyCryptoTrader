@@ -47,7 +47,7 @@ class SingleEXTrader():
         self.log_sig = log_sig
 
         # Requires self attributes above, put this at last
-        self.id = userid if userid else config['userid']
+        self.userid = userid if userid else config['userid']
         self.ex = self.init_exchange(ex_id, ccxt_verbose,
             disable_ohlcv_stream=disable_ohlcv_stream)
         self.strategy = self.init_strategy(strategy_name)
@@ -74,7 +74,7 @@ class SingleEXTrader():
 
     def init_exchange(self, ex_id, ccxt_verbose=False, disable_ohlcv_stream=False):
         """ Make an instance of a custom EX class. """
-        key = load_keys()[self.id][ex_id]
+        key = load_keys()[self.userid][ex_id]
         ex_class = getattr(exchanges, str.capitalize(ex_id))
         return ex_class(
             self.mongo,
@@ -116,6 +116,8 @@ class SingleEXTrader():
 
             self.summary['initial_balance'] = copy.deepcopy(self.ex.wallet)
             self.summary['initial_value'] = await self.ex.calc_account_value()
+
+        logger.info(f"Start trader with user: {self.userid}")
 
         if not self.enable_trading:
             logger.info("Trading disabled")
