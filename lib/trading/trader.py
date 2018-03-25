@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import random
 
+from api.notifier import Messenger
 from trading import strategy
 from trading import exchanges
 from utils import \
@@ -36,6 +37,7 @@ class SingleEXTrader():
                  ccxt_verbose=False,
                  disable_trading=False,
                  disable_ohlcv_stream=False,
+                 disable_notification=False,
                  log=False,
                  log_sig=False):
 
@@ -46,9 +48,13 @@ class SingleEXTrader():
         self.log = log
         self.log_sig = log_sig
 
-        # Requires self attributes above, put this at last
-        self.id = userid if userid else config['userid']
-        self.ex = self.init_exchange(ex_id, ccxt_verbose,
+        # Requires self attributes above
+        # Order of this initialization matters
+        self.userid = userid if userid else config['userid']
+        self.notifier = Messenger(self, self._config, disable=disable_notification)
+        self.ex = self.init_exchange(ex_id,
+            notifier=self.notifier,
+            ccxt_verbose=ccxt_verbose,
             disable_ohlcv_stream=disable_ohlcv_stream)
         self.strategy = self.init_strategy(strategy_name)
         self.ohlcvs = self.create_empty_ohlcv_store()
@@ -72,9 +78,14 @@ class SingleEXTrader():
 
         self.margin_order_queue = OrderedDict()
 
-    def init_exchange(self, ex_id, ccxt_verbose=False, disable_ohlcv_stream=False):
+
+    def init_exchange(self,
+                      ex_id,
+                      notifier=None,
+                      ccxt_verbose=False,
+                      disable_ohlcv_stream=False):
         """ Make an instance of a custom EX class. """
-        key = load_keys()[self.id][ex_id]
+        key = load_keys()[self.userid][ex_id]
         ex_class = getattr(exchanges, str.capitalize(ex_id))
         return ex_class(
             self.mongo,
@@ -83,6 +94,7 @@ class SingleEXTrader():
             custom_config=self._config,
             ccxt_verbose=ccxt_verbose,
             log=self.log,
+            notifier=notifier,
             disable_ohlcv_stream=disable_ohlcv_stream)
 
     def init_strategy(self, name):
@@ -117,18 +129,22 @@ class SingleEXTrader():
             self.summary['initial_balance'] = copy.deepcopy(self.ex.wallet)
             self.summary['initial_value'] = await self.ex.calc_account_value()
 
+        logger.info(f"Start trader with user: {self.userid}")
+
         if not self.enable_trading:
             logger.info("Trading disabled")
 
-        await self.ex_ready()
+        await self.wait_ex_to_be_ready()
         logger.info("Exchange is ready")
 
         await _set_startup_status()
 
+        await self.notifier.notify_start()
+
         logger.info("Start trading...")
         await self.start_trading()
 
-    async def ex_ready(self):
+    async def wait_ex_to_be_ready(self):
         while True:
             if self.ex.is_ready():
                 return True
@@ -139,6 +155,7 @@ class SingleEXTrader():
 
         last_log_time = MIN_DT
         last_sig = {market: np.nan for market in self.ex.markets}
+        ohlcv_alive = True
 
         while True:
 
@@ -148,10 +165,18 @@ class SingleEXTrader():
                 await self.execute_margin_order_queue()
                 sig = await self.strategy.run()
 
+                if not ohlcv_alive:
+                    await self.notifier.notify_msg("Ohlcv stream is alive")
+                    ohlcv_alive = True
+
                 if self.log_sig:
                     last_log_time, last_sig = self.log_signals(sig, last_log_time, last_sig)
+            else:
+                ohlcv_alive = await self.check_ohlcv_is_updating()
 
-            # Wait additional 50 sec for ohlcv of all markets to be fetched
+            await self.check_position_status()
+
+            # Wait additional 90 sec for ohlcv of all markets to be fetched
             fetch_interval = timedelta(seconds=self.ex.config['ohlcv_fetch_interval'])
             countdown = roundup_dt(utc_now(), fetch_interval) - utc_now()
             await asyncio.sleep(countdown.seconds + 90)
@@ -752,3 +777,50 @@ class SingleEXTrader():
 
     def remove_market(self, market):
         pass
+
+    async def check_ohlcv_is_updating(self):
+        """ Check if all ohlcvs are older by more than 3 * ohlcv_fetch_interval.
+            If it is true, means ohlcv fetch stream is down.
+        """
+        await self.ex.update_ohlcv_start_end()
+
+        td = timedelta(seconds=self.ex.config['ohlcv_fetch_interval'] * 3)
+
+        for market in self.ex.markets:
+            end = self.ex.ohlcv_start_end[market]['1m']['end']
+            cur_time = utc_now()
+
+            if cur_time - end < td:
+                return True
+
+        # This function didn't return, means ohlcv stream is down,
+        # send notification to clients
+        await self.notifier.notify_msg("Ohlcv stream is down")
+
+        return False
+
+    async def check_position_status(self):
+        """ Check if any position is in danger or matches large PL(%) """
+        pos_large_pl = []
+        pos_danger_pl = []
+        margin_rate = self.config[self.ex.exname]['margin_rate']
+        positions = await self.ex.fetch_positions()
+
+        for pos in positions:
+            base_value = pos['base_price'] * abs(pos['amount'])
+
+            # Use PL(%) without margin funding
+            pl_perc = pos['pl'] * margin_rate / base_value * 100
+            if pl_perc >= self._config['apiclient']['large_pl_threshold']:
+                pos_large_pl.append(pos)
+
+            # Use PL(%) with margin funding
+            pl_perc = -pos['pl'] / base_value * 100
+            if pl_perc >= self._config['apiclient']['danger_pl_threshold']:
+                pos_danger_pl.append(pos)
+
+        if pos_large_pl:
+            await self.notifier.notify_position_large_pl(pos_large_pl)
+
+        if pos_danger_pl:
+            await self.notifier.notify_position_danger(pos_danger_pl)

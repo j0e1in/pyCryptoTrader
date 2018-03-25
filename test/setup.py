@@ -10,9 +10,11 @@ log_fmt = '%(asctime)s | %(filename)s | %(funcName)s | %(levelname)5s | %(messag
 file_dir = os.path.dirname(os.path.abspath(__file__))
 root_dir = os.path.dirname(file_dir)
 
-
-import uvloop
-asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+try:
+    import uvloop
+    asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+except ImportError:
+    pass
 
 
 def setup():

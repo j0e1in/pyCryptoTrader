@@ -233,8 +233,6 @@ class APIServer():
                         "type": string
                         "side": string
                         "amount": float
-                        "filled": float
-                        "remaining": float
                         "price": float
                         "value" float
                         "timestamp": int
@@ -477,11 +475,13 @@ class APIServer():
 def api_parse_orders(orders):
     for ord in orders:
         ord['value'] = abs(ord['amount']) * ord['price']
-        ord.pop('average')
-        ord.pop('datetime')
-        ord.pop('fee')
-        ord.pop('id')
-        ord.pop('status')
+        ord.pop('average', None)
+        ord.pop('datetime', None)
+        ord.pop('fee', None)
+        ord.pop('id', None)
+        ord.pop('status', None)
+        ord.pop('filled', None)
+        ord.pop('remaining', None)
 
     return orders
 

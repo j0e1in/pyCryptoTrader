@@ -60,13 +60,14 @@ class EXBase():
 
     def __init__(self, mongo, ex_id, apikey=None, secret=None,
                  custom_config=None, ccxt_verbose=False, log=False,
-                 disable_ohlcv_stream=False):
+                 disable_ohlcv_stream=False, notifier=None):
         self.mongo = mongo
         self.exname = ex_name(ex_id)
         self.apikey = apikey
         self.secret = secret
         self.log = log
         self.disable_ohlcv_stream = disable_ohlcv_stream
+        self.notifier = notifier
 
         self._config = custom_config if custom_config else config
         self.config = self._config['ccxt']

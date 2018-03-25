@@ -15,13 +15,13 @@ logger = logging.getLogger('pyct')
 
 class Messenger():
 
-    def __init__(self, trader, custom_config=None, ssl=True):
+    def __init__(self, trader, custom_config=None, ssl=True, disable=False):
         self._config = custom_config if custom_config else config
         self.config = self._config['apiclient']
         self.trader = trader
 
         self.session = aiohttp.ClientSession()
-        self.secret = load_keys()[trader.id]['FB_APP_SECRET']
+        self.secret = load_keys()[trader.userid]['FB_APP_SECRET']
 
         self.default = {}
         self.default['header'] = {
@@ -33,6 +33,7 @@ class Messenger():
         }
         url_prefix = 'https://' if ssl else 'http://'
         self.base_url = url_prefix + self.config['messenger_host']
+        self.disable = disable
 
     async def notify_open_orders_succ(self, orders):
         """ Send successfully opened (scale) orders
@@ -87,7 +88,7 @@ class Messenger():
 
         summary['price'] /= len(orders)
 
-        route = f"/notification/order/open/{self.trader.id}"
+        route = f"/notification/order/open/{self.trader.userid}"
         payload = {'orders': orders, 'summary': summary}
 
         return await self.request('post', route, payload)
@@ -145,7 +146,7 @@ class Messenger():
 
         summary['price'] /= len(orders)
 
-        route = f"/notification/order/failed/{self.trader.id}"
+        route = f"/notification/order/failed/{self.trader.userid}"
         payload = {'orders': orders, 'summary': summary}
 
         return await self.request('post', route, payload)
@@ -185,7 +186,7 @@ class Messenger():
         for position in positions:
             position['exchange'] = self.trader.ex.exname
 
-        route = f"/notification/position/danger/{self.trader.id}"
+        route = f"/notification/position/danger/{self.trader.userid}"
         payload = {'positions': positions}
 
         return await self.request('post', route, payload)
@@ -216,15 +217,15 @@ class Messenger():
         for position in positions:
             position['exchange'] = self.trader.ex.exname
 
-        route = f"/notification/position/large_pl/{self.trader.id}"
+        route = f"/notification/position/large_pl/{self.trader.userid}"
         payload = {'positions': positions}
 
         return await self.request('post', route, payload)
 
     async def notify_start(self):
         """ Notify for starting trader server """
-        route = f"/notification/start/{self.trader.id}"
-        payload = {'message': 'Trader server is ready.'}
+        route = f"/notification/start/{self.trader.userid}"
+        payload = {'message': 'Trader server has started'}
 
         return await self.request('post', route, payload)
 
@@ -236,28 +237,35 @@ class Messenger():
                 "message": string
             }
         """
-        route = f"/notification/log/{self.trader.id}"
+        route = f"/notification/log/{self.trader.userid}"
         payload = {'level': level, 'message': msg}
 
         return await self.request('post', route, payload)
 
     async def notify_msg(self, msg):
         """ Send any message """
-        route = f"/notification/message/{self.trader.id}"
+        route = f"/notification/message/{self.trader.userid}"
         payload = {'message': msg}
 
         return await self.request('post', route, payload)
 
     async def request(self, method, route, payload=None, header=None):
+        if self.disable:
+            return None
+
         request_method = getattr(self.session, method)
         _header = copy.deepcopy(self.default['header'])
         _payload = copy.deepcopy(self.default['payload'])
 
-        if header:
+        if isinstance(header, dict):
             _header.update(header)
+        elif header:
+            logger.warning(f"Expect header to be dict but got {type(header)}")
 
-        if payload:
+        if isinstance(payload, dict):
             _payload.update(payload)
+        elif payload:
+            logger.warning(f"Expect payload to be dict but got {type(payload)}")
 
         _payload = json.dumps(_payload)
         _header['x-hub-signature'] = \
