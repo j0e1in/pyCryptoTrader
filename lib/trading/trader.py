@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import random
 
+from api.notifier import Messenger
 from trading import strategy
 from trading import exchanges
 from utils import \
@@ -36,6 +37,7 @@ class SingleEXTrader():
                  ccxt_verbose=False,
                  disable_trading=False,
                  disable_ohlcv_stream=False,
+                 disable_notification=False,
                  log=False,
                  log_sig=False):
 
@@ -71,6 +73,9 @@ class SingleEXTrader():
         }
 
         self.margin_order_queue = OrderedDict()
+
+        self.notifier = Messenger(self, self._config, disable=disable_notification)
+
 
     def init_exchange(self, ex_id, ccxt_verbose=False, disable_ohlcv_stream=False):
         """ Make an instance of a custom EX class. """
@@ -122,7 +127,7 @@ class SingleEXTrader():
         if not self.enable_trading:
             logger.info("Trading disabled")
 
-        await self.ex_ready()
+        await self.wait_ex_to_be_ready()
         logger.info("Exchange is ready")
 
         await _set_startup_status()
@@ -130,7 +135,7 @@ class SingleEXTrader():
         logger.info("Start trading...")
         await self.start_trading()
 
-    async def ex_ready(self):
+    async def wait_ex_to_be_ready(self):
         while True:
             if self.ex.is_ready():
                 return True
@@ -152,6 +157,8 @@ class SingleEXTrader():
 
                 if self.log_sig:
                     last_log_time, last_sig = self.log_signals(sig, last_log_time, last_sig)
+            else:
+                await self.check_ohlcv_is_updating()
 
             # Wait additional 50 sec for ohlcv of all markets to be fetched
             fetch_interval = timedelta(seconds=self.ex.config['ohlcv_fetch_interval'])
@@ -754,3 +761,24 @@ class SingleEXTrader():
 
     def remove_market(self, market):
         pass
+
+    async def check_ohlcv_is_updating(self):
+        """ Check if all ohlcvs are older by more than 3 * ohlcv_fetch_interval.
+            If it is true, means ohlcv fetch stream is down.
+        """
+        await self.ex.update_ohlcv_start_end()
+
+        td = timedelta(seconds=self.ex.config['ohlcv_fetch_interval'] * 3)
+
+        for market in self.ex.markets:
+            end = self.ex.ohlcv_start_end[market]['1m']['end']
+            cur_time = utc_now()
+
+            if cur_time - end < td:
+                return True
+
+        # This function didn't return, means ohlcv stream is down,
+        # send notification to clients
+        await self.notifier.notify_msg("Ohlcv stream is down.")
+
+        return False
