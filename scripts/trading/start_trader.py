@@ -28,9 +28,9 @@ def parse_args():
     parser.add_argument('--log', action='store_true', help='Enable trader logging')
     parser.add_argument('--log-signal', action='store_true', help='Enable periodic indicator signal logging')
     parser.add_argument('--enable-api', action='store_true', help='Enable API server for clients to request data')
+    parser.add_argument('--enable-ohlcv-stream', action='store_true', help='Enable fetching ohlcvs')
     parser.add_argument('--ssl', action='store_true', help='Enable SSL, only works if API sever is enabled')
     parser.add_argument('--disable-trading', action='store_true', help='Disable creating orders')
-    parser.add_argument('--disable-ohlcv-stream', action='store_true', help='Disable fetching ohlcvs')
     parser.add_argument('--mongo-host', type=str, help="Specify mongodb host,\n"
                                                        "eg. localhost (host connect to mongo on host)\n"
                                                        "    mongo (container connect to mongo container)\n"
@@ -50,7 +50,7 @@ async def main():
             log=argv.log,
             log_sig=argv.log_signal,
             disable_trading=argv.disable_trading,
-            disable_ohlcv_stream=argv.disable_ohlcv_stream)
+            disable_ohlcv_stream=(not argv.enable_ohlcv_stream))
 
     if argv.enable_api:
         server = APIServer(trader)

@@ -57,7 +57,6 @@ def main():
 
     if argv.env:
         load_dotenv(dotenv_path=argv.env)
-
     if argv.none:
         return
 
