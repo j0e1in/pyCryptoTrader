@@ -44,7 +44,7 @@ async def fetch_ohlcv(exchange, symbol, start, end, timeframe='1m', log=True):
             since=start,
             params=params)
 
-        if len(ohlcv) is 0 or ohlcv[-1][0] == start:  # no ohlcv in the period
+        if not ohlcv or ohlcv[-1][0] == start:  # no ohlcv in the period
             start = end
         else:
             start = ohlcv[-1][0] + 1000
