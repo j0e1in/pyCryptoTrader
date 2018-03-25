@@ -541,22 +541,14 @@ class SingleEXTrader():
 
 
         if scale_order:
-            # TODO: solve scale order count and amount
             Pmin = min(start_price, end_price)
             Pmax = max(start_price, end_price)
             Pd = Pmax - Pmin
-            # C = balance
-            # F = trade_fee
-            # Amin = self.ex.markets_info[symbol]['limits']['amount']['min']
 
             if side == 'buy':
                 amount /= 1 - Pd/2/Pmax
             else:
                 amount /= 1 + Pd/2/Pmin
-
-            # roots = np.roots([(-Pd/4), Pmax/2 - Pd, Pmax - 5/4*Pd, (Pmax-Pd)/2 - C/(1+F)/Amin])
-            # order_count = min(int(np.sort(roots)[1]), max_order_count)
-            # amount = (order_count + 1)**2 * Amin / 3
 
         return amount
 
