@@ -29,8 +29,8 @@ async def test_long(trader):
     done, pending = await asyncio.wait(
         [
             trader.ex.update_markets(),
-            trader.long('XRP/USD', confidence=100, type='limit'),
             trader.ex.update_trade_fees(),
+            trader.long('XRP/USD', confidence=100, type='limit'),
         ],
         return_when=FIRST_COMPLETED)
 
@@ -41,8 +41,8 @@ async def test_short(trader):
     done, pending = await asyncio.wait(
         [
             trader.ex.update_markets(),
-            trader.short('XRP/USD', confidence=100, type='limit'),
             trader.ex.update_trade_fees(),
+            trader.short('BTC/USD', confidence=100, type='limit'),
         ],
         return_when=FIRST_COMPLETED)
 
@@ -64,33 +64,66 @@ async def test_strategy(trader):
     await asyncio.gather(trader.start())
 
 
+async def test_calc_order_amount(trader):
+    print('-- Calc_order_amount --')
+    symbol = 'XRP/USD'
+    action = 'short'
+    side = 'buy' if action == 'long' else 'sell'
+
+    orderbook = await trader.ex.get_orderbook(symbol)
+    prices = trader.calc_three_point_prices(orderbook, action)
+    await trader.ex.update_markets(once=True)
+    await trader.ex.update_trade_fees(once=True)
+
+    res = trader.calc_order_amount(
+        symbol,
+        'limit',
+        side,
+        1000,
+        orderbook,
+        start_price=prices['start_price'],
+        end_price=prices['end_price'],
+        margin=True,
+        scale_order=True)
+
+    pprint(res)
+
+
 async def test_gen_scale_orders(trader):
     print('-- gen_scale_orders --')
     await trader.ex.update_markets(once=True)
-    orders = trader.gen_scale_orders(trader.ex.markets[0], 'limit', 'buy', 0.54,
-                                     start_price=1000,
-                                     end_price=900,
-                                     max_order_count=10)
+    orders = trader.gen_scale_orders(
+        'XRP/USD',
+        'limit',
+        'sell',
+        5184.647812,
+        start_price=0.63282312,
+        end_price=0.6504553000000001,
+        max_order_count=20)
     pprint(orders)
 
     amount = 0
+    value = 0
     for order in orders:
         amount += order['amount']
+        value += order['amount'] * order['price']
 
     print('Total amount:', amount)
+    print('Total value:', value)
 
 
 async def main():
     mongo = EXMongo()
     trader = SingleEXTrader(mongo, 'bitfinex', 'pattern', log=True)
 
-    # await asyncio.gather(test_trader_start(trader))
-    # await asyncio.gather(test_start_trading(trader))
-    # await asyncio.gather(test_cancel_all_orders(trader))
-    # await asyncio.gather(test_long(trader))
-    # await asyncio.gather(test_short(trader))
-    # await asyncio.gather(test_close(trader))
-    # await asyncio.gather(test_strategy(trader))
+    # await test_trader_start(trader)
+    # await test_start_trading(trader)
+    # await test_cancel_all_orders(trader)
+    # await test_long(trader)
+    # await test_short(trader)
+    # await test_close(trader)
+    # await test_strategy(trader)
+    # await test_calc_order_amount(trader)
     # await test_gen_scale_orders(trader)
 
     await trader.ex.ex.close()

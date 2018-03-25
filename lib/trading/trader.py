@@ -289,6 +289,8 @@ class SingleEXTrader():
 
         await self.cancel_all_orders(symbol)
         await self.ex.update_wallet()
+
+        orders_value = await self.ex.calc_order_value()
         positions = await self.ex.fetch_positions()
         orderbook = await self.ex.get_orderbook(symbol)
 
@@ -321,14 +323,7 @@ class SingleEXTrader():
         curr = symbol.split('/')[1]
         wallet_type = 'margin'
 
-        if action == 'long':
-            start_price = orderbook['bids'][0][0] * (1 - self.config['scale_order_near_percent'])
-            close_end_price = orderbook['bids'][0][0] * (1 - self.config['scale_order_close_far_percent'])
-            end_price = orderbook['bids'][0][0] * (1 - self.config['scale_order_far_percent'])
-        else:
-            start_price = orderbook['asks'][0][0] * (1 + self.config['scale_order_near_percent'])
-            close_end_price = orderbook['bids'][0][0] * (1 + self.config['scale_order_close_far_percent'])
-            end_price = orderbook['bids'][0][0] * (1 + self.config['scale_order_far_percent'])
+        prices = self.calc_three_point_prices(orderbook, action)
 
         amount = 0
 
@@ -340,18 +335,19 @@ class SingleEXTrader():
         else:
             # calculate amount to open position
             available_balance = self.ex.get_balance(curr, wallet_type)
-            total_value = available_balance + self_base_value
+            total_value = available_balance + self_base_value + orders_value
 
             # Cap max trading funds
             if total_value > self.max_fund:
                 available_balance -= (total_value - self.max_fund)
                 total_value = available_balance + self_base_value
 
-            # total_value < 0 shouldn't happen, max(total_value, 0) is just for security of funds
-            spendable = available_balance - max(total_value, 0) * self.config['maintain_portion']
+            maintain_portion = total_value * self.config['maintain_portion']
+            spendable = max(available_balance - maintain_portion, 0)
+            spendable = min(spendable, (total_value - maintain_portion) * self.config['trade_portion'])
 
             if spendable > 0:
-                spend = spendable * abs(confidence) / 100 * self.config['trade_portion']
+                spend = spendable * abs(confidence) / 100
 
                 trade_value = spend * self.config[self.ex.exname]['margin_rate']
                 if trade_value < self.config[self.ex.exname]['min_trade_value']:
@@ -370,9 +366,13 @@ class SingleEXTrader():
                 logger.info(f"Spendable balance is < 0, unable to {action} {symbol}")
                 return None
 
+
             # Calculate amount to open, not including close amount (close amount == symbol_amount)
             amount = self.calc_order_amount(symbol, type, side, spend, orderbook,
-                                            price=start_price, margin=True)
+                                            start_price=prices['start_price'],
+                                            end_price=prices['end_price'],
+                                            margin=True,
+                                            scale_order=scale_order)
 
         res = None
         orders = []
@@ -380,14 +380,14 @@ class SingleEXTrader():
 
         if type == 'limit' and scale_order:
             if has_opposite_open_position:
-                end_price = close_end_price
+                end_price = prices['close_end_price']
                 exact_amount = True
             else:
-                end_price = end_price
+                end_price = prices['end_price']
                 exact_amount = False
 
             orders = self.gen_scale_orders(symbol, type, side, amount,
-                                            start_price=start_price,
+                                            start_price=prices['start_price'],
                                             end_price=end_price,
                                             max_order_count=order_count,
                                             exact_amount=exact_amount)
@@ -395,7 +395,7 @@ class SingleEXTrader():
             res = await self.ex.create_order_multi(orders)
 
         else:
-            res = await self.ex.create_order(symbol, type, side, amount, price=start_price)
+            res = await self.ex.create_order(symbol, type, side, amount, price=prices['start_price'])
 
         if res:
             await save_to_db(res)
@@ -435,6 +435,18 @@ class SingleEXTrader():
             logger.error(f"Failed to create orders")
 
         return res
+
+    def calc_three_point_prices(self, orderbook, action):
+        prices = {}
+        if action == 'long':
+            prices['start_price'] = orderbook['bids'][0][0] * (1 - self.config['scale_order_near_percent'])
+            prices['close_end_price'] = orderbook['bids'][0][0] * (1 - self.config['scale_order_close_far_percent'])
+            prices['end_price'] = orderbook['bids'][0][0] * (1 - self.config['scale_order_far_percent'])
+        else:
+            prices['start_price'] = orderbook['asks'][0][0] * (1 + self.config['scale_order_near_percent'])
+            prices['close_end_price'] = orderbook['bids'][0][0] * (1 + self.config['scale_order_close_far_percent'])
+            prices['end_price'] = orderbook['bids'][0][0] * (1 + self.config['scale_order_far_percent'])
+        return prices
 
     @staticmethod
     def calc_position_value(positions):
@@ -484,7 +496,11 @@ class SingleEXTrader():
         fee = value * self.ex.trade_fees[curr]['taker_fees']
         return fee
 
-    def calc_order_amount(self, symbol, type, side, balance, orderbook, price=None, margin=False):
+    def calc_order_amount(self, symbol, type, side, balance, orderbook,
+                          start_price=None,
+                          end_price=None,
+                          margin=False,
+                          scale_order=False):
         """ Stack orderbook price*volume to find amount the market can fill.
             Params
                 market: str, 'limit', 'market' etc. (may support more in the future)
@@ -495,6 +511,7 @@ class SingleEXTrader():
                 orderbook: dict, contains 'asks' and 'bids'
         """
         amount = 0
+        trade_fee = 0
         curr = symbol.split('/')[0]
 
         if margin:
@@ -502,6 +519,12 @@ class SingleEXTrader():
 
         if type == 'market':
             trade_fee = self.ex.trade_fees[curr]['taker_fees']
+        elif type == 'limit':
+            trade_fee = self.ex.trade_fees[curr]['maker_fees']
+
+        price = start_price
+
+        if type == 'market':
             book = orderbook['asks'] if side == 'buy' else orderbook['bids']
             for price, vol in book:
                 remain = max(0, balance - price * vol)
@@ -511,11 +534,21 @@ class SingleEXTrader():
                     break
 
         elif type == 'limit':
-            trade_fee = self.ex.trade_fees[curr]['maker_fees']
             amount = balance / price / (1 + trade_fee)
 
         else:
             raise ValueError(f"Type {type} is not supported yet.")
+
+
+        if scale_order:
+            Pmin = min(start_price, end_price)
+            Pmax = max(start_price, end_price)
+            Pd = Pmax - Pmin
+
+            if side == 'buy':
+                amount /= 1 - Pd/2/Pmax
+            else:
+                amount /= 1 + Pd/2/Pmin
 
         return amount
 
@@ -641,6 +674,7 @@ class SingleEXTrader():
         min_amount = self.ex.markets_info[symbol]['limits']['amount']['min']
         order_count = min(int(math.sqrt(2 * amount / min_amount) - 1), max_order_count)
         order_count = max(order_count, 1)
+        print('order_count:', order_count)
         amount_diff_base = amount / ((order_count + 1) * order_count / 2)
         cur_price = start_price
         dec = 100000000
@@ -669,8 +703,8 @@ class SingleEXTrader():
         idx = 0
         n_orders = len(orders)
         while idx < n_orders-1:
-
             if orders[idx]['amount'] < min_amount:
+                print('merge')
                 cur_amount = orders[idx]['amount']
                 cur_price = orders[idx]['price']
                 merge_num = 1

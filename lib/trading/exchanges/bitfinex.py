@@ -649,7 +649,7 @@ class Bitfinex(EXBase):
         """ Fetch all trades to mongodb. """
         not_implemented()
 
-    async def update_trade_fees(self):
+    async def update_trade_fees(self, once=False):
         """ Periodically update trade fees.
             ccxt response:
             [{'fees': [{'maker_fees': '0.1', 'pairs': 'BTC', 'taker_fees': '0.2'},
@@ -668,6 +668,17 @@ class Bitfinex(EXBase):
             ]
         """
         self._check_auth()
+
+        if once:
+            res = await handle_ccxt_request(self.ex.private_post_account_infos)
+
+            fees = {}
+            for fee in res[0]['fees']:
+                fees[fee['pairs']] = {'maker_fees': float(fee['maker_fees']) / 100,
+                                      'taker_fees': float(fee['taker_fees']) / 100}
+
+            self.trade_fees = fees
+            return self.trade_fees
 
         logger.info(f"Start updating trade fees...")
         while True:
