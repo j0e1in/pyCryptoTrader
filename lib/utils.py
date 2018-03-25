@@ -432,7 +432,6 @@ async def handle_ccxt_request(func, *args, **kwargs):
             or       str(err).find("Cannot connect to host") >= 0
             or       str(err).find("unavailable") >= 0):
                 logger.warning(f"ExchangeError, {type(err)} {str(err)}")
-                raise err
 
             elif isinstance(err, ccxt.ExchangeNotAvailable)\
             or   isinstance(err, ccxt.InvalidNonce):
