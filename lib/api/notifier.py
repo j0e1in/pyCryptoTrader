@@ -15,7 +15,7 @@ logger = logging.getLogger('pyct')
 
 class Messenger():
 
-    def __init__(self, trader, custom_config=None, ssl=True):
+    def __init__(self, trader, custom_config=None, ssl=True, disable=False):
         self._config = custom_config if custom_config else config
         self.config = self._config['apiclient']
         self.trader = trader
@@ -33,6 +33,7 @@ class Messenger():
         }
         url_prefix = 'https://' if ssl else 'http://'
         self.base_url = url_prefix + self.config['messenger_host']
+        self.disable = disable
 
     async def notify_open_orders_succ(self, orders):
         """ Send successfully opened (scale) orders
@@ -249,15 +250,22 @@ class Messenger():
         return await self.request('post', route, payload)
 
     async def request(self, method, route, payload=None, header=None):
+        if self.disable:
+            return None
+
         request_method = getattr(self.session, method)
         _header = copy.deepcopy(self.default['header'])
         _payload = copy.deepcopy(self.default['payload'])
 
-        if header:
+        if isinstance(header, dict):
             _header.update(header)
+        elif header:
+            logger.warning(f"Expect header to be dict but got {type(header)}")
 
-        if payload:
+        if isinstance(payload, dict):
             _payload.update(payload)
+        elif payload:
+            logger.warning(f"Expect payload to be dict but got {type(payload)}")
 
         _payload = json.dumps(_payload)
         _header['x-hub-signature'] = \
