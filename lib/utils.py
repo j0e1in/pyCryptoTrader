@@ -419,6 +419,7 @@ async def handle_ccxt_request(func, *args, **kwargs):
                 ccxt.DDoSProtection,
                 ccxt.ExchangeNotAvailable,
                 ccxt.ExchangeError,
+                ccxt.InvalidNonce,
                 KeyError) as err:
 
             # finished fetching all ohlcv
