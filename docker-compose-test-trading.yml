@@ -13,6 +13,7 @@ services:
               --enable-api
               --env .env
               --ssl
+              --log-signal
     env_file:
       - .env
     volumes:
