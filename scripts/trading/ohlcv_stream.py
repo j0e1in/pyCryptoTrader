@@ -8,9 +8,11 @@ import logging
 
 from db import EXMongo
 from trading.trader import SingleEXTrader
+from trading.exchanges import EXBase
 from utils import config
 
 logger = logging.getLogger('pyct')
+
 
 def parse_args():
     import argparse
@@ -42,13 +44,11 @@ async def main():
     mongo_host = argv.mongo_host if argv.mongo_host else None
     mongo = EXMongo(host=mongo_host)
 
-    trader = SingleEXTrader(mongo, 'bitfinex', 'pattern',
-            custom_config=config,
-            disable_trading=True, log=True)
+    ex = EXBase(mongo, 'bitfinex', log=True)
 
-    # Start only ohlcv stream
-    await trader.ex._start_ohlcv_stream()
-    await trader.ex.ex.close()
+    await ex._start_ohlcv_stream()
+    await ex.ex.close()
+
 
 
 if __name__ == '__main__':
