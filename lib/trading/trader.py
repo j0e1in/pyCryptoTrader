@@ -807,9 +807,13 @@ class SingleEXTrader():
             # Debug
             for pos in positions:
                 base_value = pos['base_price'] * abs(pos['amount'])
-                pl_perc = pos['pl'] * margin_rate / base_value * 100
+                pl_perc = pos['pl'] / base_value * 100
+
+                if pos['pl'] > 0:
+                    pl_perc *= margin_rate
+
                 side = 'buy' if pos['amount'] > 0 else 'sell'
-                logger.debug(f"Active position -- {pos['symbol']}, ID: {pos['id']}, side: {side}, PL: {pl_perc}%")
+                logger.debug(f"Active position -- {pos['symbol']}, ID: {pos['id']}, side: {side}, PL: {pl_perc:0.2f} %")
 
             # Remove closed positions
             to_del = []
@@ -855,13 +859,12 @@ class SingleEXTrader():
 
                 # Percentage meets threshold
                 if pl_perc >= self._config['apiclient']['large_pl_threshold']:
-                    logger.debug(f"Meets large pl threshold: {id}")
 
                     # If has not been notified or percentage change > N%
                     if not pos['last_notify_perc'] \
                     or abs(pl_perc - pos['last_notify_perc']) >= \
                     self._config['apiclient']['large_pl_diff']:
-                        self.notifier.notify_position_large_pl(pos['pos'])
+                        await self.notifier.notify_position_large_pl(pos['pos'])
                         pos['last_notify_perc'] = pl_perc
 
             # notify_position_danger_pl
@@ -876,7 +879,7 @@ class SingleEXTrader():
                     if not pos['last_notify_perc'] \
                     or abs(pl_perc - pos['last_notify_perc']) >= \
                     self._config['apiclient']['danger_pl_diff']:
-                        self.notifier.notify_position_danger_pl(pos['pos'])
+                        await self.notifier.notify_position_danger_pl(pos['pos'])
                         pos['last_notify_perc'] = pl_perc
 
             await asyncio.sleep(self.ex.config['position_check_interval'])
