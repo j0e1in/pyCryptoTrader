@@ -113,7 +113,8 @@ class SingleEXTrader():
         # Start routines required by exchange and trader itself
         await asyncio.gather(
             *ex_start_tasks,
-            self._start()
+            self._start(),
+            self.check_position_status()
         )
 
     async def _start(self):
@@ -129,7 +130,7 @@ class SingleEXTrader():
             self.summary['initial_balance'] = copy.deepcopy(self.ex.wallet)
             self.summary['initial_value'] = await self.ex.calc_account_value()
 
-        logger.info(f"Start trader with user: {self.userid}")
+        logger.info(f"Start trader as user: {self.userid}")
 
         if not self.enable_trading:
             logger.info("Trading disabled")
@@ -173,8 +174,6 @@ class SingleEXTrader():
                     last_log_time, last_sig = self.log_signals(sig, last_log_time, last_sig)
             else:
                 ohlcv_alive = await self.check_ohlcv_is_updating()
-
-            await self.check_position_status()
 
             # Wait additional 90 sec for ohlcv of all markets to be fetched
             fetch_interval = timedelta(seconds=self.ex.config['ohlcv_fetch_interval'])
@@ -769,11 +768,6 @@ class SingleEXTrader():
 
     def add_market(self, market):
         pass
-        # for market in self.ex.markets:
-        #     # New market is added
-        #     if market not in self.ex.markets_start_dt:
-        #         self.ex.set_market_start_dt(market, utc_now())
-        #         self.reset_orders
 
     def remove_market(self, market):
         pass
@@ -801,26 +795,30 @@ class SingleEXTrader():
 
     async def check_position_status(self):
         """ Check if any position is in danger or matches large PL(%) """
-        pos_large_pl = []
-        pos_danger_pl = []
-        margin_rate = self.config[self.ex.exname]['margin_rate']
-        positions = await self.ex.fetch_positions()
+        while True:
 
-        for pos in positions:
-            base_value = pos['base_price'] * abs(pos['amount'])
+            pos_large_pl = []
+            pos_danger_pl = []
+            margin_rate = self.config[self.ex.exname]['margin_rate']
+            positions = await self.ex.fetch_positions()
 
-            # Use PL(%) without margin funding
-            pl_perc = pos['pl'] * margin_rate / base_value * 100
-            if pl_perc >= self._config['apiclient']['large_pl_threshold']:
-                pos_large_pl.append(pos)
+            for pos in positions:
+                base_value = pos['base_price'] * abs(pos['amount'])
 
-            # Use PL(%) with margin funding
-            pl_perc = -pos['pl'] / base_value * 100
-            if pl_perc >= self._config['apiclient']['danger_pl_threshold']:
-                pos_danger_pl.append(pos)
+                # Use PL(%) without margin funding
+                pl_perc = pos['pl'] * margin_rate / base_value * 100
+                if pl_perc >= self._config['apiclient']['large_pl_threshold']:
+                    pos_large_pl.append(pos)
 
-        if pos_large_pl:
-            await self.notifier.notify_position_large_pl(pos_large_pl)
+                # Use PL(%) with margin funding
+                pl_perc = -pos['pl'] / base_value * 100
+                if pl_perc >= self._config['apiclient']['danger_pl_threshold']:
+                    pos_danger_pl.append(pos)
 
-        if pos_danger_pl:
-            await self.notifier.notify_position_danger(pos_danger_pl)
+            if pos_large_pl:
+                await self.notifier.notify_position_large_pl(pos_large_pl)
+
+            if pos_danger_pl:
+                await self.notifier.notify_position_danger(pos_danger_pl)
+
+            await asyncio.sleep(self.ex.config['position_check_interval'])
