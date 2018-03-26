@@ -795,30 +795,88 @@ class SingleEXTrader():
 
     async def check_position_status(self):
         """ Check if any position is in danger or matches large PL(%) """
+        margin_rate = self.config[self.ex.exname]['margin_rate']
+        pos_large_pl = {}
+        pos_danger_pl = {}
+
         while True:
 
-            pos_large_pl = []
-            pos_danger_pl = []
-            margin_rate = self.config[self.ex.exname]['margin_rate']
             positions = await self.ex.fetch_positions()
+            pos_ids = [p['id'] for p in positions]
 
+            # Debug
             for pos in positions:
                 base_value = pos['base_price'] * abs(pos['amount'])
-
-                # Use PL(%) without margin funding
                 pl_perc = pos['pl'] * margin_rate / base_value * 100
+                side = 'buy' if pos['amount'] > 0 else 'sell'
+                logger.debug(f"Active position -- {pos['symbol']}, ID: {pos['id']}, side: {side}, PL: {pl_perc}%")
+
+            # Remove closed positions
+            to_del = []
+            for id in pos_large_pl:
+                if id not in pos_ids:
+                    to_del.append(id)
+
+            for id in to_del:
+                del pos_large_pl[id]
+
+            # Remove closed positions
+            to_del = []
+            for id in pos_danger_pl:
+                if id not in pos_ids:
+                    to_del.append(id)
+
+            for id in to_del:
+                del pos_danger_pl[id]
+
+            # Add new positions
+            for pos in positions:
+                # Initialize first time added position
+                if pos['id'] not in pos_large_pl:
+                    pos_large_pl[pos['id']] = {
+                        'last_notify_perc': None,
+                        'pos': pos
+                    }
+                else: # Update old position
+                    pos_large_pl[pos['id']]['pos'] = pos
+
+                if pos['id'] not in pos_danger_pl:
+                    pos_danger_pl[pos['id']] = {
+                        'last_notify_perc': None,
+                        'pos': pos
+                    }
+                else:
+                    pos_danger_pl[pos['id']]['pos'] = pos
+
+            # notify_position_large_pl
+            for id, pos in pos_large_pl.items():
+                base_value = pos['pos']['base_price'] * abs(pos['pos']['amount'])
+                pl_perc = pos['pos']['pl'] * margin_rate / base_value * 100
+
+                # Percentage meets threshold
                 if pl_perc >= self._config['apiclient']['large_pl_threshold']:
-                    pos_large_pl.append(pos)
+                    logger.debug(f"Meets large pl threshold: {id}")
 
-                # Use PL(%) with margin funding
-                pl_perc = -pos['pl'] / base_value * 100
+                    # If has not been notified or percentage change > N%
+                    if not pos['last_notify_perc'] \
+                    or abs(pl_perc - pos['last_notify_perc']) >= \
+                    self._config['apiclient']['large_pl_diff']:
+                        self.notifier.notify_position_large_pl(pos['pos'])
+                        pos['last_notify_perc'] = pl_perc
+
+            # notify_position_danger_pl
+            for id, pos in pos_danger_pl.items():
+                base_value = pos['pos']['base_price'] * abs(pos['pos']['amount'])
+                pl_perc = -pos['pos']['pl'] / base_value * 100
+
+                # Percentage meets threshold
                 if pl_perc >= self._config['apiclient']['danger_pl_threshold']:
-                    pos_danger_pl.append(pos)
 
-            if pos_large_pl:
-                await self.notifier.notify_position_large_pl(pos_large_pl)
-
-            if pos_danger_pl:
-                await self.notifier.notify_position_danger(pos_danger_pl)
+                    # If has not been notified or percentage change > N%
+                    if not pos['last_notify_perc'] \
+                    or abs(pl_perc - pos['last_notify_perc']) >= \
+                    self._config['apiclient']['danger_pl_diff']:
+                        self.notifier.notify_position_danger_pl(pos['pos'])
+                        pos['last_notify_perc'] = pl_perc
 
             await asyncio.sleep(self.ex.config['position_check_interval'])

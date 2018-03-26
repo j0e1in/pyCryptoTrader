@@ -157,7 +157,7 @@ class Messenger():
     async def notify_position_close(self, positions):
         pass
 
-    async def notify_position_danger(self, positions):
+    async def notify_position_danger_pl(self, positions):
         """ Warn for danger positions
             Send:
             {
