@@ -487,6 +487,12 @@ def api_parse_orders(orders):
 
 
 def api_parse_positions(positions, margin_rate):
+    if not positions:
+        return positions
+
+    if not isinstance(positions, list):
+        positions = [positions]
+
     price_name = 'base_price' if 'base_price' in positions[0] else 'price'
     pl_name = 'pl' if 'pl' in positions[0] else 'PL'
 
