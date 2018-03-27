@@ -92,11 +92,6 @@ def sec_ms(sec):
     return int(float(sec)*1000)
 
 
-def datetime_str(year, month, day, hour=0, min=0, sec=0):
-    dt = datetime(year, month, day, hour, min, sec)
-    return dt.strftime('%Y-%m-%d %H:%M:%S')
-
-
 def to_utc_timestamp(timestamp):
     """ Convert local timestamp to utc. """
     tdelta = datetime.now().timestamp() - datetime.utcnow().timestamp()

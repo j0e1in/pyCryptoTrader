@@ -193,16 +193,19 @@ class SingleEXTrader():
 
             return False
 
-        if (utc_now() - last_log_time) > \
+        cur_time = utc_now()
+        time_str = cur_time.strftime("%Y-%m-%d %H:%M:%S")
+
+        if (cur_time - last_log_time) > \
         tf_td(self.config['indicator_tf']) / 5:
             for market in self.ex.markets:
-                logger.info(f"{market} indicator signal @ {utc_now()}\n{sig[market][-10:]}")
+                logger.info(f"{market} indicator signal @ {time_str}\n{sig[market][-10:]}")
 
-            last_log_time = utc_now()
+            last_log_time = cur_time
         else:
             for market in self.ex.markets:
                 if sig_changed(sig, market):
-                    logger.info(f"{market} indicator signal @ {utc_now()}\n{sig[market][-10:]}")
+                    logger.info(f"{market} indicator signal @ {time_str}\n{sig[market][-10:]}")
 
         return last_log_time, last_sig
 
