@@ -316,6 +316,20 @@ class APIServer():
         req.app.server.log_level = payload['level']
         return response.json({'ok': True})
 
+    @app.route('/notification/large_pl/<uid:string>', methods=['POST'])
+    async def change_large_pl_threshold(req, uid):
+        if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
+            abort(401)
+
+        payload = req.json
+        if not payload or 'PL(%)' not in payload:
+            return response.json({
+                'error': "Payload should contain field `PL(%)`"
+            })
+
+        req.app.server.trader._config['apiclient']['large_pl_threshold'] = payload['PL(%)']
+        return response.json({'ok': True})
+
     @app.route('/trading/max_fund/<uid:string>', methods=['POST'])
     async def change_max_fund(req, uid):
         if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
