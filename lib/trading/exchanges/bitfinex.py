@@ -171,7 +171,7 @@ class Bitfinex(EXBase):
 
             return self.markets_info
 
-        logger.info(f"Start updating markets info...")
+        logger.info(f"Start updating markets info")
         while True:
             if self.log:
                 logger.info("Update markets info")
@@ -702,7 +702,7 @@ class Bitfinex(EXBase):
             self.trade_fees = fees
             return self.trade_fees
 
-        logger.info(f"Start updating trade fees...")
+        logger.info(f"Start updating trade fees")
         while True:
             if self.log:
                 logger.info(f"Update trade fees")
@@ -755,7 +755,7 @@ class Bitfinex(EXBase):
         """
         self._check_auth()
 
-        logger.info(f"Start updating withdraw fees...")
+        logger.info(f"Start updating withdraw fees")
         while True:
             if self.log:
                 logger.info(f"Update withdraw fees")

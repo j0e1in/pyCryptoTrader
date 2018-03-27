@@ -77,7 +77,7 @@ class APIServer():
         start_trader = asyncio.ensure_future(self.app.trader.start())
 
         with_ssl = 'with' if enable_ssl else 'without'
-        logger.info(f"Starting API server {with_ssl} SSL...")
+        logger.info(f"Starting API server {with_ssl} SSL")
 
         await asyncio.gather(
             start_server,

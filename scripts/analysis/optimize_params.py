@@ -57,7 +57,7 @@ async def find_optimal_paramters(mongo, ex, argv):
         # (datetime(2017, 2, 1), datetime(2018, 3, 5)),
     ]
 
-    print(f"Running optimization for {market} {tf} {start}-{end}...(total {len(combs)})")
+    print(f"Running optimization for {market} {tf} {start}-{end} (total {len(combs)})")
 
     combs = combs[start-1:end]
 
@@ -101,7 +101,7 @@ def generate_params(mongo, ex, argv):
     optimizer.optimize_range('stochrsi_rsi_mom_thresh', 10, 30, 10)
 
     combs = optimizer.count()
-    print(f"Generating {combs} sets of parameter settings...")
+    print(f"Generating {combs} sets of parameter settings")
 
     if combs < 5000000:
         combs = optimizer.get_combinations()

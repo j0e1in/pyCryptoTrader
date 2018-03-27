@@ -176,7 +176,7 @@ class EXBase():
 
                 await execute_mongo_ops(ops)
 
-        logger.info("Start ohlcv data stream...")
+        logger.info("Start ohlcv data stream")
         last_update = MIN_DT
 
         while True:
@@ -217,7 +217,7 @@ class EXBase():
 
     async def _start_orderbook_stream(self, params={}):
         """ Fetch orderbook periodically. May not be needed if using `get_orderbook`."""
-        logger.info("Start orderbook data stream...")
+        logger.info("Start orderbook data stream")
 
         while True:
             for market in self.markets:
@@ -352,7 +352,7 @@ class EXBase():
         self._check_auth()
 
         if self.log:
-            logger.info("Updating wallet...")
+            logger.info("Updating wallet")
 
         res = await handle_ccxt_request(self.ex.fetch_balance)
 

@@ -142,7 +142,7 @@ class SingleEXTrader():
 
         await self.notifier.notify_start()
 
-        logger.info("Start trading...")
+        logger.info("Start trading")
         await self.start_trading()
 
     async def wait_ex_to_be_ready(self):
