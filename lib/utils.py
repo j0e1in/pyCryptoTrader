@@ -9,6 +9,7 @@ import calendar
 import functools
 import inspect
 import logging
+import logging.config
 import jstyleson as json
 import math
 import numpy as np
@@ -688,3 +689,66 @@ class EXPeriod():
 
     def datetime_period(self, dt):
         return pd.Period(dt, self.freq)
+
+
+log_type = 'pyct_colored'
+
+log_config = dict(
+    version = 1,
+    # disable_existing_loggers = False,
+    formatters = {
+        'pyct_default': { # has alignment but no color
+            'datefmt': "%Y-%m-%d %H:%M:%S",
+            'format': "%(asctime)s | %(levelname)-8s | %(message)s\t  (%(filename)s @ %(funcName)s)"
+        },
+        'pyct_colored': { # has color but no alignment
+            'class': 'chromalog.log.ColorizingFormatter',
+            'datefmt': "%Y-%m-%d %H:%M:%S",
+            'format': "%(asctime)s | %(levelname)s | %(message)s\t  (%(filename)s @ %(funcName)s)"
+        }
+    },
+    handlers = {
+        'pyct_default': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'pyct_default'
+        },
+        'pyct_colored': {
+            'class': 'chromalog.log.ColorizingStreamHandler',
+            'formatter': 'pyct_colored'
+        }
+    },
+    loggers = {
+        '': {
+            'handlers': [log_type],
+            'level': 'DEBUG' \
+                if config['mode'] != 'production' \
+                else 'INFO',
+            'propagate': False
+        },
+        'pyct': {
+            'handlers': [log_type], # switch between default and colored handlers
+            'level': 'DEBUG' \
+                if config['mode'] != 'production' \
+                else 'INFO',
+            'propagate': False
+        },
+        'ccxt': {
+            'handlers': [log_type],
+            'level': 'INFO',
+            'propagate': False
+        }
+    }
+)
+
+logging.config.dictConfig(log_config)
+
+
+def register_logging_file_handler(log_file):
+    """ Register file handler to all loggers. """
+    fh = logging.FileHandler(log_file, mode='a')
+    fh.setFormatter(
+        logging.Formatter(log_config['formatters']['pyct_default']['format'],
+                          log_config['formatters']['pyct_default']['datefmt']))
+
+    for log in log_config['loggers']:
+        logging.getLogger(log).addHandler(fh)
