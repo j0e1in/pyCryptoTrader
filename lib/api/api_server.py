@@ -1,5 +1,4 @@
 from concurrent.futures import FIRST_COMPLETED
-from sanic import Sanic
 from sanic import response
 from sanic.exceptions import abort
 
@@ -9,17 +8,34 @@ import copy
 import logging
 import inspect
 import json
+import sanic
 
 from api.auth import AuthyManager
 from utils import \
     dt_ms, \
     config, \
-    load_json
+    load_json, \
+    log_config, \
+    register_logging_file_handler
 
 logger = logging.getLogger('pyct')
-log_fmt = "%(asctime)s | %(name)s | %(levelname)5s | %(status)d | %(request)s | %(message)s"
+
 
 dummy_data = load_json(config['dummy_data_file'])
+
+def customized_sanic_log_config():
+    config = sanic.log.LOGGING_CONFIG_DEFAULTS
+
+    config['formatters']['generic']['datefmt'] = \
+        log_config['formatters']['pyct_colored']['datefmt']
+    config['formatters']['generic']['format'] = \
+        log_config['formatters']['pyct_colored']['format']
+    config['formatters']['access']['datefmt'] = \
+        log_config['formatters']['pyct_colored']['datefmt']
+    config['formatters']['access']['format'] = \
+        "%(asctime)s | %(levelname)s | %(host)s | %(request)s %(message)s %(status)d %(byte)d"
+
+    return config
 
 
 class APIServer():
@@ -33,7 +49,7 @@ class APIServer():
     # | KEEP_ALIVE         | True      | Disables keep-alive when False                |
     # | KEEP_ALIVE_TIMEOUT | 5         | How long to hold a TCP connection open (sec)  |
 
-    app = Sanic(__name__, log_config=None)
+    app = sanic.Sanic(__name__, log_config=customized_sanic_log_config())
 
     def __init__(self, trader, custom_config=None):
         self._config = custom_config if custom_config else config

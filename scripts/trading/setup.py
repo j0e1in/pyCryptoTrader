@@ -18,14 +18,14 @@ root_dir = os.path.dirname(file_dir)
 os.chdir(root_dir + '/lib')
 sys.path.append('.')
 
-from utils import config, register_logging_file_handler
+from utils import config, log_config, register_logging_file_handler
 
 
 def run(func, debug=False, log_file=None, *args, **kwargs):
 
     if log_file:
         log_file = f"{root_dir}/log/{log_file}"
-        register_logging_file_handler(log_file)
+        register_logging_file_handler(log_file, log_config)
 
     if asyncio.iscoroutinefunction(func):
         loop = asyncio.get_event_loop()

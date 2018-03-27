@@ -718,13 +718,13 @@ log_config = dict(
         }
     },
     loggers = {
-        '': {
-            'handlers': [log_type],
-            'level': 'DEBUG' \
-                if config['mode'] != 'production' \
-                else 'INFO',
-            'propagate': False
-        },
+        # '': {
+        #     'handlers': [log_type],
+        #     'level': 'DEBUG' \
+        #         if config['mode'] != 'production' \
+        #         else 'INFO',
+        #     'propagate': False
+        # },
         'pyct': {
             'handlers': [log_type], # switch between default and colored handlers
             'level': 'DEBUG' \
@@ -736,14 +736,15 @@ log_config = dict(
             'handlers': [log_type],
             'level': 'INFO',
             'propagate': False
-        }
+        },
+        'root': {} # sanic root logger (gathers all sanic logs)
     }
 )
 
 logging.config.dictConfig(log_config)
 
 
-def register_logging_file_handler(log_file):
+def register_logging_file_handler(log_file, log_config):
     """ Register file handler to all loggers. """
     fh = logging.FileHandler(log_file, mode='a')
     fh.setFormatter(
