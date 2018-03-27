@@ -11,6 +11,7 @@ import pandas as pd
 import random
 
 from api.notifier import Messenger
+from trading.strategy import near_end
 from trading import strategy
 from trading import exchanges
 from utils import \
@@ -157,6 +158,7 @@ class SingleEXTrader():
         last_log_time = MIN_DT
         last_sig = {market: np.nan for market in self.ex.markets}
         ohlcv_alive = True
+        await self.update_ohlcv()
 
         while True:
 
@@ -195,17 +197,32 @@ class SingleEXTrader():
 
         cur_time = utc_now()
         time_str = cur_time.strftime("%Y-%m-%d %H:%M:%S")
+        log_remain_time = False
 
         if (cur_time - last_log_time) > \
-        tf_td(self.config['indicator_tf']) / 5:
+        tf_td(self.config['indicator_tf']) / 8:
             for market in self.ex.markets:
                 logger.info(f"{market} indicator signal @ {time_str}\n{sig[market][-10:]}")
 
             last_log_time = cur_time
+            log_remain_time = True
         else:
             for market in self.ex.markets:
                 if sig_changed(sig, market):
                     logger.info(f"{market} indicator signal @ {time_str}\n{sig[market][-10:]}")
+                    log_remain_time = True
+
+        if log_remain_time:
+            td = tf_td(self.config['indicator_tf'])
+
+            if near_end(utc_now(), td):
+                remaining_time = roundup_dt(utc_now(), td) - utc_now()
+                remaining_time -= timedelta(microseconds=remaining_time.microseconds)
+                logger.info(f"{remaining_time} left to end trading")
+            else:
+                remaining_time = roundup_dt(utc_now(), td) - utc_now() - td / 4
+                remaining_time -= timedelta(microseconds=remaining_time.microseconds)
+                logger.info(f"{remaining_time} left to start trading")
 
         return last_log_time, last_sig
 
