@@ -1,5 +1,5 @@
-from setup import setup, run
-setup()
+from setup import run
+
 
 from pprint import pprint
 

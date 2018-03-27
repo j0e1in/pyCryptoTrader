@@ -1,5 +1,5 @@
-from setup import run, setup
-setup()
+from setup import run
+
 
 from asyncio import ensure_future
 from datetime import datetime, timedelta

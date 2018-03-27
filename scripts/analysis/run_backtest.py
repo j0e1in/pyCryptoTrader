@@ -1,5 +1,5 @@
-from setup import run, setup
-setup()
+from setup import run
+
 
 from datetime import datetime
 from pprint import pprint

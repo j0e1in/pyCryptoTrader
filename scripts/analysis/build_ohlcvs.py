@@ -1,5 +1,5 @@
-from setup import run, setup
-setup()
+from setup import run
+
 
 import logging
 import os

@@ -1,5 +1,4 @@
-from setup import setup, run
-setup()
+from setup import run
 
 from datetime import datetime
 
