@@ -693,18 +693,23 @@ class EXPeriod():
 
 log_type = 'pyct_colored'
 
+if config['mode'] == 'debug':
+    addition_info = "\t  (%(filename)s @ %(funcName)s)"
+else:
+    addition_info = ""
+
 log_config = dict(
     version = 1,
     # disable_existing_loggers = False,
     formatters = {
         'pyct_default': { # has alignment but no color
             'datefmt': "%Y-%m-%d %H:%M:%S",
-            'format': "%(asctime)s | %(levelname)-8s | %(message)s\t  (%(filename)s @ %(funcName)s)"
+            'format': f"%(asctime)s | %(levelname)-8s | %(message)s{addition_info}"
         },
         'pyct_colored': { # has color but no alignment
             'class': 'chromalog.log.ColorizingFormatter',
             'datefmt': "%Y-%m-%d %H:%M:%S",
-            'format': "%(asctime)s | %(levelname)s | %(message)s\t  (%(filename)s @ %(funcName)s)"
+            'format': f"%(asctime)s | %(levelname)s | %(message)s{addition_info}"
         }
     },
     handlers = {

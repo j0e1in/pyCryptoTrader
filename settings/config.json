@@ -84,7 +84,7 @@
       ]
     },
     "strategy": {
-      "data_days": 15
+      "data_days": 20
     },
     "params": {
       "common": {
