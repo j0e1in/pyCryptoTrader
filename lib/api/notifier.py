@@ -146,7 +146,7 @@ class Messenger():
 
         summary['price'] /= len(orders)
 
-        route = f"/notification/order/failed/{self.trader.userid}"
+        route = f"/notification/order/fail/{self.trader.userid}"
         payload = {'orders': orders, 'summary': summary}
 
         return await self.request('post', route, payload)
@@ -161,30 +161,29 @@ class Messenger():
         """ Warn for danger positions
             Send:
             {
-                "positions": [
-                    {
-                        "exchange": string
-                        "symbol": string
-                        "side": string
-                        "amount": float
-                        "price": float
-                        "value": float
-                        "timestamp": string,
-                        "PL": float
-                        "PL(%)": float
-                    },
-                    ...
-                ]
+                "positions": {
+                    "exchange": string
+                    "id": string
+                    "symbol": string
+                    "side": string
+                    "amount": float
+                    "price": float
+                    "value": float
+                    "timestamp": string,
+                    "PL": float
+                    "PL(%)": float
+                }
             }
         """
         if not isinstance(positions, list):
-            positions = [positions]
+            _positions = [positions]
 
         positions = api_parse_positions(
-            positions, self.trader.config[self.trader.ex.exname]['margin_rate'])
+            _positions, self.trader.config[self.trader.ex.exname]['margin_rate'])
 
-        for position in positions:
+        for i, position in enumerate(positions):
             position['exchange'] = self.trader.ex.exname
+            position['id'] = _positions[i]['id']
 
         route = f"/notification/position/danger/{self.trader.userid}"
         payload = {'positions': positions}
@@ -194,28 +193,29 @@ class Messenger():
     async def notify_position_large_pl(self, positions):
         """ Notify for large pl positions
             {
-                "position": {
+                "positions": {
                     "exchange": string
+                    "id": string
                     "symbol": string
-                    "type": string
                     "side": string
                     "amount": float
                     "price": float
+                    "value": float
                     "timestamp": string
-                    "margin": bool
-                    "PL" float
-                    "PL(%)" float
+                    "PL": float
+                    "PL(%)": float
                 }
             }
         """
         if not isinstance(positions, list):
-            positions = [positions]
+            _positions = [positions]
 
         positions = api_parse_positions(
-            positions, self.trader.config[self.trader.ex.exname]['margin_rate'])
+            _positions, self.trader.config[self.trader.ex.exname]['margin_rate'])
 
-        for position in positions:
+        for i, position in enumerate(positions):
             position['exchange'] = self.trader.ex.exname
+            position['id'] = _positions[i]['id']
 
         route = f"/notification/position/large_pl/{self.trader.userid}"
         payload = {'positions': positions}

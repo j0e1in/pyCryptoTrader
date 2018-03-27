@@ -28,7 +28,7 @@ async def test_notify_open_orders_failed(notifier):
 async def test_notify_position_danger_pl(notifier):
     print('-- notify_position_danger_pl --')
     res = await notifier.notify_position_danger_pl(
-        dummy_data['active_positions']['positions'])
+        dummy_data['position_danger_pl']['positions'])
     pprint(res)
 
 
