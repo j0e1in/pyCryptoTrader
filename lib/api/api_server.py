@@ -8,6 +8,7 @@ import copy
 import logging
 import inspect
 import json
+import numpy as np
 import sanic
 
 from api.auth import AuthyManager
@@ -33,7 +34,7 @@ def customized_sanic_log_config():
     config['formatters']['access']['datefmt'] = \
         log_config['formatters']['pyct_colored']['datefmt']
     config['formatters']['access']['format'] = \
-        "%(asctime)s | %(levelname)s | %(host)s | %(request)s %(message)s %(status)d %(byte)d"
+        "%(asctime)s | %(levelname)s | %(request)s %(message)s %(status)d %(byte)d"
 
     return config
 
@@ -308,6 +309,61 @@ class APIServer():
             positions, trader.config[trader.ex.exname]['margin_rate'])
 
         return response.json({ 'positions': positions })
+
+    @app.route('/trading/signals/<uid:string>/<ex:string>', methods=['GET'])
+    async def trading_signals(req, uid, ex):
+        """ Query active orders of an exchange.
+            {
+                "signals": {
+                    "BTC/USD": [ // Contain recent N signals
+                        {
+                            "timestamp": string
+                            "signal": "buy", "sell", "close", "none"
+                        },
+                        ...
+                    ],
+                    "ETH/USD": [...]
+                }
+            }
+        """
+        if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
+            abort(401)
+
+        if not req.app.trader.ex.is_ready():
+            return response.json({ 'error': 'Not ready' })
+
+        trader = req.app.trader
+
+        if ex != trader.ex.exname:
+            return response.json({ 'error': 'Exchange is not active.' })
+
+        try:
+            sigs = await trader.strategy.run()
+        except Exception:
+            return response.json({ 'error': 'Not ready' })
+
+        signals = {}
+
+        for market in sigs:
+            signals[market] = []
+            for dt, sig in sigs[market][-12:].items():
+                action = ''
+
+                if np.isnan(sig):
+                    action = 'none'
+                elif sig > 0:
+                    action = 'buy'
+                elif sig < 0:
+                    action = 'sell'
+                elif sig == 0:
+                    action = 'close'
+
+                signals[market].append({
+                    'timestamp': dt_ms(dt),
+                    'signal': action
+                })
+
+        return response.json(signals)
 
     @app.route('/ping', methods=['GET'])
     async def ping(req):
