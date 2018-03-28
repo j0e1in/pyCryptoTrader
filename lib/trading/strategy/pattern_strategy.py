@@ -27,6 +27,7 @@ class PatternStrategy(SingleEXStrategy):
         super().__init__(trader, custom_config)
         self.ind = Indicator(custom_config=self._config)
         self.last_sig_exec = {}
+        self.signals = None
 
         for market in trader.ex.markets:
             self.last_sig_exec[market] = {
@@ -43,6 +44,8 @@ class PatternStrategy(SingleEXStrategy):
         signals = {}
         for market in self.trader.ex.markets:
             signals[market] = self.calc_signal(market)
+
+        self.signals = signals
 
         await self.execute(signals)
 

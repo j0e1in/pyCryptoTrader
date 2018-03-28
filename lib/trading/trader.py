@@ -202,14 +202,14 @@ class SingleEXTrader():
         if (cur_time - last_log_time) > \
         tf_td(self.config['indicator_tf']) / 8:
             for market in self.ex.markets:
-                logger.info(f"{market} indicator signal @ {time_str}\n{sig[market][-10:]}")
+                logger.info(f"{market} indicator signal @ {time_str}\n{sig[market][-12:]}")
 
             last_log_time = cur_time
             log_remain_time = True
         else:
             for market in self.ex.markets:
                 if sig_changed(sig, market):
-                    logger.info(f"{market} indicator signal @ {time_str}\n{sig[market][-10:]}")
+                    logger.info(f"{market} indicator signal @ {time_str}\n{sig[market][-12:]}")
                     log_remain_time = True
 
         if log_remain_time:

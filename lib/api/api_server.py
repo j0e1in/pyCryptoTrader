@@ -337,9 +337,8 @@ class APIServer():
         if ex != trader.ex.exname:
             return response.json({ 'error': 'Exchange is not active.' })
 
-        try:
-            sigs = await trader.strategy.run()
-        except Exception:
+        sigs = trader.strategy.signals
+        if not sigs:
             return response.json({ 'error': 'Not ready' })
 
         signals = {}
