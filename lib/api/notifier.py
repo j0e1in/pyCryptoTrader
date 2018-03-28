@@ -64,6 +64,8 @@ class Messenger():
                 }
             }
         """
+        orders = copy.deepcopy(orders)
+
         if not isinstance(orders, list):
             orders = [orders]
 
@@ -122,6 +124,8 @@ class Messenger():
                 }
             }
         """
+        orders = copy.deepcopy(orders)
+
         if not isinstance(orders, list):
             orders = [orders]
 
@@ -175,18 +179,20 @@ class Messenger():
                 }
             }
         """
+        positions = copy.deepcopy(positions)
+
         if not isinstance(positions, list):
-            _positions = [positions]
+            positions = [positions]
 
-        positions = api_parse_positions(
-            _positions, self.trader.config[self.trader.ex.exname]['margin_rate'])
+        parsed_positions = api_parse_positions(
+            positions, self.trader.config[self.trader.ex.exname]['margin_rate'])
 
-        for i, position in enumerate(positions):
+        for i, position in enumerate(parsed_positions):
             position['exchange'] = self.trader.ex.exname
             position['id'] = _positions[i]['id']
 
         route = f"/notification/position/danger/{self.trader.userid}"
-        payload = {'positions': positions}
+        payload = {'positions': parsed_positions}
 
         return await self.request('post', route, payload)
 
@@ -207,18 +213,20 @@ class Messenger():
                 }
             }
         """
+        positions = copy.deepcopy(positions)
+
         if not isinstance(positions, list):
-            _positions = [positions]
+            positions = [positions]
 
-        positions = api_parse_positions(
-            _positions, self.trader.config[self.trader.ex.exname]['margin_rate'])
+        parsed_positions = api_parse_positions(
+            positions, self.trader.config[self.trader.ex.exname]['margin_rate'])
 
-        for i, position in enumerate(positions):
+        for i, position in enumerate(parsed_positions):
             position['exchange'] = self.trader.ex.exname
-            position['id'] = _positions[i]['id']
+            position['id'] = positions[i]['id']
 
         route = f"/notification/position/large_pl/{self.trader.userid}"
-        payload = {'positions': positions}
+        payload = {'positions': parsed_positions}
 
         return await self.request('post', route, payload)
 
@@ -254,27 +262,27 @@ class Messenger():
             return None
 
         request_method = getattr(self.session, method)
-        _header = copy.deepcopy(self.default['header'])
-        _payload = copy.deepcopy(self.default['payload'])
+        p_header = copy.deepcopy(self.default['header'])
+        p_payload = copy.deepcopy(self.default['payload'])
 
         if isinstance(header, dict):
-            _header.update(header)
+            p_header.update(header)
         elif header:
             logger.warning(f"Expect header to be dict but got {type(header)}")
 
         if isinstance(payload, dict):
-            _payload.update(payload)
+            p_payload.update(payload)
         elif payload:
             logger.warning(f"Expect payload to be dict but got {type(payload)}")
 
-        _payload = json.dumps(_payload)
-        _header['x-hub-signature'] = \
-            'sha1=' + gen_signature(_payload, self.secret, sha1)
+        p_payload = json.dumps(p_payload)
+        p_header['x-hub-signature'] = \
+            'sha1=' + gen_signature(p_payload, self.secret, sha1)
 
         async with request_method(
             self.base_url + route,
-            headers=_header,
-            data=_payload) as res:
+            headers=p_header,
+            data=p_payload) as res:
 
             raw = await res.text()
             content = {}

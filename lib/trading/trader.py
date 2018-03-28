@@ -462,13 +462,13 @@ class SingleEXTrader():
                 price /= amount
 
                 logger.info(f"Created {symbol} scaled margin {side} order: "
-                            f"avg price: {price} amount: {amount} value: {price * amount}")
+                            f"avg price: {price} amount: {amount} value: {price * amount:0.2f}")
             else:
                 order = res
                 price = order['price']
                 amount = order['amount']
                 logger.info(f"Created {symbol} margin {side} order: "
-                            f"price: {price} amount: {amount} value: {price * amount}")
+                            f"price: {price} amount: {amount} value: {price * amount:0.2f}")
 
             # Queue open position if current action is to close position
             if has_opposite_open_position and not _action == 'close':

@@ -41,7 +41,7 @@
     "margin": false,
     "indicator_tf": "8h",
     "trade_portion": 0.6,
-    "max_fund": 5000,
+    "max_fund": 100,
 
     "_conmment_maintain_portion": "ratio of balance in wallet and balance in markets",
     "maintain_portion": 0.05,
