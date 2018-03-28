@@ -203,6 +203,7 @@ class SingleEXTrader():
         tf_td(self.config['indicator_tf']) / 8:
             for market in self.ex.markets:
                 logger.info(f"{market} indicator signal @ {time_str}\n{sig[market][-12:]}")
+                last_sig[market] = sig[market].iloc[-1]
 
             last_log_time = cur_time
             log_remain_time = True

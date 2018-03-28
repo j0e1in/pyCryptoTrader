@@ -114,7 +114,8 @@ class EXMongo():
 
         return ms_dt(res[0]['timestamp'])
 
-    async def get_ohlcv(self, ex, symbol, timeframe, start, end, fields_condition={}, compress=False):
+    async def get_ohlcv(self, ex, symbol, timeframe, start, end,
+                        fields_condition={}, compress=False, coll_prefix=''):
         """ Read ohlcv of 'one' symbol and 'one' timeframe from mongodb into DataFrame,
             Params
                 ex: str or ccxt exchange instance
@@ -129,13 +130,14 @@ class EXMongo():
         condition = self.cond_timestamp_range(start, end)
 
         ex = ex_name(ex)
-        collection = f"{ex}_ohlcv_{rsym(symbol)}_{timeframe}"
+        collection = f"{coll_prefix}{ex}_ohlcv_{rsym(symbol)}_{timeframe}"
 
         coll = self.get_collection(db, collection)
         if not await self.coll_exist(coll):
             raise ValueError(f"Collection {collection} does not exist.")
 
         ohlcv = await self._read_to_dataframe(db, collection, condition,
+                                             fields_condition=fields_condition,
                                              index_col='timestamp',
                                              date_col='timestamp',
                                              date_parser=ms_dt)

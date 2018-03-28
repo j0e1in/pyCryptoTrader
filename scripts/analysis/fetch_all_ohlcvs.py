@@ -110,7 +110,7 @@ async def main():
 
             logger.info(f"Finished fetching {symbol} {timeframe}")
 
-    exchange.close()
+    await exchange.close()
 
 
 if __name__ == '__main__':

@@ -58,7 +58,7 @@ async def test_fetch_my_trades():
 
 
 async def test_find_missing_ohlcv():
-    mongo = motor.AsyncIOMotorClient('localhost', 27017)
+    mongo = EXMongo()
 
     timeframe = '15m'
     coll_tamplate = "bitfinex_ohlcv_ETHUSD_{}"
