@@ -33,6 +33,9 @@ class EXMongo():
         if not port:
             port = self.config['default_port']
 
+        self.host = host
+        self.port = port
+
         if not uri:
             if self.config['auth']:
                 user = self.config['username']
@@ -44,16 +47,6 @@ class EXMongo():
 
         logger.info(f"Connecting mongo client to {host}:{port}")
         self.client = motor_asyncio.AsyncIOMotorClient(uri)
-
-    async def get_exchanges_info(self, ex):
-        # TODO: Read exchange summary
-        # self.update_exchanges_info()
-        # coll_names = await self.client.get_database(self.config['dbname_exchange']).collection_names()
-        pass
-
-    async def update_exchanges_info(self):
-        # TODO: Update exchange summary
-        pass
 
     async def export_to_csv(self, db, collection, path):
         await self._dump_to_file(db, collection, path, 'csv')

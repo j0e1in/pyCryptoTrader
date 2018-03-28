@@ -52,7 +52,14 @@ async def main():
     if argv.from_start:
         # Starting from 'lib/'
         file = '../scripts/mongodb/create_index.js'
-        os.system(f"mongo < {file}")
+        host = f"{mongo.host}:{mongo.port}"
+        auth = ''
+
+        if mongo.config['auth']:
+            host += f"/{mongo.config['auth_db']}"
+            auth = f"-u {mongo.config['username']} -p {mongo.config['password']}"
+
+        os.system(f"mongo {host} {auth} < {file}")
 
 
 if __name__ == '__main__':
