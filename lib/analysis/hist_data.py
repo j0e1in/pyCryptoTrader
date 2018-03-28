@@ -216,3 +216,22 @@ async def build_ohlcv(mongo, exchange, symbol, src_tf, target_tf, *,
 
     await mongo.insert_ohlcv(
         target_df, exchange, symbol, target_tf, coll_prefix=coll_prefix, upsert=upsert)
+
+
+async def compare_ohlcvs(mongo, exchange, symbol, tf, prefix_1, prefix_2):
+    start = MIN_DT
+    end = datetime(9999, 1, 1)
+
+    ohlcv_1 = await mongo.get_ohlcv(
+        exchange, symbol, tf, start, end, coll_prefix=prefix_1)
+
+    ohlcv_2 = await mongo.get_ohlcv(
+        exchange, symbol, tf, start, end, coll_prefix=prefix_2)
+
+    start = max(ohlcv_1.index[0], ohlcv_2.index[0])
+    end = min(ohlcv_1.index[-1], ohlcv_2.index[-1])
+    diff = ohlcv_1[start:end] == ohlcv_2[start:end]
+
+    return diff
+
+
