@@ -103,7 +103,7 @@ coll = db.getCollectionNames()
 
 // Create unique id index and timestamp index for trades
 
-collection = db.getCollection('authy_users')
+collection = db.getCollection('authy_account')
 
 // Find duplicates
 collection.aggregate(

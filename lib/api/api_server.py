@@ -1,6 +1,5 @@
 from concurrent.futures import FIRST_COMPLETED
 from sanic import response
-from sanic.exceptions import abort
 
 import asyncio
 import argparse
@@ -13,6 +12,7 @@ import sanic
 
 from api.auth import AuthyManager
 from utils import \
+    INF, \
     dt_ms, \
     config, \
     load_json, \
@@ -25,18 +25,18 @@ logger = logging.getLogger('pyct')
 dummy_data = load_json(config['dummy_data_file'])
 
 def customized_sanic_log_config():
-    config = sanic.log.LOGGING_CONFIG_DEFAULTS
+    s_config = sanic.log.LOGGING_CONFIG_DEFAULTS
 
-    config['formatters']['generic']['datefmt'] = \
+    s_config['formatters']['generic']['datefmt'] = \
         log_config['formatters']['pyct_colored']['datefmt']
-    config['formatters']['generic']['format'] = \
+    s_config['formatters']['generic']['format'] = \
         log_config['formatters']['pyct_colored']['format']
-    config['formatters']['access']['datefmt'] = \
+    s_config['formatters']['access']['datefmt'] = \
         log_config['formatters']['pyct_colored']['datefmt']
-    config['formatters']['access']['format'] = \
+    s_config['formatters']['access']['format'] = \
         "%(asctime)s | %(levelname)s | %(request)s %(message)s %(status)d %(byte)d"
 
-    return config
+    return s_config
 
 
 class APIServer():
@@ -56,8 +56,6 @@ class APIServer():
         self._config = custom_config if custom_config else config
         self.config = self._config['apiserver']
 
-        self.api_access = self.config['api_access']
-
         self.app.trader = trader
         self.app.server = self
         self.app.config.KEEP_ALIVE = config['apiserver']['keep_alive']
@@ -68,7 +66,7 @@ class APIServer():
         self.log_level = 'info'
         self.authy = AuthyManager(trader.mongo)
 
-    async def run(self, host='0.0.0.0', port=8000, enable_ssl=False, *args, **kwargs):
+    async def run(self, host='0.0.0.0', port=8000, enable_ssl=False, **kwargs):
         """ Start server and provide some cli options. """
 
         # Sanic.create_server options
@@ -90,7 +88,7 @@ class APIServer():
         else:
             context = None
 
-        start_server = self.app.create_server(host=host, port=port, ssl=context, *args, **kwargs)
+        start_server = self.app.create_server(host=host, port=port, ssl=context, **kwargs)
         start_trader = asyncio.ensure_future(self.app.trader.start())
 
         with_ssl = 'with' if enable_ssl else 'without'
@@ -105,33 +103,63 @@ class APIServer():
     async def after_server_stop(app, loop):
         await app.trader.ex.ex.close()
 
-    @app.route('/authy/create_user', methods=['POST'])
-    async def authy_create_user(req):
-        """ Add authy user to database, and authy will send 2FA to their account. """
-        # TODO: use payload info to verify access
-        # if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
-        #     abort(401)
-
+    @app.route('/register/account', methods=['POST'])
+    async def register_uid(req):
         payload = req.json
         if not payload \
+        or 'uid' not in payload \
+        or 'exchange' not in payload \
+        or 'exchange_username' not in payload \
+        or 'auth_level' not in payload:
+            return response.json({
+                'error': "Payload should contain fields "
+                         "`uid`, `exchange`, `exchange_username`, `auth_level`"
+            })
+
+        uid = payload['uid']
+        ex = payload['exchange']
+        ex_user = payload['exchange_username']
+        auth_level = payload['auth_level']
+
+        if await req.app.server.uid_exist(uid, ex):
+            return response.json({'error': "Account already exists"})
+
+        mongo = req.app.trader.mongo
+        coll = mongo.get_collection(mongo.config['dbname_api'], 'account')
+        coll.insert({
+            'uid': uid,
+            'ex': ex,
+            'ex_username': ex_user,
+            'auth_level': auth_level
+        })
+
+        return response.json({'ok': True})
+
+    @app.route('/register/authy', methods=['POST'])
+    async def authy_create_user(req):
+        """ Add authy user to database, and authy will send 2FA to their account. """
+        payload = req.json
+        if not payload \
+        or 'uid' not in payload \
         or 'email' not in payload \
         or 'phone' not in payload \
         or 'country_code' not in payload:
             return response.json({
                 'error': "Payload should contain fields "
-                         "`email`, `phone` and `country_code`"
+                         "`uid`, `email`, `phone` and `country_code`"
             })
 
         succ, res = await req.app.server.authy.create_user(
+            payload['uid'],
             payload['email'],
             payload['phone'],
             payload['country_code']
         )
+
         if succ:
             return response.json({'ok': True})
         else:
             return response.json({'error': res})
-
 
     @app.route('/account/info/<uid:string>/<ex:string>', methods=['GET'])
     async def account_info(req, uid, ex):
@@ -158,8 +186,8 @@ class APIServer():
                 ]
             }
         """
-        if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
-            abort(401)
+        if not await req.app.server.verified_access(uid, ex, inspect.stack()[0][3]):
+            return response.json({'error': 'Unauthorized'}, status=401)
 
         if not req.app.trader.ex.is_ready():
             return response.json({ 'error': 'Not ready' })
@@ -225,8 +253,8 @@ class APIServer():
                 "PL_Eff": float
             }
         """
-        if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
-            abort(401)
+        if not await req.app.server.verified_access(uid, ex, inspect.stack()[0][3]):
+            return response.json({'error': 'Unauthorized'}, status=401)
 
         if not req.app.trader.ex.is_ready():
             return response.json({ 'error': 'Not ready' })
@@ -259,8 +287,8 @@ class APIServer():
                 ]
             }
         """
-        if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
-            abort(401)
+        if not await req.app.server.verified_access(uid, ex, inspect.stack()[0][3]):
+            return response.json({'error': 'Unauthorized'}, status=401)
 
         if ex != req.app.trader.ex.exname:
             return response.json({ 'error': 'Exchange is not active.' })
@@ -292,8 +320,8 @@ class APIServer():
                 ]
             }
         """
-        if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
-            abort(401)
+        if not await req.app.server.verified_access(uid, ex, inspect.stack()[0][3]):
+            return response.json({'error': 'Unauthorized'}, status=401)
 
         trader = req.app.trader
 
@@ -326,8 +354,8 @@ class APIServer():
                 }
             }
         """
-        if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
-            abort(401)
+        if not await req.app.server.verified_access(uid, ex, inspect.stack()[0][3]):
+            return response.json({'error': 'Unauthorized'}, status=401)
 
         if not req.app.trader.ex.is_ready():
             return response.json({ 'error': 'Not ready' })
@@ -374,8 +402,8 @@ class APIServer():
 
     @app.route('/notification/log_level/<uid:string>', methods=['POST'])
     async def change_log_level(req, uid):
-        if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
-            abort(401)
+        if not await req.app.server.verified_access(uid, '', inspect.stack()[0][3]):
+            return response.json({'error': 'Unauthorized'}, status=401)
 
         payload = req.json
         if not payload or 'level' not in payload:
@@ -384,13 +412,19 @@ class APIServer():
                          "with one of values: info | debug | warn | error"
             })
 
+        msg = f"Set log level to {payload['level']}"
+        accept, res = await req.app.server.send_2fa_request(uid, msg)
+
+        if not accept:
+            return res
+
         req.app.server.log_level = payload['level']
         return response.json({'ok': True})
 
     @app.route('/notification/large_pl/<uid:string>', methods=['POST'])
     async def change_large_pl_threshold(req, uid):
-        if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
-            abort(401)
+        if not await req.app.server.verified_access(uid, '', inspect.stack()[0][3]):
+            return response.json({'error': 'Unauthorized'}, status=401)
 
         payload = req.json
         if not payload or 'PL(%)' not in payload:
@@ -398,13 +432,19 @@ class APIServer():
                 'error': "Payload should contain field `PL(%)`"
             })
 
-        req.app.server.trader._config['apiclient']['large_pl_threshold'] = payload['PL(%)']
+        msg = f"Set large PL threshold to {payload['PL(%)']}"
+        accept, res = await req.app.server.send_2fa_request(uid, msg)
+
+        if not accept:
+            return res
+
+        req.app.trader._config['apiclient']['large_pl_threshold'] = payload['PL(%)']
         return response.json({'ok': True})
 
     @app.route('/trading/max_fund/<uid:string>', methods=['POST'])
     async def change_max_fund(req, uid):
-        if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
-            abort(401)
+        if not await req.app.server.verified_access(uid, '', inspect.stack()[0][3]):
+            return response.json({'error': 'Unauthorized'}, status=401)
 
         payload = req.json
         if not payload or 'fund' not in payload:
@@ -424,8 +464,8 @@ class APIServer():
 
     @app.route('/trading/markets/enable/<uid:string>/<ex:string>', methods=['POST'])
     async def enable_markets(req, uid, ex):
-        if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
-            abort(401)
+        if not await req.app.server.verified_access(uid, ex, inspect.stack()[0][3]):
+            return response.json({'error': 'Unauthorized'}, status=401)
 
         trader = req.app.trader
         payload = req.json
@@ -462,8 +502,8 @@ class APIServer():
 
     @app.route('/trading/markets/disable/<uid:string>/<ex:string>', methods=['POST'])
     async def disable_markets(req, uid, ex):
-        if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
-            abort(401)
+        if not await req.app.server.verified_access(uid, ex, inspect.stack()[0][3]):
+            return response.json({'error': 'Unauthorized'}, status=401)
 
         trader = req.app.trader
         payload = req.json
@@ -500,8 +540,8 @@ class APIServer():
 
     @app.route('/trading/enable/<uid:string>', methods=['POST'])
     async def enable_trading(req, uid):
-        if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
-            abort(401)
+        if not await req.app.server.verified_access(uid, '', inspect.stack()[0][3]):
+            return response.json({'error': 'Unauthorized'}, status=401)
 
         msg = "Enable trading"
         accept, res = await req.app.server.send_2fa_request(uid, msg)
@@ -516,8 +556,8 @@ class APIServer():
 
     @app.route('/trading/disable/<uid:string>', methods=['POST'])
     async def disable_trading(req, uid):
-        if not req.app.server.verified_access(uid, inspect.stack()[0][3]):
-            abort(401)
+        if not await req.app.server.verified_access(uid, '', inspect.stack()[0][3]):
+            return response.json({'error': 'Unauthorized'}, status=401)
 
         msg = "Disable trading"
         accept, res = await req.app.server.send_2fa_request(uid, msg)
@@ -530,31 +570,62 @@ class APIServer():
 
         return response.json({ 'ok': True })
 
-    def verified_access(self, uid, func):
-        if uid in self.api_access:
-            if func in self.api_access[uid]['deny']:
-                return False
+    ###########################
+    ##         2FA End       ##
+    ###########################
 
-            elif ("all" in self.api_access[uid]['allow'] \
-            or    func in self.api_access[uid]['allow']):
-                return True
+    async def verified_access(self, uid, ex, func):
+        auth_level = str(await self.get_auth_level(uid, ex))
 
-        return False
+        if auth_level == '0':
+            return False
+
+        denied = self.config['auth_level'][auth_level]
+        if func in denied:
+            return False
+        else:
+            return True
 
     async def send_2fa_request(self, uid, msg):
         # Convert uid to userid
         # and check if the userid is in mongodb
-        userid = self.authy.get_userid(uid)
-        if not userid \
-        or not await self.authy.user_exist(userid):
+        authyid = await self.authy.get_authyid(uid)
+
+        if not authyid \
+        or not await self.authy.user_exist(authyid):
             return False, response.json({'error': f'Authy user does not exist.'})
 
-        res, status = await self.authy.one_touch(userid, msg)
+        res, status = await self.authy.one_touch(authyid, msg)
         if not res:
             return False, response.json(
                 {'error': f'2FA request {status}'})
         else:
             return True, ''
+
+    async def uid_exist(self, uid, ex):
+        mongo = self.app.trader.mongo
+        coll = mongo.get_collection(mongo.config['dbname_api'], 'account')
+        res = await coll.find_one({'uid': uid, 'ex': ex})
+        return True if res else False
+
+    async def get_auth_level(self, uid, ex):
+        mongo = self.app.trader.mongo
+        coll = mongo.get_collection(mongo.config['dbname_api'], 'account')
+
+        if ex:
+            res = await coll.find_one({'uid': uid, 'ex': ex})
+        else:
+            # if ex is not specified, use highest level
+            res = await coll.find({'uid': uid}) \
+                .sort([('auth_level', 1)]) \
+                .limit(1) \
+                .to_list(length=INF)
+            res = res[0] if res else []
+
+        if res:
+            return res['auth_level']
+        else:
+            return 0
 
 
 def api_parse_orders(orders):
