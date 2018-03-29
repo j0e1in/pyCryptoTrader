@@ -233,5 +233,3 @@ async def compare_ohlcvs(mongo, exchange, symbol, tf, prefix_1, prefix_2):
     diff = ohlcv_1[start:end] == ohlcv_2[start:end]
 
     return diff
-
-

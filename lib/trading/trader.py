@@ -614,7 +614,7 @@ class SingleEXTrader():
         if not self.margin_order_queue:
             return None
 
-        positions = self.ex.fetch_positions()
+        positions = await self.ex.fetch_positions()
 
         for symbol, order in self.margin_order_queue.items():
             symbol_pos = filter_by(positions, ('symbol', symbol))
