@@ -6,7 +6,7 @@ import os
 import sys
 
 def parse_args():
-    parser = argparse.ArgumentParser(formatter_class=RawTextHelpFormatter)
+    parser = argparse.ArgumentParser(formatter_class=RawTextHelpFormatter, allow_abbrev=False)
 
     # Analysis
     parser.add_argument('--build-ohlcvs', action='store_true', help="Execute build_ohlcv.py")
