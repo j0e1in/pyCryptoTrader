@@ -421,21 +421,24 @@
     "keep_alive_timeout": 10,
     "request_timeout": 120,
     "response_timeout": 120,
-    "api_access": {
-      "j0e1in": {
-        "allow": [ "all" ],
-        "deny": []
-      },
-      "wayne": {
-        "allow": [ "all" ],
-        "deny": [
-          "change_max_fund",
-          "enable_markets",
-          "disable_markets",
-          "enable_trading",
-          "disable_trading"
-        ]
-      }
+    "auth_level": {
+      "1": [], // allow all
+      "2": [
+        "change_max_fund",
+        "enable_markets",
+        "disable_markets",
+        "enable_trading",
+        "disable_trading"
+      ],
+      "3": [
+        "change_log_level",
+        "change_large_pl_threshold",
+        "change_max_fund",
+        "enable_markets",
+        "disable_markets",
+        "enable_trading",
+        "disable_trading"
+      ]
     },
     "cert": "../private/fullchain.pem",
     "key": "../private/privkey.pem"
@@ -450,7 +453,7 @@
   },
 
   "authy": {
-    "seconds_to_expire": 300
+    "seconds_to_expire": 120
   }
 }
 
