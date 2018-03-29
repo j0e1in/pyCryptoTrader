@@ -110,7 +110,7 @@ collection.aggregate(
     [
         {
             "$group": {
-                "_id": { "userid": "$userid" },
+                "_id": { "uid": "$uid" },
                 "dups": { "$push": "$_id" },
                 "count": { "$sum": 1 }
             }
@@ -127,4 +127,4 @@ collection.aggregate(
 })
 
 // Create unique index
-collection.createIndex({ "userid": 1 }, { unique: true })
+collection.createIndex({ "uid": 1 }, { unique: true })

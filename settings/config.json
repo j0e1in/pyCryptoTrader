@@ -1,6 +1,6 @@
 {
   "mode": "dev",
-  "userid": "j0e1in",
+  "uid": "j0e1in",
 
   "use_multicore": true,
   "max_processes": 8,

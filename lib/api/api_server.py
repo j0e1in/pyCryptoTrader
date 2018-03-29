@@ -587,10 +587,10 @@ class APIServer():
             return True
 
     async def send_2fa_request(self, uid, msg):
-        # Convert uid to userid
-        # and check if the userid is in mongodb
+        # Convert uid to authyid
         authyid = await self.authy.get_authyid(uid)
 
+        # and check if the authyid is already existed
         if not authyid \
         or not await self.authy.user_exist(authyid):
             return False, response.json({'error': f'Authy user does not exist.'})

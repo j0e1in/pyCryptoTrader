@@ -13,7 +13,7 @@ from utils import config
 
 
 timestr = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-log_file = f"start_trader_{config['userid']}_{timestr}.log"
+log_file = f"start_trader_{config['uid']}_{timestr}.log"
 
 logger = logging.getLogger('pyct')
 

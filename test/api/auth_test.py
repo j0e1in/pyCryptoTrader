@@ -21,10 +21,7 @@ async def test_create_user(authy, cred):
 
 async def test_one_touch(authy, cred):
     print('-- one_touch --')
-    res = await authy.one_touch(
-        cred['userid'],
-        "Test ask approval"
-    )
+    res = await authy.one_touch(cred['"authy"'], "Test ask approval")
     pprint(res)
 
 

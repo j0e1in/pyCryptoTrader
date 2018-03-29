@@ -33,7 +33,7 @@ logger = logging.getLogger('pyct')
 class SingleEXTrader():
 
     def __init__(self, mongo, ex_id, strategy_name,
-                 userid=None,
+                 uid=None,
                  custom_config=None,
                  ccxt_verbose=False,
                  disable_trading=False,
@@ -51,7 +51,7 @@ class SingleEXTrader():
 
         # Requires self attributes above
         # Order of this initialization matters
-        self.userid = userid if userid else config['userid']
+        self.uid = uid if uid else config['uid']
         self.notifier = Messenger(self, self._config, disable=disable_notification)
         self.ex = self.init_exchange(ex_id,
             notifier=self.notifier,
@@ -86,7 +86,7 @@ class SingleEXTrader():
                       ccxt_verbose=False,
                       disable_ohlcv_stream=False):
         """ Make an instance of a custom EX class. """
-        key = load_keys()[self.userid][ex_id]
+        key = load_keys()[self.uid][ex_id]
         ex_class = getattr(exchanges, str.capitalize(ex_id))
         return ex_class(
             self.mongo,
@@ -131,7 +131,7 @@ class SingleEXTrader():
             self.summary['initial_balance'] = copy.deepcopy(self.ex.wallet)
             self.summary['initial_value'] = await self.ex.calc_account_value()
 
-        logger.info(f"Start trader as user: {self.userid}")
+        logger.info(f"Start trader as user: {self.uid}")
 
         if not self.enable_trading:
             logger.info("Trading disabled")
