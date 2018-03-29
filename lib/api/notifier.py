@@ -1,5 +1,6 @@
 from hashlib import sha1
 
+import asyncio
 import aiohttp
 import base64
 import copy
@@ -189,7 +190,7 @@ class Messenger():
 
         for i, position in enumerate(parsed_positions):
             position['exchange'] = self.trader.ex.exname
-            position['id'] = _positions[i]['id']
+            position['id'] = positions[i]['id']
 
         route = f"/notification/position/danger/{self.trader.userid}"
         payload = {'positions': parsed_positions}
@@ -279,20 +280,35 @@ class Messenger():
         p_header['x-hub-signature'] = \
             'sha1=' + gen_signature(p_payload, self.secret, sha1)
 
-        async with request_method(
-            self.base_url + route,
-            headers=p_header,
-            data=p_payload) as res:
-
-            raw = await res.text()
-            content = {}
+        retry = 0
+        retry_sec = 10
+        while retry < 3:
+            retry += 1
 
             try:
-                content = json.loads(raw)
-            except json.JSONDecodeError:
-                logger.error(f"JSON load failed:\n{raw}")
+                async with request_method(
+                    self.base_url + route,
+                    headers=p_header,
+                    data=p_payload) as res:
 
-            return content
+                    raw = await res.text()
+                    content = {}
+
+                    try:
+                        content = json.loads(raw)
+                    except json.JSONDecodeError:
+                        logger.error(f"JSON load failed:\n{raw}")
+                        return {}
+                    else:
+                        return content
+
+            except aiohttp.ClientConnectorError as err:
+                logger.warning(f"{err}, retry in {retry_sec} seconds")
+                await asyncio.sleep(retry_sec)
+            else:
+                break
+
+        return {}
 
     async def close(self):
         await self.session.close()
