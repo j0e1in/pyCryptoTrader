@@ -22,7 +22,8 @@ services:
       - ./log:/app/log
       - ./settings:/app/settings:ro
     networks:
-      - mongo_net_stack
+      - mongo_net
+      - redis_net
     ports:
       - "8000:8000"
     secrets:
@@ -36,7 +37,9 @@ services:
       replicas: 1
 
 networks:
-  mongo_net_stack:
+  mongo_net:
+    external: true
+  redis_net:
     external: true
 
 volumes:

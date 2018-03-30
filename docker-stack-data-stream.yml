@@ -8,7 +8,7 @@ services:
       - ./log:/app/log
       - ./settings:/app/settings:ro
     networks:
-      - mongo_net
+      - mongo_net_swarm
     secrets:
       - source: keys.json
         target: /app/private/keys.json
@@ -25,7 +25,7 @@ services:
     volumes:
       - mongo_data:/data/db
     networks:
-      - mongo_net
+      - mongo_net_swarm
     ports:
       - 27017:27017
     deploy:
@@ -40,7 +40,7 @@ services:
       - redis_data:/data
       - ./settings/redis.conf:/etc/redis/redis.conf
     networks:
-      - redis_net
+      - redis_net_swarm
     ports:
       - 6379:6379
     secrets:
@@ -50,9 +50,9 @@ services:
 
 
 networks:
-  mongo_net:
+  mongo_net_swarm:
     external: true
-  redis_net:
+  redis_net_swarm:
     external: true
 
 volumes:

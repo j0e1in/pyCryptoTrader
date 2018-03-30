@@ -13,15 +13,17 @@ services:
               --enable-api
               --env .env
               --ssl
-              --disable-trading
     env_file:
       - .env
+    environment:
+      - PYCT_MODE=production
     volumes:
       - ./data:/app/data
       - ./log:/app/log
       - ./settings:/app/settings:ro
     networks:
-      - mongo_net_stack
+      - mongo_net_swarm
+      - redis_net_swarm
     ports:
       - "8000:8000"
     secrets:
@@ -35,7 +37,9 @@ services:
       replicas: 1
 
 networks:
-  mongo_net_stack:
+  mongo_net_swarm:
+    external: true
+  redis_net_swarm:
     external: true
 
 volumes:

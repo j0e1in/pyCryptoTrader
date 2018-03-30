@@ -13,7 +13,7 @@ services:
               --enable-api
               --env .env
               --ssl
-              --log-signal
+              --disable-trading
     env_file:
       - .env
     volumes:
@@ -21,7 +21,8 @@ services:
       - ./log:/app/log
       - ./settings:/app/settings:ro
     networks:
-      - mongo_net_stack
+      - mongo_net_swarm
+      - redis_net_swarm
     ports:
       - "8000:8000"
     secrets:
@@ -35,7 +36,9 @@ services:
       replicas: 1
 
 networks:
-  mongo_net_stack:
+  mongo_net_swarm:
+    external: true
+  redis_net_swarm:
     external: true
 
 volumes:
