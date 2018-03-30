@@ -10,6 +10,7 @@ services:
     command: >
               --start-trader
               --mongo-host=mongo
+              --redis-host=redis
               --enable-api
               --env .env
               --disable-trading

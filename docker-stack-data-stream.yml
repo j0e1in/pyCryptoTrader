@@ -2,7 +2,10 @@ version: '3.3'
 services:
   ohlcv:
     image: gcr.io/docker-reghub/pyct
-    command: "--ohlcv-stream --mongo-host=mongo"
+    command: >
+              --ohlcv-stream
+              --mongo-host=mongo
+              --redis-host=redis
     volumes:
       - ./data:/app/data
       - ./log:/app/log
