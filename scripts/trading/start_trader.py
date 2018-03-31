@@ -7,7 +7,7 @@ import argparse
 import logging
 
 from api import APIServer
-from db import EXMongo
+from db import EXMongo, DataStore
 from trading.trader import SingleEXTrader
 from utils import config
 
@@ -31,6 +31,7 @@ def parse_args():
     parser.add_argument('--ssl', action='store_true', help='Enable SSL, only works if API sever is enabled')
     parser.add_argument('--disable-trading', action='store_true', help='Disable creating orders')
     parser.add_argument('--disable-notification', action='store_true', help='Disable sending notification to clients')
+    parser.add_argument('--redis-host', type=str, help='Specify redis host')
     parser.add_argument('--mongo-host', type=str, help="Specify mongodb host,\n"
                                                        "eg. localhost (host connect to mongo on host)\n"
                                                        "    mongo (container connect to mongo container)\n"
@@ -44,7 +45,10 @@ async def main():
     argv = parse_args()
 
     mongo_host = argv.mongo_host if argv.mongo_host else None
+    redis_host = argv.redis_host if argv.redis_host else None
+
     mongo = EXMongo(host=mongo_host)
+    DataStore.update_redis(host=redis_host)
 
     trader = SingleEXTrader(mongo, 'bitfinex', 'pattern',
             log=argv.log,

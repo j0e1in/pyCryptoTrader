@@ -6,7 +6,7 @@ from datetime import datetime
 import motor.motor_asyncio as motor
 
 from analysis.hist_data import fill_missing_ohlcv
-from db import EXMongo
+from db import EXMongo, DataStore
 from utils import init_ccxt_exchange, config
 
 from pprint import pprint as pp
@@ -62,6 +62,23 @@ async def test_get_ohlcv_trade_start_end(mongo):
     print("trades start:", await mongo.get_trades_start('bitfinex', sym))
     print("trades end:", await mongo.get_trades_end('bitfinex', sym))
 
+def test_datastore():
+    datastore = DataStore.create('delta')
+    datastore.ds = datastore
+    assert datastore.ds == datastore
+
+    d = {'key': 'value'}
+    datastore.alpha = d
+    assert datastore.alpha == d
+
+    print(datastore['alpha'])
+    print('keys:', datastore.keys())
+    print('dir: ', dir(datastore))
+    print('dict:', dict(datastore))
+    print('list:', list(datastore))
+    print('len: ', len(datastore))
+
+
 
 async def main():
     mongo = EXMongo()
@@ -74,6 +91,8 @@ async def main():
     await test_insert_ohlcv(mongo)
     print('------------------------------')
     await test_get_ohlcv_trade_start_end(mongo)
+    print('------------------------------')
+    test_datastore()
 
 if __name__ == '__main__':
     run(main)

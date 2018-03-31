@@ -416,6 +416,12 @@
     "dbname_api": "api"
   },
 
+  "datastore": {
+    "default_host": "172.19.0.2",
+    "default_port": 6379,
+    "password": "vv112358"
+  },
+
   "apiserver": {
     "keep_alive": true,
     "keep_alive_timeout": 10,

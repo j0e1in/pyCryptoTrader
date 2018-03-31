@@ -5,7 +5,6 @@ from pprint import pprint
 
 from api import AuthyManager
 from db import EXMongo
-from trading.trader import SingleEXTrader
 from utils import load_json
 
 

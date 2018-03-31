@@ -1,9 +1,15 @@
 from datetime import datetime
 from pymongo.errors import BulkWriteError
 from motor import motor_asyncio
+from redis import StrictRedis
+from walrus import Walrus
+
 import logging
 import pandas as pd
 import pymongo
+import pickle
+import six
+import re
 
 from utils import \
     INF, \
@@ -16,10 +22,7 @@ from utils import \
 
 pd.options.mode.chained_assignment = None
 
-
 logger = logging.getLogger('pyct')
-
-# TODO: Add insert_trades()
 
 
 class EXMongo():
@@ -347,3 +350,139 @@ class EXMongo():
         """ Fetch fields in the collection and create an empty df with columns. """
         res = await coll.find_one({}, {'_id': 0})
         return pd.DataFrame(columns=res.keys())
+
+
+class DataStoreFactory():
+
+    def __init__(self, custom_config=None):
+        self._config = custom_config if custom_config else config
+        self.config = self._config['datastore']
+        self.redis = None
+        self.host = self.config['default_host']
+        self.port = self.config['default_port']
+        self.password = self.config['password']
+
+        self.update_redis(host=self.host, port=self.port, password=self.password)
+
+    def update_redis(self, host=None, port=None, password=''):
+        self.host = host if host else self.host
+        self.port = port if port else self.port
+        self.password = password if password else self.password
+        self.redis = StrictRedis(host=self.host,
+                                 port=self.port,
+                                 password=self.password)
+
+    def create(self, name):
+        """ Create a named container """
+        return DataStoreContainer(name)
+
+from collections import MutableMapping
+
+class DataStoreContainer(MutableMapping):
+    serializer = pickle
+
+    def __init__(self, name):
+        self._setattr('name', name)
+        self._setattr('serializer', self.serializer)
+
+    def _getattr(self, key):
+        return super(DataStoreContainer).__getattr__(key)
+
+    def _setattr(self, key, val):
+        super().__setattr__(key, val)
+
+    def _delattr(self, key):
+        super().__delattr__(key)
+
+    def __getattr__(self, key):
+        if key in self.__dict__:
+            return self._getattr(key)
+
+        val = DataStore.redis.hget(self.name, key)
+
+        if not val:
+            raise AttributeError(f"{self.__class__} has no attribute `{key}`")
+
+        return self.serializer.loads(val)
+
+    def __setattr__(self, key, val):
+        if self._valid_name(key):
+            val = self.serializer.dumps(val)
+            DataStore.redis.hset(self.name, key, val)
+        else:
+            raise TypeError("`{key}` is not a valid attribute name")
+
+    def __getitem__(self, key):
+        return self.__getattr__(key)
+
+    def __setitem__(self, key, val):
+        self.__setattr__(key, val)
+
+    def __delitem__(self, key):
+        if DataStore.redis.hexists(self.name, key):
+            DataStore.redis.hdel(self.name, key)
+        else:
+            raise AttributeError(f"{self.__class__} has no attribute `{key}`")
+
+    def __getstate__(self):
+        """ Called when this object is being serialized """
+        return (self.name)
+
+    def __setstate__(self, state):
+        """ Called when this object is being deserialized """
+        (name) = state
+
+        self._setattr('name', name)
+        self._setattr('serializer', self.serializer)
+
+    def __repr__(self):
+        """ Return a string representation of the object """
+        return f"DataStoreContainer({self.name}, " \
+               f"{self.keys()})"
+
+    def __eq__(self, obj):
+        if hasattr(obj, 'name') and obj.name == self.name \
+        and hasattr(obj, 'serializer') and obj.serializer == self.serializer:
+            return True
+        else:
+            return False
+
+    def __dir__(self):
+        return [*['name', 'serializer'], *self.keys()]
+
+    def __iter__(self):
+        keys = self.keys()
+        for k in keys:
+            yield k, getattr(self, k)
+
+    def __len__(self):
+        return len(DataStore.redis.hkeys(self.name))
+
+    def items(self):
+        return self.__iter__()
+
+    def keys(self):
+        _keys = []
+        for k in DataStore.redis.hkeys(self.name):
+            _keys.append(str(k, 'UTF-8'))
+        return _keys
+
+
+
+    @classmethod
+    def _valid_name(cls, key):
+        """
+        Check whether a key is a valid attribute name.
+        A key may be used as an attribute if:
+         * It is a string
+         * It matches /^[A-Za-z][A-Za-z0-9_]*$/ (i.e., a public attribute)
+         * The key doesn't overlap with any class attributes (for Attr,
+            those would be 'get', 'items', 'keys', 'values', 'mro', and
+            'register').
+        """
+        return (isinstance(key, six.string_types)
+                and re.match('^[A-Za-z][A-Za-z0-9_]*$', key)
+                and not hasattr(cls, key))
+
+
+DataStore = DataStoreFactory()
