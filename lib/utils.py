@@ -1,5 +1,6 @@
 from pprint import pprint
 from collections import OrderedDict
+from dotenv import load_dotenv
 from datetime import datetime, timedelta
 from pymongo.errors import BulkWriteError
 
@@ -57,15 +58,17 @@ def load_keys(file=None):
         return json.load(f)
 
 
-def load_env():
+def load_env(path=None):
+    if not path:
+        path = '../.env'
+
+    load_dotenv(dotenv_path=path)
+
     return { k.split('PYCT_')[1]: v \
         for k, v in os.environ.items() \
             if k.startswith('PYCT_') }
 
 
-# TODO: Add set_config and get_config method to let
-# classes set and get global config, like get_event_loop
-env = load_env()
 config = load_config('../settings/config.json')
 
 

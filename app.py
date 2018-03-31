@@ -1,9 +1,10 @@
 from argparse import RawTextHelpFormatter
-from dotenv import load_dotenv
 
 import argparse
 import os
 import sys
+
+from lib.utils import load_env
 
 def parse_args():
     parser = argparse.ArgumentParser(formatter_class=RawTextHelpFormatter, allow_abbrev=False)
@@ -55,10 +56,10 @@ def main():
     if not argv_remain:
         argv_remain = ''
 
-    if argv.env:
-        load_dotenv(dotenv_path=argv.env)
     if argv.none:
         return
+
+    load_env(path=argv.env)
 
     elif argv.build_ohlcvs:
         os.system(f"python scripts/analysis/build_ohlcvs.py {argv_remain}")

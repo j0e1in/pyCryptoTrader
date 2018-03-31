@@ -1,5 +1,5 @@
 {
-  "mode": "dev",
+  "mode": "debug",
   "uid": "j0e1in",
 
   "use_multicore": true,
