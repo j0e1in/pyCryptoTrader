@@ -65,8 +65,6 @@ class Messenger():
                 }
             }
         """
-        orders = copy.deepcopy(orders)
-
         if not isinstance(orders, list):
             orders = [orders]
 
@@ -125,8 +123,6 @@ class Messenger():
                 }
             }
         """
-        orders = copy.deepcopy(orders)
-
         if not isinstance(orders, list):
             orders = [orders]
 
@@ -180,8 +176,6 @@ class Messenger():
                 }
             }
         """
-        positions = copy.deepcopy(positions)
-
         if not isinstance(positions, list):
             positions = [positions]
 
@@ -214,8 +208,6 @@ class Messenger():
                 }
             }
         """
-        positions = copy.deepcopy(positions)
-
         if not isinstance(positions, list):
             positions = [positions]
 

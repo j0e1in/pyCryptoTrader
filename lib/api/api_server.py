@@ -629,6 +629,14 @@ class APIServer():
 
 
 def api_parse_orders(orders):
+    if not orders:
+        return orders
+
+    orders = copy.deepcopy(orders)
+
+    if not isinstance(orders, list):
+        orders = [orders]
+
     for ord in orders:
         ord['value'] = abs(ord['amount']) * ord['price']
         ord.pop('average', None)
@@ -645,6 +653,8 @@ def api_parse_orders(orders):
 def api_parse_positions(positions, margin_rate):
     if not positions:
         return positions
+
+    positions = copy.deepcopy(positions)
 
     if not isinstance(positions, list):
         positions = [positions]
