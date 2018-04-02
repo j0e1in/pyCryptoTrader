@@ -1,4 +1,4 @@
-version: '3.3'
+version: '3.5'
 services:
   main:
     build: ./
@@ -34,6 +34,7 @@ services:
         target: /app/private/fullchain.pem
       - source: privkey.pem
         target: /app/private/privkey.pem
+    restart: always
     deploy:
       replicas: 1
 

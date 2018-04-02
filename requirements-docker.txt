@@ -8,6 +8,7 @@ numpy
 pandas
 pymongo
 python-dotenv
+redis
 sanic
 
 # aiohttp

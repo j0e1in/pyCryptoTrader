@@ -1,4 +1,4 @@
-version: '3.3'
+version: '3.5'
 services:
   ohlcv:
     image: gcr.io/docker-reghub/pyct
@@ -16,6 +16,7 @@ services:
         target: /app/private/keys.json
     depends_on:
       - mongo
+    restart: always
     deploy:
       replicas: 1
   mongo:
@@ -30,6 +31,7 @@ services:
       - mongo_net
     ports:
       - 27017:27017
+    restart: always
     deploy:
       replicas: 1
   redis:
@@ -47,6 +49,7 @@ services:
       - 6379:6379
     secrets:
       - redis-passwd
+    restart: always
     deploy:
       replicas: 1
 
