@@ -38,10 +38,9 @@
   },
 
   "trading": {
-    "margin": false,
     "indicator_tf": "8h",
     "trade_portion": 0.6,
-    "max_fund": 100,
+    "max_fund": 200,
 
     "_conmment_maintain_portion": "ratio of balance in wallet and balance in markets",
     "maintain_portion": 0.05,
@@ -49,7 +48,7 @@
     // price difference (buffer) to the top price in orderbook
     "scale_order_near_percent": 0.002,
     "scale_order_close_far_percent": 0.005,
-    "scale_order_far_percent": 0.02,
+    "scale_order_far_percent": 0.03,
     "scale_order_count": 20,
 
     "summary_delay": 120,
@@ -84,7 +83,9 @@
       ]
     },
     "strategy": {
-      "data_days": 20
+      "data_days": 20,
+      "near_start_ratio": 0.05,
+      "near_end_ratio": 0.03
     },
     "params": {
       "common": {
@@ -453,7 +454,7 @@
   "apiclient": {
     "messenger_host": "trader.csie.io",
     "large_pl_threshold": 15, // in percentage
-    "danger_pl_threshold": 12, // in percentage
+    "danger_pl_threshold": 35, // in percentage
     "large_pl_diff": 3, // in percentage
     "danger_pl_diff": 1 // in percentage
   },

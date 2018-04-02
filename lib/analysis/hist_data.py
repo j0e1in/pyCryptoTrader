@@ -131,7 +131,7 @@ async def fetch_my_trades(exchange,
             if parser:
                 trade = parser(trade)
             else:
-                del trade['info']
+                trader.pop('info', None)
             trades.append(trade)
 
         if len(trades) is 0:

@@ -1,23 +1,20 @@
-from concurrent.futures import FIRST_COMPLETED
 from sanic import response
 
 import asyncio
-import argparse
 import copy
 import logging
 import inspect
-import json
 import numpy as np
 import sanic
 
 from api.auth import AuthyManager
+from db import Datastore
 from utils import \
     INF, \
     dt_ms, \
     config, \
     load_json, \
-    log_config, \
-    register_logging_file_handler
+    log_config
 
 logger = logging.getLogger('pyct')
 
@@ -52,19 +49,26 @@ class APIServer():
 
     app = sanic.Sanic(__name__, log_config=customized_sanic_log_config())
 
-    def __init__(self, trader, custom_config=None):
-        self._config = custom_config if custom_config else config
+    def __init__(self, mongo, traders, custom_config=None, reset_state=False):
+        self.ds = Datastore.create('apiserver')
+
+        if reset_state:
+            self.ds.clear()
+
+        self.mongo = mongo
+        self.authy = AuthyManager(mongo)
+        self.log_level = self.ds.get('log_level', {})
+
+        _config = custom_config if custom_config else config
+        self._config = self.ds.get('_config', _config)
         self.config = self._config['apiserver']
 
-        self.app.trader = trader
+        self.app.traders = traders
         self.app.server = self
         self.app.config.KEEP_ALIVE = config['apiserver']['keep_alive']
         self.app.config.KEEP_ALIVE_TIMEOUT = config['apiserver']['keep_alive_timeout']
         self.app.config.REQUEST_TIMEOUT = config['apiserver']['request_timeout']
         self.app.config.RESPONSE_TIMEOUT = config['apiserver']['response_timeout']
-
-        self.log_level = 'info'
-        self.authy = AuthyManager(trader.mongo)
 
     async def run(self, host='0.0.0.0', port=8000, enable_ssl=False, **kwargs):
         """ Start server and provide some cli options. """
@@ -88,20 +92,11 @@ class APIServer():
         else:
             context = None
 
-        start_server = self.app.create_server(host=host, port=port, ssl=context, **kwargs)
-        start_trader = asyncio.ensure_future(self.app.trader.start())
-
         with_ssl = 'with' if enable_ssl else 'without'
         logger.info(f"Starting API server {with_ssl} SSL")
 
-        await asyncio.gather(
-            start_server,
-            start_trader,
-        )
-
-    @app.listener('after_server_stop')
-    async def after_server_stop(app, loop):
-        await app.trader.ex.ex.close()
+        start_server = self.app.create_server(host=host, port=port, ssl=context, **kwargs)
+        await asyncio.gather(start_server)
 
     @app.route('/register/account', methods=['POST'])
     async def register_uid(req):
@@ -124,7 +119,7 @@ class APIServer():
         if await req.app.server.uid_exist(uid, ex):
             return response.json({'error': "Account already exists"})
 
-        mongo = req.app.trader.mongo
+        mongo = req.app.server.mongo
         coll = mongo.get_collection(mongo.config['dbname_api'], 'account')
         coll.insert({
             'uid': uid,
@@ -132,6 +127,7 @@ class APIServer():
             'ex_username': ex_user,
             'auth_level': auth_level
         })
+        logger.info(f"Registered account: uid={uid}, ex={ex}, username={ex_user}, auth_level={auth_level}")
 
         return response.json({'ok': True})
 
@@ -155,6 +151,11 @@ class APIServer():
             payload['phone'],
             payload['country_code']
         )
+        logger.info(f"Registered authy: "
+            f"uid={payload['uid']}, "
+            f"email={payload['email']}, "
+            f"phone={payload['phone']}, "
+            f"country_code={payload['country_code']}")
 
         if succ:
             return response.json({'ok': True})
@@ -189,13 +190,17 @@ class APIServer():
         if not await req.app.server.verified_access(uid, ex, inspect.stack()[0][3]):
             return response.json({'error': 'Unauthorized'}, status=401)
 
-        if not req.app.trader.ex.is_ready():
-            return response.json({ 'error': 'Not ready' })
+        if not req.app.server.trader_active(req.app.traders, uid, ex):
+            return response.json({'error': f'Trader [{uid}-{ex}] has not been activated'})
 
-        if ex != req.app.trader.ex.exname:
-            return response.json({ 'error': 'Exchange is not active.' })
+        trader = req.app.traders[f"{uid}-{ex}"]
 
-        trader = req.app.trader
+        if not trader.ex.is_ready():
+            return response.json({'error': 'Not ready'})
+
+        if ex != trader.ex.exname:
+            return response.json({'error': 'Exchange is not active.'})
+
         active_markets = trader.ex.markets
         all_markets = list(trader.ex.ex.markets.keys())
         inactive_markets = [m for m in all_markets if m not in active_markets]
@@ -256,13 +261,18 @@ class APIServer():
         if not await req.app.server.verified_access(uid, ex, inspect.stack()[0][3]):
             return response.json({'error': 'Unauthorized'}, status=401)
 
-        if not req.app.trader.ex.is_ready():
-            return response.json({ 'error': 'Not ready' })
+        if not req.app.server.trader_active(req.app.traders, uid, ex):
+            return response.json({'error': f'Trader [{uid}-{ex}] has not been activated'})
 
-        if ex != req.app.trader.ex.exname:
-            return response.json({ 'error': 'Exchange {ex} is not active.' })
+        trader = req.app.traders[f"{uid}-{ex}"]
 
-        summ = copy.deepcopy(await req.app.trader.get_summary())
+        if not trader.ex.is_ready():
+            return response.json({'error': 'Not ready'})
+
+        if ex != trader.ex.exname:
+            return response.json({'error': 'Exchange {ex} is not active.'})
+
+        summ = copy.deepcopy(await trader.get_summary())
         summ['start'] = dt_ms(summ['start'])
         summ['now'] = dt_ms(summ['now'])
 
@@ -290,17 +300,22 @@ class APIServer():
         if not await req.app.server.verified_access(uid, ex, inspect.stack()[0][3]):
             return response.json({'error': 'Unauthorized'}, status=401)
 
-        if ex != req.app.trader.ex.exname:
-            return response.json({ 'error': 'Exchange is not active.' })
+        if not req.app.server.trader_active(req.app.traders, uid, ex):
+            return response.json({'error': f'Trader [{uid}-{ex}] has not been activated'})
+
+        trader = req.app.traders[f"{uid}-{ex}"]
+
+        if ex != trader.ex.exname:
+            return response.json({'error': 'Exchange is not active.'})
 
         if 'dummy-data' in req.headers \
         and req.headers['dummy-data'] == 'true':
             return response.json(dummy_data['active_orders'])
 
-        orders = await req.app.trader.ex.fetch_open_orders()
+        orders = await trader.ex.fetch_open_orders()
         orders = api_parse_orders(orders)
 
-        return response.json({ 'orders': orders })
+        return response.json({'orders': orders })
 
     @app.route('/account/active/positions/<uid:string>/<ex:string>', methods=['GET'])
     async def active_positions(req, uid, ex):
@@ -323,10 +338,13 @@ class APIServer():
         if not await req.app.server.verified_access(uid, ex, inspect.stack()[0][3]):
             return response.json({'error': 'Unauthorized'}, status=401)
 
-        trader = req.app.trader
+        if not req.app.server.trader_active(req.app.traders, uid, ex):
+            return response.json({'error': f'Trader [{uid}-{ex}] has not been activated'})
+
+        trader = req.app.traders[f"{uid}-{ex}"]
 
         if ex != trader.ex.exname:
-            return response.json({ 'error': 'Exchange is not active.' })
+            return response.json({'error': 'Exchange is not active.'})
 
         if 'dummy-data' in req.headers \
         and req.headers['dummy-data'] == 'true':
@@ -336,7 +354,7 @@ class APIServer():
         positions = api_parse_positions(
             positions, trader.config[trader.ex.exname]['margin_rate'])
 
-        return response.json({ 'positions': positions })
+        return response.json({'positions': positions })
 
     @app.route('/trading/signals/<uid:string>/<ex:string>', methods=['GET'])
     async def trading_signals(req, uid, ex):
@@ -357,17 +375,20 @@ class APIServer():
         if not await req.app.server.verified_access(uid, ex, inspect.stack()[0][3]):
             return response.json({'error': 'Unauthorized'}, status=401)
 
-        if not req.app.trader.ex.is_ready():
-            return response.json({ 'error': 'Not ready' })
+        if not req.app.server.trader_active(req.app.traders, uid, ex):
+            return response.json({'error': f'Trader [{uid}-{ex}] has not been activated'})
 
-        trader = req.app.trader
+        trader = req.app.traders[f"{uid}-{ex}"]
+
+        if not trader.ex.is_ready():
+            return response.json({'error': 'Not ready'})
 
         if ex != trader.ex.exname:
-            return response.json({ 'error': 'Exchange is not active.' })
+            return response.json({'error': 'Exchange is not active.'})
 
         sigs = trader.strategy.signals
         if not sigs:
-            return response.json({ 'error': 'Not ready' })
+            return response.json({'error': 'Not ready'})
 
         signals = {}
 
@@ -394,7 +415,7 @@ class APIServer():
 
     @app.route('/ping', methods=['GET'])
     async def ping(req):
-        return response.json({ 'ok': True })
+        return response.json({'ok': True })
 
     ############################
     ##       2FA Required     ##
@@ -412,13 +433,16 @@ class APIServer():
                          "with one of values: info | debug | warn | error"
             })
 
+        if not req.app.server.trader_active(req.app.traders, uid):
+            return response.json({'error': f'Trader [{uid}] has not been activated'})
+
         msg = f"Set log level to {payload['level']}"
         accept, res = await req.app.server.send_2fa_request(uid, msg)
 
         if not accept:
             return res
 
-        req.app.server.log_level = payload['level']
+        req.app.server.log_level[uid] = payload['level']
         return response.json({'ok': True})
 
     @app.route('/notification/large_pl/<uid:string>', methods=['POST'])
@@ -432,13 +456,21 @@ class APIServer():
                 'error': "Payload should contain field `PL(%)`"
             })
 
-        msg = f"Set large PL threshold to {payload['PL(%)']}"
-        accept, res = await req.app.server.send_2fa_request(uid, msg)
+        if not req.app.server.trader_active(req.app.traders, uid):
+            return response.json({'error': f'Trader [{uid}] has not been activated'})
 
-        if not accept:
-            return res
+        for ue in req.app.traders:
+            if ue.startswith(uid):
+                trader = req.app.traders[ue]
 
-        req.app.trader._config['apiclient']['large_pl_threshold'] = payload['PL(%)']
+                msg = f"Set [{ue}] large PL threshold to {payload['PL(%)']}"
+                accept, res = await req.app.server.send_2fa_request(uid, msg)
+
+                if not accept:
+                    return res
+
+                trader._config['apiclient']['large_pl_threshold'] = payload['PL(%)']
+
         return response.json({'ok': True})
 
     @app.route('/trading/max_fund/<uid:string>', methods=['POST'])
@@ -452,14 +484,22 @@ class APIServer():
                 'error': "Payload should contain field `fund` with a float value"
             })
 
-        msg = f"Change max fund to ${payload['fund']}"
-        accept, res = await req.app.server.send_2fa_request(uid, msg)
+        if not req.app.server.trader_active(req.app.traders, uid):
+            return response.json({'error': f'Trader [{uid}] has not been activated'})
 
-        if not accept:
-            return res
+        for ue in req.app.traders:
+            if ue.startswith(uid):
+                trader = req.app.traders[ue]
 
-        req.app.trader.max_fund = payload['fund']
-        logger.debug(f'max fund is set to {req.app.trader.max_fund}')
+                msg = f"Change max fund to ${payload['fund']}"
+                accept, res = await req.app.server.send_2fa_request(uid, msg)
+
+                if not accept:
+                    return res
+
+                trader.max_fund = payload['fund']
+                logger.debug(f'Set [{ue}] max fund to {trader.max_fund}')
+
         return response.json({'ok': True})
 
     @app.route('/trading/markets/enable/<uid:string>/<ex:string>', methods=['POST'])
@@ -467,13 +507,16 @@ class APIServer():
         if not await req.app.server.verified_access(uid, ex, inspect.stack()[0][3]):
             return response.json({'error': 'Unauthorized'}, status=401)
 
-        trader = req.app.trader
         payload = req.json
-
         if not payload or 'markets' not in payload or not isinstance(payload['markets'], list):
             return response.json({
                 'error': "Payload should contain field `markets` with a list of strings"
             })
+
+        if not req.app.server.trader_active(req.app.traders, uid, ex):
+            return response.json({'error': f'Trader [{uid}-{ex}] has not been activated'})
+
+        trader = req.app.traders[f"{uid}-{ex}"]
 
         markets = [str(market) for market in payload['markets']]
         msg = "Enable markets " + ', '.join(markets)
@@ -498,20 +541,23 @@ class APIServer():
                 'markets': not_supported
             })
         else:
-            return response.json({ 'ok': True })
+            return response.json({'ok': True })
 
     @app.route('/trading/markets/disable/<uid:string>/<ex:string>', methods=['POST'])
     async def disable_markets(req, uid, ex):
         if not await req.app.server.verified_access(uid, ex, inspect.stack()[0][3]):
             return response.json({'error': 'Unauthorized'}, status=401)
 
-        trader = req.app.trader
         payload = req.json
-
         if not payload or 'markets' not in payload or not isinstance(payload['markets'], list):
             return response.json({
                 'error': "Payload should contain field `markets` with a list of strings"
             })
+
+        if not req.app.server.trader_active(req.app.traders, uid, ex):
+            return response.json({'error': f'Trader [{uid}-{ex}] has not been activated'})
+
+        trader = req.app.traders[f"{uid}-{ex}"]
 
         markets = [str(market) for market in payload['markets']]
         msg = "Disable markets: " + ', '.join(markets)
@@ -543,32 +589,46 @@ class APIServer():
         if not await req.app.server.verified_access(uid, '', inspect.stack()[0][3]):
             return response.json({'error': 'Unauthorized'}, status=401)
 
-        msg = "Enable trading"
-        accept, res = await req.app.server.send_2fa_request(uid, msg)
+        if not req.app.server.trader_active(req.app.traders, uid):
+            return response.json({'error': f'Trader [{uid}] has not been activated'})
 
-        if not accept:
-            return res
+        for ue in req.app.traders:
+            if ue.startswith(uid):
+                trader = req.app.traders[ue]
 
-        # req.app.trader.enable_trading = True
-        logger.info(f"Trading enabled")
+                msg = "Enable trading"
+                accept, res = await req.app.server.send_2fa_request(uid, msg)
 
-        return response.json({ 'ok': True })
+                if not accept:
+                    return res
+
+                trader.enable_trading = True
+                logger.info(f"Trading enabled")
+
+        return response.json({'ok': True })
 
     @app.route('/trading/disable/<uid:string>', methods=['POST'])
     async def disable_trading(req, uid):
         if not await req.app.server.verified_access(uid, '', inspect.stack()[0][3]):
             return response.json({'error': 'Unauthorized'}, status=401)
 
-        msg = "Disable trading"
-        accept, res = await req.app.server.send_2fa_request(uid, msg)
+        if not req.app.server.trader_active(req.app.traders, uid):
+            return response.json({'error': f'Trader [{uid}] has not been activated'})
 
-        if not accept:
-            return res
+        for ue in req.app.traders:
+            if ue.startswith(uid):
+                trader = req.app.traders[ue]
 
-        req.app.trader.enable_trading = False
-        logger.info(f"Trading disabled")
+                msg = "Disable trading"
+                accept, res = await req.app.server.send_2fa_request(uid, msg)
 
-        return response.json({ 'ok': True })
+                if not accept:
+                    return res
+
+                trader.enable_trading = False
+                logger.info(f"Trading disabled")
+
+        return response.json({'ok': True })
 
     ###########################
     ##         2FA End       ##
@@ -603,14 +663,12 @@ class APIServer():
             return True, ''
 
     async def uid_exist(self, uid, ex):
-        mongo = self.app.trader.mongo
-        coll = mongo.get_collection(mongo.config['dbname_api'], 'account')
+        coll = self.mongo.get_collection(self.mongo.config['dbname_api'], 'account')
         res = await coll.find_one({'uid': uid, 'ex': ex})
         return True if res else False
 
     async def get_auth_level(self, uid, ex):
-        mongo = self.app.trader.mongo
-        coll = mongo.get_collection(mongo.config['dbname_api'], 'account')
+        coll = self.mongo.get_collection(self.mongo.config['dbname_api'], 'account')
 
         if ex:
             res = await coll.find_one({'uid': uid, 'ex': ex})
@@ -626,6 +684,15 @@ class APIServer():
             return res['auth_level']
         else:
             return 0
+
+    def trader_active(self, traders, uid, ex=None):
+        if ex:
+            return f"{uid}-{ex}" in traders
+        else:
+            for ue in traders:
+                if ue.startswith(uid):
+                    return True
+        return False
 
 
 def api_parse_orders(orders):

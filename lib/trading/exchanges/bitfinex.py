@@ -97,14 +97,6 @@ class Bitfinex(EXBase):
         else:
             raise ValueError(f"Wallet type {type} is not supported.")
 
-    # async def _start_orderbook_stream(self):
-    #     params = {
-    #         'limit_bids': self.config['orderbook_size'],
-    #         'limit_asks': self.config['orderbook_size'],
-    #         'group': 1, # 0 / 1
-    #     }
-    #     await super()._start_orderbook_stream(params=params)
-
     async def get_orderbook(self, symbol):
         params = {
             'limit_bids': self.config['orderbook_size'],
@@ -390,7 +382,7 @@ class Bitfinex(EXBase):
         trade['fee'] = abs(float(trade['info']['fee_amount']))
         trade['fee_currency'] = trade['info']['fee_currency']
         trade['datetime'] = ms_dt(trade['timestamp'])
-        del trade['info']
+        trader.pop('info', None)
         return trade
 
     async def get_deposit_address(self, currency, type='exchange'):
@@ -570,9 +562,6 @@ class Bitfinex(EXBase):
 
         order = self.parse_order(res)
 
-        if self.notifier:
-            await self.notifier.notify_open_orders_succ(order)
-
         return order
 
     async def create_order_multi(self, orders):
@@ -633,9 +622,6 @@ class Bitfinex(EXBase):
                     self.parse_order(
                         self.ex.parse_order(order, market)))
 
-        if self.notifier:
-            await self.notifier.notify_open_orders_succ(orders)
-
         return orders
 
     async def cancel_order(self, id):
@@ -669,6 +655,7 @@ class Bitfinex(EXBase):
 
     async def _start_my_trade_stream(self, symbol):
         """ Fetch all trades to mongodb. """
+        # TODO
         not_implemented()
 
     async def update_trade_fees(self, once=False):
@@ -813,7 +800,7 @@ class Bitfinex(EXBase):
     def parse_order(self, order):
         order['margin'] = self.is_margin_order(order['info']['type'])
         order['datetime'] = ms_dt(order['timestamp'])
-        del order['info']
+        order.pop('info', None)
         return order
 
     @staticmethod

@@ -18,7 +18,7 @@ async def test_single_period(mongo, market, plot):
     # dt = (datetime(2017, 8, 1), datetime(2018, 3, 5))
     # dt = (datetime(2017, 8, 1), datetime(2017, 12, 10))
     # dt = (datetime(2017, 10, 1), datetime(2018, 2, 20))
-    dt = (datetime(2018, 1, 1), datetime(2018, 3, 20))
+    dt = (datetime(2018, 1, 1), datetime(2018, 3, 31))
 
     _config = copy.deepcopy(config)
     _config['analysis']['exchanges']['bitfinex']['markets'] = [market]
@@ -63,14 +63,14 @@ async def test_single_period(mongo, market, plot):
 async def test_special_periods_of_markets(mongo, plot):
 
     markets = [
-        "BTC/USD",
+        # "BTC/USD",
         # "BCH/USD",
         # "ETH/USD",
         # "XRP/USD",
 
         # "EOS/USD",
         # "LTC/USD",
-        # "NEO/USD",
+        "NEO/USD",
         # "OMG/USD",
 
         # "ETC/USD",

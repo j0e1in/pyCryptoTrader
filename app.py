@@ -1,10 +1,9 @@
 from argparse import RawTextHelpFormatter
+from dotenv import load_dotenv
 
 import argparse
 import os
 import sys
-
-from lib.utils import load_env
 
 def parse_args():
     parser = argparse.ArgumentParser(formatter_class=RawTextHelpFormatter, allow_abbrev=False)
@@ -27,6 +26,8 @@ def parse_args():
     parser.add_argument('--ohlcv-stream', action='store_true', help="Execute ohlcv_stream.py")
     parser.add_argument('--start-trader', action='store_true', help="Execute start_trader.py")
     parser.add_argument('--restart-trader', action='store_true', help="Execute restart_trader.py")
+    parser.add_argument('--add-trader', type=str, help="Execute manage_trader.py --add")
+    parser.add_argument('--rm-trader', type=str, help="Execute manage_trader.py --rm")
 
     parser.add_argument('--none', action='store_true', help="Do not execute anything, this is for docker-compose")
 
@@ -59,9 +60,10 @@ def main():
     if argv.none:
         return
 
-    load_env(path=argv.env)
+    path = argv.env if argv.env else '.env'
+    load_dotenv(dotenv_path=path)
 
-    elif argv.build_ohlcvs:
+    if argv.build_ohlcvs:
         os.system(f"python scripts/analysis/build_ohlcvs.py {argv_remain}")
 
     elif argv.fetch_ohlcvs:
@@ -99,6 +101,12 @@ def main():
 
     elif argv.restart_trader:
         os.system(f"python scripts/trading/restart_trader.py {argv_remain}")
+
+    elif argv.add_trader:
+        os.system(f"python scripts/trading/manage_trader.py --add=\"{argv.add_trader}\"")
+
+    elif argv.rm_trader:
+        os.system(f"python scripts/trading/manage_trader.py --rm=\"{argv.rm_trader}\"")
 
     else:
         parser.print_help(sys.stderr)

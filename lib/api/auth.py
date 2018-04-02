@@ -8,7 +8,6 @@ import logging
 from utils import load_keys, config
 
 logger = logging.getLogger('pytc')
-loop = asyncio.get_event_loop()
 
 class AuthyManager():
 
@@ -21,6 +20,7 @@ class AuthyManager():
         self.authy_app = AuthyApiClient(apikey)
 
     async def create_user(self, uid, email, phone, country_code):
+        loop = asyncio.get_event_loop()
         user = await loop.run_in_executor(None,
             self.authy_app.users.create,
             email, phone, country_code)
@@ -67,12 +67,13 @@ class AuthyManager():
         # Wrap kwargs to function because run_in_executor doesn't accept
         wrapped_func = functools.partial(
             self.authy_app.one_touch.send_request,
-            cred['authyid'],
+            int(cred['authyid']),
             message,
             seconds_to_expire=self.config['seconds_to_expire'],
             details=details)
         # hidden_details=hidden_details)
 
+        loop = asyncio.get_event_loop()
         res = await loop.run_in_executor(None, wrapped_func)
 
         if res.ok():
@@ -84,6 +85,8 @@ class AuthyManager():
             return False, ''
 
         if res.ok():
+            loop = asyncio.get_event_loop()
+
             while True:
                 res = await loop.run_in_executor(None,
                     self.authy_app.one_touch.get_approval_status, uuid)

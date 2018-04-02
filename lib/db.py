@@ -1,9 +1,8 @@
-from datetime import datetime
-from pymongo.errors import BulkWriteError
+from collections import MutableMapping
 from motor import motor_asyncio
 from redis import StrictRedis
-from walrus import Walrus
 
+import asyncio
 import logging
 import pandas as pd
 import pymongo
@@ -207,7 +206,6 @@ class EXMongo():
                 }
         """
         trades = {}
-        timeframes = self._config['analysis']['exchanges'][ex_name(ex)]['timeframes']
         for sym in symbols:
             trades[sym] = await self.get_trades(ex, sym, start, end, fields_condition, compress)
         return trades
@@ -231,7 +229,7 @@ class EXMongo():
                 pymongo.UpdateOne(
                     {'timestamp': rec['timestamp']},
                     {'$set': rec},
-                    upsert=True))
+                    upsert=upsert))
 
             if len(ops) > 10000:
                 await execute_mongo_ops(coll.bulk_write(ops))
@@ -357,26 +355,25 @@ class DataStoreFactory():
     def __init__(self, custom_config=None):
         self._config = custom_config if custom_config else config
         self.config = self._config['datastore']
-        self.redis = None
-        self.host = self.config['default_host']
-        self.port = self.config['default_port']
-        self.password = self.config['password']
 
-        self.update_redis(host=self.host, port=self.port, password=self.password)
+        self.redis = StrictRedis(host=self.config['default_host'],
+                                 port=self.config['default_port'],
+                                 password=self.config['password'])
 
     def update_redis(self, host=None, port=None, password=''):
-        self.host = host if host else self.host
-        self.port = port if port else self.port
-        self.password = password if password else self.password
-        self.redis = StrictRedis(host=self.host,
-                                 port=self.port,
-                                 password=self.password)
+        args = self.redis.connection_pool.connection_kwargs
+        host = host if host else args['host']
+        port = port if port else args['port']
+        password = password if password else args['password']
+
+        self.redis = StrictRedis(host=host,
+                                 port=port,
+                                 password=password)
 
     def create(self, name):
         """ Create a named container """
         return DataStoreContainer(name)
 
-from collections import MutableMapping
 
 class DataStoreContainer(MutableMapping):
     serializer = pickle
@@ -394,23 +391,36 @@ class DataStoreContainer(MutableMapping):
     def _delattr(self, key):
         super().__delattr__(key)
 
+    def hasattr(self, key):
+        if key in self.__dict__:
+            return self._getattr(key)
+
+        val = Datastore.redis.hget(self.name, key)
+        return True if val else False
+
     def __getattr__(self, key):
         if key in self.__dict__:
             return self._getattr(key)
 
-        val = DataStore.redis.hget(self.name, key)
+        val = Datastore.redis.hget(self.name, key)
 
         if not val:
-            raise AttributeError(f"{self.__class__} has no attribute `{key}`")
+            raise AttributeError(f"{repr(self)} has no attribute `{key}`")
 
-        return self.serializer.loads(val)
+        try:
+            res = self.serializer.loads(val)
+        except pickle.UnpicklingError as err:
+            logger.error(f"{err.__class__} {err}")
+            return None
+        else:
+            return res
 
     def __setattr__(self, key, val):
         if self._valid_name(key):
             val = self.serializer.dumps(val)
-            DataStore.redis.hset(self.name, key, val)
+            Datastore.redis.hset(self.name, key, val)
         else:
-            raise TypeError("`{key}` is not a valid attribute name")
+            raise ValueError(f"`{key}` is not a valid attribute name")
 
     def __getitem__(self, key):
         return self.__getattr__(key)
@@ -419,10 +429,10 @@ class DataStoreContainer(MutableMapping):
         self.__setattr__(key, val)
 
     def __delitem__(self, key):
-        if DataStore.redis.hexists(self.name, key):
-            DataStore.redis.hdel(self.name, key)
+        if Datastore.redis.hexists(self.name, key):
+            Datastore.redis.hdel(self.name, key)
         else:
-            raise AttributeError(f"{self.__class__} has no attribute `{key}`")
+            raise AttributeError(f"{repr(self)} has no attribute `{key}`")
 
     def __getstate__(self):
         """ Called when this object is being serialized """
@@ -456,18 +466,38 @@ class DataStoreContainer(MutableMapping):
             yield k, getattr(self, k)
 
     def __len__(self):
-        return len(DataStore.redis.hkeys(self.name))
+        return len(Datastore.redis.hkeys(self.name))
 
     def items(self):
         return self.__iter__()
 
     def keys(self):
         _keys = []
-        for k in DataStore.redis.hkeys(self.name):
+        for k in Datastore.redis.hkeys(self.name):
             _keys.append(str(k, 'UTF-8'))
         return _keys
 
+    def get(self, attr, default_val):
+        """ Get the attribute, if the attribute wasn't set, return default_val """
+        try:
+            attr in self
+        except AttributeError:
+            return default_val
+        else:
+            return self[attr]
 
+    def sync(self, ds_list, obj):
+        """ Store every attribute (of obj) in ds_list to datastore. """
+        for attr in ds_list:
+            self[attr] = getattr(obj, attr)
+
+    async def sync_routine(self, ds_list, obj):
+        while True:
+            await asyncio.sleep(2)
+            self.sync(ds_list, obj)
+
+    def clear(self):
+        Datastore.redis.delete(self.name)
 
     @classmethod
     def _valid_name(cls, key):
@@ -481,8 +511,8 @@ class DataStoreContainer(MutableMapping):
             'register').
         """
         return (isinstance(key, six.string_types)
-                and re.match('^[A-Za-z][A-Za-z0-9_]*$', key)
+                and re.match('^[A-Za-z_][A-Za-z0-9_]*$', key)
                 and not hasattr(cls, key))
 
 
-DataStore = DataStoreFactory()
+Datastore = DataStoreFactory()

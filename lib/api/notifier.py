@@ -21,8 +21,8 @@ class Messenger():
         self.config = self._config['apiclient']
         self.trader = trader
 
-        self.session = aiohttp.ClientSession()
-        self.secret = load_keys()[trader.uid]['FB_APP_SECRET']
+        # self.session = aiohttp.ClientSession()
+        self.secret = load_keys()['FB_APP_SECRET']
 
         self.default = {}
         self.default['header'] = {
@@ -254,56 +254,54 @@ class Messenger():
         if self.disable:
             return None
 
-        request_method = getattr(self.session, method)
-        p_header = copy.deepcopy(self.default['header'])
-        p_payload = copy.deepcopy(self.default['payload'])
+        async with aiohttp.ClientSession() as sess:
+            request_method = getattr(sess, method)
+            p_header = copy.deepcopy(self.default['header'])
+            p_payload = copy.deepcopy(self.default['payload'])
 
-        if isinstance(header, dict):
-            p_header.update(header)
-        elif header:
-            logger.warning(f"Expect header to be dict but got {type(header)}")
+            if isinstance(header, dict):
+                p_header.update(header)
+            elif header:
+                logger.warning(f"Expect header to be dict but got {type(header)}")
 
-        if isinstance(payload, dict):
-            p_payload.update(payload)
-        elif payload:
-            logger.warning(f"Expect payload to be dict but got {type(payload)}")
+            if isinstance(payload, dict):
+                p_payload.update(payload)
+            elif payload:
+                logger.warning(f"Expect payload to be dict but got {type(payload)}")
 
-        p_payload = json.dumps(p_payload)
-        p_header['x-hub-signature'] = \
-            'sha1=' + gen_signature(p_payload, self.secret, sha1)
+            p_payload = json.dumps(p_payload)
+            p_header['x-hub-signature'] = \
+                'sha1=' + gen_signature(p_payload, self.secret, sha1)
 
-        retry = 0
-        retry_sec = 10
-        while retry < 3:
-            retry += 1
+            retry = 0
+            retry_sec = 10
+            while retry < 3:
+                retry += 1
 
-            try:
-                async with request_method(
-                    self.base_url + route,
-                    headers=p_header,
-                    data=p_payload) as res:
+                try:
+                    async with request_method(
+                        self.base_url + route,
+                        headers=p_header,
+                        data=p_payload) as res:
 
-                    raw = await res.text()
-                    content = {}
+                        raw = await res.text()
+                        content = {}
 
-                    try:
-                        content = json.loads(raw)
-                    except json.JSONDecodeError:
-                        logger.error(f"JSON load failed:\n{raw}")
-                        return {}
-                    else:
-                        return content
+                        try:
+                            content = json.loads(raw)
+                        except json.JSONDecodeError:
+                            logger.error(f"JSON load failed:\n{raw}")
+                            return {}
+                        else:
+                            return content
 
-            except aiohttp.ClientConnectorError as err:
-                logger.warning(f"{err}, retry in {retry_sec} seconds")
-                await asyncio.sleep(retry_sec)
-            else:
-                break
+                except aiohttp.ClientConnectorError as err:
+                    logger.warning(f"{err}, retry in {retry_sec} seconds")
+                    await asyncio.sleep(retry_sec)
+                else:
+                    break
 
-        return {}
-
-    async def close(self):
-        await self.session.close()
+            return {}
 
 
 def gen_signature(message, secret, algorithm, digest='hex'):

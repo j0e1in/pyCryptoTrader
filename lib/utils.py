@@ -1,8 +1,8 @@
 from pprint import pprint
 from collections import OrderedDict
-from dotenv import load_dotenv
 from datetime import datetime, timedelta
 from pymongo.errors import BulkWriteError
+from threading import Thread
 
 import asyncio
 import ccxt.async as ccxt
@@ -13,7 +13,6 @@ import logging
 import logging.config
 import jstyleson as json
 import math
-import numpy as np
 import os
 import pandas as pd
 import sys
@@ -49,6 +48,7 @@ def load_config(file):
 
     return _config
 
+config = load_config('../settings/config.json')
 
 def load_keys(file=None):
     if not file:
@@ -67,9 +67,6 @@ def load_env(path=None):
     return { k.split('PYCT_')[1]: v \
         for k, v in os.environ.items() \
             if k.startswith('PYCT_') }
-
-
-config = load_config('../settings/config.json')
 
 
 def combine(a, b):
@@ -761,3 +758,15 @@ def register_logging_file_handler(log_file, log_config):
 
     for log in log_config['loggers']:
         logging.getLogger(log).addHandler(fh)
+
+
+def run_async_in_thread(func, *args, **kwargs):
+
+    def run_async(func, loop, *args, **kwargs):
+        loop.run_until_complete(func(*args, **kwargs))
+
+    loop = asyncio.new_event_loop()
+    th = Thread(target=run_async, args=(func, loop, *args), kwargs=kwargs)
+    th.start()
+
+    return th

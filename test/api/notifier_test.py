@@ -74,7 +74,6 @@ async def main():
     # await test_notify_start(notifier)
     # await test_notify_msg(notifier)
 
-    await notifier.close()
     await trader.ex.ex.close()
 
 

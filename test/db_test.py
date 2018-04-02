@@ -6,7 +6,7 @@ from datetime import datetime
 import motor.motor_asyncio as motor
 
 from analysis.hist_data import fill_missing_ohlcv
-from db import EXMongo, DataStore
+from db import EXMongo, Datastore
 from utils import init_ccxt_exchange, config
 
 from pprint import pprint as pp
@@ -53,6 +53,7 @@ async def test_insert_ohlcv(mongo):
     print('number of missing ohlcv:', len(missing_ohlcv))
     await mongo.insert_ohlcv(missing_ohlcv, exchange, symbol, timeframe, coll_prefix="test_")
 
+
 async def test_get_ohlcv_trade_start_end(mongo):
     sym = config['trading']['bitfinex']['markets'][0]
     tf = config['trading']['bitfinex']['timeframes'][0]
@@ -62,14 +63,15 @@ async def test_get_ohlcv_trade_start_end(mongo):
     print("trades start:", await mongo.get_trades_start('bitfinex', sym))
     print("trades end:", await mongo.get_trades_end('bitfinex', sym))
 
+
 def test_datastore():
-    datastore = DataStore.create('delta')
+    datastore = Datastore.create('delta')
     datastore.ds = datastore
     assert datastore.ds == datastore
 
-    d = {'key': 'value'}
-    datastore.alpha = d
-    assert datastore.alpha == d
+    dd = {'key': 'value'}
+    datastore.alpha = dd
+    assert datastore.alpha == dd
 
     print(datastore['alpha'])
     print('keys:', datastore.keys())
@@ -77,22 +79,45 @@ def test_datastore():
     print('dict:', dict(datastore))
     print('list:', list(datastore))
     print('len: ', len(datastore))
+    print('get: ', datastore.get('none', 'default'))
 
+
+def test_datastore_sync():
+    datastore = Datastore.create('delta2')
+
+    dd = Datastore.create('tmp')
+    dd.attr = [1, 2, 3]
+    dd.attr2 = [4, 5, 6]
+    datastore.attr = dd.attr
+    datastore.attr2 = dd.attr2
+    assert dd.attr == [1, 2, 3]
+    assert dd.attr2 == [4, 5, 6]
+
+    dd.attr = [7, 7, 7]
+    dd.attr2 = [8, 8, 8]
+
+    ds_list = ['attr', 'attr2']
+    datastore.sync(ds_list, dd)
+    assert dd.attr == [7, 7, 7]
+    assert dd.attr2 == [8, 8, 8]
 
 
 async def main():
     mongo = EXMongo()
 
-    print('------------------------------')
-    await test_get_ohlcv(mongo)
-    print('------------------------------')
-    await test_get_trades(mongo)
-    print('------------------------------')
-    await test_insert_ohlcv(mongo)
-    print('------------------------------')
-    await test_get_ohlcv_trade_start_end(mongo)
+    # print('------------------------------')
+    # await test_get_ohlcv(mongo)
+    # print('------------------------------')
+    # await test_get_trades(mongo)
+    # print('------------------------------')
+    # await test_insert_ohlcv(mongo)
+    # print('------------------------------')
+    # await test_get_ohlcv_trade_start_end(mongo)
     print('------------------------------')
     test_datastore()
+    print('------------------------------')
+    test_datastore_sync()
+
 
 if __name__ == '__main__':
     run(main)

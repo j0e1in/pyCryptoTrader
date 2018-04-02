@@ -14,6 +14,7 @@ services:
               --enable-api
               --env .env
               --ssl
+              --manager
               --disable-trading
     env_file:
       - .env

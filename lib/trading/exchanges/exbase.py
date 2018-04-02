@@ -213,7 +213,6 @@ class EXBase():
                 await asyncio.sleep(countdown.seconds + 10)
 
     async def _start_trade_stream(self):
-        # TODO
         not_implemented()
 
     async def _start_orderbook_stream(self, params={}):
