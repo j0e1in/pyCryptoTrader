@@ -53,11 +53,11 @@ ssh $USERNAME@$HOST "PROJ_DIR=pyCryptoTrader && \
                    docker-compose build $build_args && \
                    \
                    docker stack rm crypto && \
-                   docker stack rm data_stream && \
+                   docker stack rm data && \
                    echo \"wait for 20 seconds...\" && \
                    sleep 20 && \
                    \
-                   docker stack deploy -c docker-stack-data-stream.yml data_stream && \
+                   docker stack deploy -c docker-stack-data-stream.yml data && \
                    docker stack deploy -c docker-stack-$TYPE.yml crypto && \
                    echo \"wait for 10 seconds...\" && \
                    sleep 10 && \

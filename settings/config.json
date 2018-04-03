@@ -406,11 +406,10 @@
 
   "database": {
     // localhost or mongo (docker) or an external IP"
-    "default_host": "172.18.0.2",
+    "default_host": "127.0.0.1",
     "default_port": 27017,
     "auth": true,
     "username": "ex",
-    "password": "vv112358",
     "auth_db": "admin",
     "dbname_exchange": "exchange",
     "dbname_trade": "trading",
@@ -418,9 +417,8 @@
   },
 
   "datastore": {
-    "default_host": "172.19.0.2",
-    "default_port": 6379,
-    "password": "vv112358"
+    "default_host": "127.0.0.1",
+    "default_port": 6379
   },
 
   "apiserver": {

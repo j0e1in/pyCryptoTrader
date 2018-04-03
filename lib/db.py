@@ -17,6 +17,7 @@ from utils import \
     ex_name, \
     config, \
     rsym, \
+    load_keys, \
     execute_mongo_ops
 
 pd.options.mode.chained_assignment = None
@@ -34,14 +35,13 @@ class EXMongo():
             host = self.config['default_host']
         if not port:
             port = self.config['default_port']
-
         self.host = host
         self.port = port
 
         if not uri:
             if self.config['auth']:
                 user = self.config['username']
-                passwd = self.config['password']
+                passwd = load_keys()['mongo_passwd']
                 db = self.config['auth_db']
                 uri = f"mongodb://{user}:{passwd}@{host}:{port}/{db}"
             else:
@@ -358,7 +358,7 @@ class DataStoreFactory():
 
         self.redis = StrictRedis(host=self.config['default_host'],
                                  port=self.config['default_port'],
-                                 password=self.config['password'])
+                                 password=load_keys()['redis_passwd'])
 
     def update_redis(self, host=None, port=None, password=''):
         args = self.redis.connection_pool.connection_kwargs
