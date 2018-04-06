@@ -119,6 +119,15 @@ class APIServer():
         if await req.app.server.uid_exist(uid, ex):
             return response.json({'error': "Account already exists"})
 
+        # Ask owner to confirm request, if one is already using that exchange account
+        owner_uid = await req.app.server.ex_account_exist(ex, ex_user)
+        if owner_uid:
+            msg = f"Create user on your {ex} account?\n{uid}-{ex_user}-{auth_level}"
+            accept, res = await req.app.server.send_2fa_request(owner_uid, msg)
+
+            if not accept:
+                return res
+
         mongo = req.app.server.mongo
         coll = mongo.get_collection(mongo.config['dbname_api'], 'account')
         coll.insert({
@@ -297,6 +306,10 @@ class APIServer():
                 ]
             }
         """
+        if 'dummy-data' in req.headers \
+        and req.headers['dummy-data'] == 'true':
+            return response.json(dummy_data['active_orders'])
+
         if not await req.app.server.verified_access(uid, ex, inspect.stack()[0][3]):
             return response.json({'error': 'Unauthorized'}, status=401)
 
@@ -307,10 +320,6 @@ class APIServer():
 
         if ex != trader.ex.exname:
             return response.json({'error': 'Exchange is not active.'})
-
-        if 'dummy-data' in req.headers \
-        and req.headers['dummy-data'] == 'true':
-            return response.json(dummy_data['active_orders'])
 
         orders = await trader.ex.fetch_open_orders()
         orders = api_parse_orders(orders)
@@ -335,6 +344,10 @@ class APIServer():
                 ]
             }
         """
+        if 'dummy-data' in req.headers \
+        and req.headers['dummy-data'] == 'true':
+            return response.json(dummy_data['active_positions'])
+
         if not await req.app.server.verified_access(uid, ex, inspect.stack()[0][3]):
             return response.json({'error': 'Unauthorized'}, status=401)
 
@@ -345,10 +358,6 @@ class APIServer():
 
         if ex != trader.ex.exname:
             return response.json({'error': 'Exchange is not active.'})
-
-        if 'dummy-data' in req.headers \
-        and req.headers['dummy-data'] == 'true':
-            return response.json(dummy_data['active_positions'])
 
         positions = await trader.ex.fetch_positions()
         positions = api_parse_positions(
@@ -666,6 +675,11 @@ class APIServer():
         coll = self.mongo.get_collection(self.mongo.config['dbname_api'], 'account')
         res = await coll.find_one({'uid': uid, 'ex': ex})
         return True if res else False
+
+    async def ex_account_exist(ex, ex_user):
+        coll = self.mongo.get_collection(self.mongo.config['dbname_api'], 'account')
+        res = await coll.find_one({'uid': uid, 'ex': ex, 'ex_user': ex_user,'auth_level': 1})
+        return res[uid] if res else ''
 
     async def get_auth_level(self, uid, ex):
         coll = self.mongo.get_collection(self.mongo.config['dbname_api'], 'account')
