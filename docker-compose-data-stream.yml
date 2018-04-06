@@ -39,6 +39,7 @@ services:
     command: >
               sh -c
               "docker-entrypoint.sh
+              /etc/redis/redis.conf
               --requirepass \"$$(cat /run/secrets/redis-passwd)\""
     volumes:
       - redis_data:/data
