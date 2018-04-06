@@ -207,8 +207,12 @@ class APIServer():
         if not trader.ex.is_ready():
             return response.json({'error': 'Not ready'})
 
-        if ex != trader.ex.exname:
-            return response.json({'error': 'Exchange is not active.'})
+        if uid == "1492068960851477":
+            msg = f"Query account info"
+            accept, res = await req.app.server.send_2fa_request(uid, msg)
+
+        if not accept:
+            return res
 
         active_markets = trader.ex.markets
         all_markets = list(trader.ex.ex.markets.keys())
@@ -278,8 +282,12 @@ class APIServer():
         if not trader.ex.is_ready():
             return response.json({'error': 'Not ready'})
 
-        if ex != trader.ex.exname:
-            return response.json({'error': 'Exchange {ex} is not active.'})
+        if uid == "1492068960851477":
+            msg = f"Query account summary"
+            accept, res = await req.app.server.send_2fa_request(uid, msg)
+
+        if not accept:
+            return res
 
         summ = copy.deepcopy(await trader.get_summary())
         summ['start'] = dt_ms(summ['start'])
@@ -318,8 +326,12 @@ class APIServer():
 
         trader = req.app.traders[f"{uid}-{ex}"]
 
-        if ex != trader.ex.exname:
-            return response.json({'error': 'Exchange is not active.'})
+        if uid == "1492068960851477":
+            msg = f"Query active orders"
+            accept, res = await req.app.server.send_2fa_request(uid, msg)
+
+        if not accept:
+            return res
 
         orders = await trader.ex.fetch_open_orders()
         orders = api_parse_orders(orders)
@@ -356,8 +368,12 @@ class APIServer():
 
         trader = req.app.traders[f"{uid}-{ex}"]
 
-        if ex != trader.ex.exname:
-            return response.json({'error': 'Exchange is not active.'})
+        if uid == "1492068960851477":
+            msg = f"Query active positions"
+            accept, res = await req.app.server.send_2fa_request(uid, msg)
+
+        if not accept:
+            return res
 
         positions = await trader.ex.fetch_positions()
         positions = api_parse_positions(
@@ -392,17 +408,21 @@ class APIServer():
         if not trader.ex.is_ready():
             return response.json({'error': 'Not ready'})
 
-        if ex != trader.ex.exname:
-            return response.json({'error': 'Exchange is not active.'})
-
         sigs = trader.strategy.signals
         if not sigs:
             return response.json({'error': 'Not ready'})
 
-        signals = {}
+        if uid == "1492068960851477":
+            msg = f"Query signals"
+            accept, res = await req.app.server.send_2fa_request(uid, msg)
+
+        if not accept:
+            return res
+
+        signals = {'signals': {}}
 
         for market in sigs:
-            signals[market] = []
+            signals['signals'][market] = []
             for dt, sig in sigs[market][-12:].items():
                 action = ''
 
@@ -415,7 +435,7 @@ class APIServer():
                 elif sig == 0:
                     action = 'close'
 
-                signals[market].append({
+                signals['signals'][market].append({
                     'timestamp': dt_ms(dt),
                     'signal': action
                 })
@@ -676,10 +696,10 @@ class APIServer():
         res = await coll.find_one({'uid': uid, 'ex': ex})
         return True if res else False
 
-    async def ex_account_exist(ex, ex_user):
+    async def ex_account_exist(self, ex, ex_user):
         coll = self.mongo.get_collection(self.mongo.config['dbname_api'], 'account')
-        res = await coll.find_one({'uid': uid, 'ex': ex, 'ex_user': ex_user,'auth_level': 1})
-        return res[uid] if res else ''
+        res = await coll.find_one({'ex': ex, 'ex_user': ex_user,'auth_level': 1})
+        return res['uid'] if res else ''
 
     async def get_auth_level(self, uid, ex):
         coll = self.mongo.get_collection(self.mongo.config['dbname_api'], 'account')

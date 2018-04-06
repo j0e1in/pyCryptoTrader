@@ -1,7 +1,6 @@
 from datetime import datetime
 
 import logging
-import time
 import pandas as pd
 
 from utils import \
@@ -12,7 +11,6 @@ from utils import \
     dt_ms,\
     MIN_DT, \
     timeframe_to_freq,\
-    config, \
     handle_ccxt_request, \
     ohlcv_to_interval
 
@@ -131,7 +129,7 @@ async def fetch_my_trades(exchange,
             if parser:
                 trade = parser(trade)
             else:
-                trader.pop('info', None)
+                trade.pop('info', None)
             trades.append(trade)
 
         if len(trades) is 0:

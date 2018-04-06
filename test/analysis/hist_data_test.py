@@ -3,8 +3,6 @@ from setup import run
 
 from pprint import pprint
 from datetime import datetime
-import motor.motor_asyncio as motor
-import pandas as pd
 
 from analysis.hist_data import \
     fetch_ohlcv, \
