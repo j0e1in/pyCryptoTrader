@@ -46,7 +46,7 @@ async def main():
 
                 # Build ohlcv starting from 5 bars earlier from latest bar
                 await build_ohlcv(mongo, exchange, symbol, src_tf, target_tf,
-                                start=target_start_dt, end=src_end_dt, upsert=True)
+                                start=target_start_dt, end=src_end_dt, upsert=True, coll_prefix=coll_prefix)
 
     # Build indexes
     if argv.from_start:
@@ -57,7 +57,7 @@ async def main():
 
         if mongo.config['auth']:
             host += f"/{mongo.config['auth_db']}"
-            auth = f"-u {mongo.config['username']} -p {mongo.config['password']}"
+            auth = f"-u {mongo.config['username']} -p {load_keys()['mongo_passwd']}"
 
         os.system(f"mongo {host} {auth} < {file}")
 

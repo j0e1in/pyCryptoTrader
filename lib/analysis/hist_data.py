@@ -210,7 +210,7 @@ async def build_ohlcv(mongo, exchange, symbol, src_tf, target_tf, *,
     start = MIN_DT if not start else start
     end = datetime(9999, 1, 1) if not end else end
 
-    src_df = await mongo.get_ohlcv(exchange, symbol, src_tf, start, end, coll_prefix=coll_prefix)
+    src_df = await mongo.get_ohlcv(exchange, symbol, src_tf, start, end)
     target_td = tf_td(target_tf)
     target_df = ohlcv_to_interval(src_df, src_tf, target_td)
 
