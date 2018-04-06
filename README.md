@@ -39,7 +39,7 @@ docker swarm init
 docker stack deploy -c docker-compose.yml crypto
 ```
 
-**Note:** If docker volume mongo_data is setup, can execute 
+**Note:** If docker volume mongo_data is setup, can execute
 
 `$./scripts/system/remote_deploy_docker_stack.sh` on local project root or
 
@@ -61,7 +61,7 @@ to quickly build and deploy.
 # Run with docker-compose
 docker-compose -f [docker-compose.yml] up
 
-# Run with docker stack 
+# Run with docker stack
 # (only useful for starting trader, becuase other programs are not services)
 docker stack deploy -c [docker-compose.yml] [stack-name]
 ```
@@ -82,8 +82,8 @@ docker stack deploy -c docker-compose-production.yml crypto
 
 ## Without Docker
 
-- Use one of the options below to run a task. 
-- Use only one option at a time. 
+- Use one of the options below to run a task.
+- Use only one option at a time.
 
 
 - Add `-h` or `--help` after a task argument to print available arguments for the task.
@@ -96,7 +96,7 @@ optional arguments:
   --fetch-ohlcvs        Execute fetch_all_ohlcvs.py
   --fetch-trades        Execute fetch_all_trades.py
   --optimize            Execute optimize_params.py
-  --backtest            Execute run_backtest.py
+  --backtest            Execute backtest.py
   --setup-mongo-container
                         Execute setup_mongo_container.sh
   --create-mongo-index  Execute create_index.js

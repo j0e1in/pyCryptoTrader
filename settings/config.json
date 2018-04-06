@@ -181,6 +181,7 @@
     "margin_rate": 3.0,
     "force_liquidate_percent": 0.15,
     "indicator_tf": "8h",
+    "log_signal": false,
 
     // minimal USD value is allwed to open an order
     "min_order_value": 10,

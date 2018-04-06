@@ -293,6 +293,7 @@ class Messenger():
                             logger.error(f"JSON load failed:\n{raw}")
                             return {}
                         else:
+                            logger.debug(f"Notifier {method} {self.base_url + route} response: {content}")
                             return content
 
                 except aiohttp.ClientConnectorError as err:

@@ -13,7 +13,7 @@ def parse_args():
     parser.add_argument('--fetch-ohlcvs', action='store_true', help="Execute fetch_all_ohlcvs.py")
     parser.add_argument('--fetch-trades', action='store_true', help="Execute fetch_all_trades.py")
     parser.add_argument('--optimize', action='store_true', help="Execute optimize_params.py")
-    parser.add_argument('--backtest', action='store_true', help="Execute run_backtest.py")
+    parser.add_argument('--backtest', action='store_true', help="Execute backtest.py")
 
     # Mongodb
     parser.add_argument('--setup-mongo-container', action='store_true', help="Execute setup_mongo_container.sh")
@@ -76,7 +76,7 @@ def main():
         os.system(f"python scripts/analysis/optimize_params.py {argv_remain}")
 
     elif argv.backtest:
-        os.system(f"python scripts/analysis/run_backtest.py {argv_remain}")
+        os.system(f"python scripts/analysis/backtest.py {argv_remain}")
 
     elif argv.setup_mongo_container:
         os.system(f"./scripts/mongodb/setup_mongo_container.sh {argv_remain}")
