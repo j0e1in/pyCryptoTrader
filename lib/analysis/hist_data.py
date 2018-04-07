@@ -205,8 +205,8 @@ async def fill_missing_ohlcv(mongo, exchange, symbol, start, end, timeframe):
 
 async def build_ohlcv(mongo, exchange, symbol, src_tf, target_tf, *,
                       start=None, end=None, coll_prefix='', upsert=True):
-    start = MIN_DT if not start else start
-    end = datetime(9999, 1, 1) if not end else end
+    start = start or MIN_DT
+    end = end or datetime(9999, 1, 1)
 
     src_df = await mongo.get_ohlcv(exchange, symbol, src_tf, start, end)
     target_td = tf_td(target_tf)

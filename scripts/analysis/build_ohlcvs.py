@@ -6,7 +6,7 @@ import os
 
 from db import EXMongo
 from analysis.hist_data import build_ohlcv
-from utils import tf_td, config
+from utils import tf_td, config, load_keys, rsym
 
 logger = logging.getLogger('pyct')
 
@@ -27,14 +27,22 @@ async def main():
     src_tf = '1m'
     exchange = 'bitfinex'
     mongo = EXMongo()
+    coll_prefix = ''
 
     target_tfs = config['analysis']['exchanges'][exchange]['timeframes_all']
     symbols = config['analysis']['exchanges'][exchange]['markets_all']
+
     for symbol in symbols:
         for target_tf in target_tfs:
 
             if argv.from_start:
-                await build_ohlcv(mongo, exchange, symbol, src_tf, target_tf, upsert=False)
+                # Drop the collection
+                coll = f"{coll_prefix}{exchange}_ohlcv_{rsym(symbol)}_{target_tf}"
+                coll = mongo.get_collection(config['database']['dbname_exchange'], coll)
+                await coll.drop()
+
+                await build_ohlcv(mongo, exchange, symbol, src_tf, target_tf,
+                                  upsert=True, coll_prefix=coll_prefix)
                 logger.info(f"Building {exchange} {symbol} {target_tf} ohlcv from start")
 
             else:
@@ -46,7 +54,8 @@ async def main():
 
                 # Build ohlcv starting from 5 bars earlier from latest bar
                 await build_ohlcv(mongo, exchange, symbol, src_tf, target_tf,
-                                start=target_start_dt, end=src_end_dt, upsert=True, coll_prefix=coll_prefix)
+                                  start=target_start_dt, end=src_end_dt,
+                                  upsert=True, coll_prefix=coll_prefix)
 
     # Build indexes
     if argv.from_start:
