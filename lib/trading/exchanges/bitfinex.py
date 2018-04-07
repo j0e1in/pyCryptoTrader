@@ -382,7 +382,7 @@ class Bitfinex(EXBase):
         trade['fee'] = abs(float(trade['info']['fee_amount']))
         trade['fee_currency'] = trade['info']['fee_currency']
         trade['datetime'] = ms_dt(trade['timestamp'])
-        trader.pop('info', None)
+        trade.pop('info', None)
         return trade
 
     async def get_deposit_address(self, currency, type='exchange'):

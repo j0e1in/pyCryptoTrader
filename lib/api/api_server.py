@@ -211,8 +211,8 @@ class APIServer():
             msg = f"Query account info"
             accept, res = await req.app.server.send_2fa_request(uid, msg)
 
-        if not accept:
-            return res
+            if not accept:
+                return res
 
         active_markets = trader.ex.markets
         all_markets = list(trader.ex.ex.markets.keys())
@@ -286,8 +286,8 @@ class APIServer():
             msg = f"Query account summary"
             accept, res = await req.app.server.send_2fa_request(uid, msg)
 
-        if not accept:
-            return res
+            if not accept:
+                return res
 
         summ = copy.deepcopy(await trader.get_summary())
         summ['start'] = dt_ms(summ['start'])
@@ -330,8 +330,8 @@ class APIServer():
             msg = f"Query active orders"
             accept, res = await req.app.server.send_2fa_request(uid, msg)
 
-        if not accept:
-            return res
+            if not accept:
+                return res
 
         orders = await trader.ex.fetch_open_orders()
         orders = api_parse_orders(orders)
@@ -372,8 +372,8 @@ class APIServer():
             msg = f"Query active positions"
             accept, res = await req.app.server.send_2fa_request(uid, msg)
 
-        if not accept:
-            return res
+            if not accept:
+                return res
 
         positions = await trader.ex.fetch_positions()
         positions = api_parse_positions(
@@ -416,8 +416,8 @@ class APIServer():
             msg = f"Query signals"
             accept, res = await req.app.server.send_2fa_request(uid, msg)
 
-        if not accept:
-            return res
+            if not accept:
+                return res
 
         signals = {'signals': {}}
 
@@ -488,17 +488,17 @@ class APIServer():
         if not req.app.server.trader_active(req.app.traders, uid):
             return response.json({'error': f'Trader [{uid}] has not been activated'})
 
+        msg = f"Set large PL threshold to {payload['PL(%)']}"
+        accept, res = await req.app.server.send_2fa_request(uid, msg)
+
+        if not accept:
+            return res
+
         for ue in req.app.traders:
             if ue.startswith(uid):
                 trader = req.app.traders[ue]
-
-                msg = f"Set [{ue}] large PL threshold to {payload['PL(%)']}"
-                accept, res = await req.app.server.send_2fa_request(uid, msg)
-
-                if not accept:
-                    return res
-
                 trader._config['apiclient']['large_pl_threshold'] = payload['PL(%)']
+                logger.debug(f"Set [{ue}] large pl to {payload['PL(%)']}")
 
         return response.json({'ok': True})
 
@@ -516,16 +516,15 @@ class APIServer():
         if not req.app.server.trader_active(req.app.traders, uid):
             return response.json({'error': f'Trader [{uid}] has not been activated'})
 
+        msg = f"Change max fund to ${payload['fund']}"
+        accept, res = await req.app.server.send_2fa_request(uid, msg)
+
+        if not accept:
+            return res
+
         for ue in req.app.traders:
             if ue.startswith(uid):
                 trader = req.app.traders[ue]
-
-                msg = f"Change max fund to ${payload['fund']}"
-                accept, res = await req.app.server.send_2fa_request(uid, msg)
-
-                if not accept:
-                    return res
-
                 trader.max_fund = payload['fund']
                 logger.debug(f'Set [{ue}] max fund to {trader.max_fund}')
 
@@ -621,16 +620,15 @@ class APIServer():
         if not req.app.server.trader_active(req.app.traders, uid):
             return response.json({'error': f'Trader [{uid}] has not been activated'})
 
+        msg = "Enable trading"
+        accept, res = await req.app.server.send_2fa_request(uid, msg)
+
+        if not accept:
+            return res
+
         for ue in req.app.traders:
             if ue.startswith(uid):
                 trader = req.app.traders[ue]
-
-                msg = "Enable trading"
-                accept, res = await req.app.server.send_2fa_request(uid, msg)
-
-                if not accept:
-                    return res
-
                 trader.enable_trading = True
                 logger.info(f"Trading enabled")
 
@@ -644,16 +642,15 @@ class APIServer():
         if not req.app.server.trader_active(req.app.traders, uid):
             return response.json({'error': f'Trader [{uid}] has not been activated'})
 
+        msg = "Disable trading"
+        accept, res = await req.app.server.send_2fa_request(uid, msg)
+
+        if not accept:
+            return res
+
         for ue in req.app.traders:
             if ue.startswith(uid):
                 trader = req.app.traders[ue]
-
-                msg = "Disable trading"
-                accept, res = await req.app.server.send_2fa_request(uid, msg)
-
-                if not accept:
-                    return res
-
                 trader.enable_trading = False
                 logger.info(f"Trading disabled")
 
