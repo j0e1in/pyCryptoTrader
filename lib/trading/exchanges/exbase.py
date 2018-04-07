@@ -97,6 +97,9 @@ class EXBase():
         self.ohlcv_start_end = {}
         self.markets_start_dt = {}
 
+        if self._config['trading']['indicator_tf'] not in self.timeframes:
+            self.timeframes.append(self._config['trading']['indicator_tf'])
+
     def init_wallet(self):
         wallet = {}
         wallet['USD'] = 0

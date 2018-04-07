@@ -128,6 +128,12 @@ class SingleEXTrader():
 
     async def start(self):
         """ All-in-one entry for starting trading bot. """
+
+        async def cleanup(pending):
+            await self.ex.ex.close()
+            for task in pending:
+                task.cancel()
+
         # Get required starting tasks of exchange.
         ex_start_tasks = self.ex.start_tasks()
 
@@ -144,10 +150,11 @@ class SingleEXTrader():
         end = False
         while not end:
             for task in done:
+
                 # The trader stopped
                 if task._coro.__name__ == '_start':
                     if self._stop:
-                        await self.ex.ex.close()
+                        await cleanup(pending)
                         return
                     else:
                         try:
@@ -156,13 +163,10 @@ class SingleEXTrader():
                             logger.warning(f"Task exception timeout")
                         else:
                             # Close ex before trader stops
-                            await self.ex.ex.close()
+                            await cleanup(pending)
                             raise exp
             if not end:
-                done, pending = await asyncio.wait(
-                    [
-                        *pending
-                    ],
+                done, pending = await asyncio.wait(pending,
                     return_when=FIRST_COMPLETED)
 
     def stop(self):
@@ -765,7 +769,6 @@ class SingleEXTrader():
         min_amount = self.ex.markets_info[symbol]['limits']['amount']['min']
         order_count = min(int(math.sqrt(2 * amount / min_amount) - 1), max_order_count)
         order_count = max(order_count, 1)
-        print('order_count:', order_count)
         amount_diff_base = amount / ((order_count + 1) * order_count / 2)
         cur_price = start_price
         dec = 100000000
@@ -795,7 +798,6 @@ class SingleEXTrader():
         n_orders = len(orders)
         while idx < n_orders-1:
             if orders[idx]['amount'] < min_amount:
-                print('merge')
                 cur_amount = orders[idx]['amount']
                 cur_price = orders[idx]['price']
                 merge_num = 1
@@ -995,23 +997,15 @@ class TraderManager():
 
         while True:
             uid_ex = self.ds.get('uid_ex', [])
+            to_remove = []
 
             for ue in self.traders:
 
                 # Remove trader
-                if ue not in uid_ex:
+                if ue not in uid_ex and not self.traders[ue]._stop:
                     logger.info(f"Removing [{ue}]")
                     name = 'trader:' + str(ue)
                     self.traders[ue].stop()
-
-                    try:
-                        res = futures[name].result(timeout=1)
-                    except concurrent.futures.TimeoutError:
-                        logger.warning(f"{name} thread is still alive after join timeout, "
-                                       f"trader will not be removed")
-                    else:
-                        del self.traders[ue]
-                        del futures[name]
 
             for ue in uid_ex:
                 if ue not in self.traders:
@@ -1023,10 +1017,20 @@ class TraderManager():
 
             for name in futures:
                 try:
-                    exp = futures[name].exception(timeout=5)
+                    exp = futures[name].exception(timeout=1)
                 except concurrent.futures.TimeoutError:
                     pass
                 else:
                     ue = name.split(':')[1]
-                    logger.warning(f"Trader [{ue}] {exp.__class__.__name__} {str(exp)}")
-                    start_trader(ue)
+
+                    if self.traders[ue]._stop:
+                        to_remove.append(ue)
+                    else:
+                        logger.warning(f"Trader [{ue}] got exception: {exp.__class__.__name__} {str(exp)}")
+                        logger.info(f"Restaring trader [{ue}]")
+                        start_trader(ue)
+
+            for ue in to_remove:
+                logger.debug(f'{ue} removed')
+                del self.traders[ue]
+                del futures[name]

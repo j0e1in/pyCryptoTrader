@@ -696,7 +696,7 @@ class EXPeriod():
 log_type = 'pyct_colored'
 
 if config['mode'] == 'debug':
-    addition_info = "\t  (%(filename)s @ %(funcName)s)"
+    addition_info = "\t  (%(filename)s @ %(funcName)s:%(lineno)d)"
 else:
     addition_info = ""
 
