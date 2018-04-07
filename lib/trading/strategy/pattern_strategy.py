@@ -72,7 +72,6 @@ class PatternStrategy(SingleEXStrategy):
             return action
 
         tftd = tf_td(self.trader.config['indicator_tf'])
-        buffer_time = tftd / 20
         market_ranks = self.rank_markets()
         actions = {market: NONE for market in market_ranks}
 
@@ -82,38 +81,12 @@ class PatternStrategy(SingleEXStrategy):
             # Ensure ohlcv is up-to-date
             if is_within(sig.index[-1], tftd):
 
-                # if near_end(sig.index[-1], tftd):
-                #     logger.debug("near_end")
-                #     # If is not yet executed
-                #     if not executed(sig, self.last_sig_exec, market, tftd):
-                #         logger.debug(f"case 1")
-                #         actions[market] = await exec_sig(sig, market, use_prev_sig=False)
-
-                #     # If a sig has been executed in this interval,
-                #     # but sig changed and also exceeds the buffer time
-                #     elif changed(sig, self.last_sig_exec, market, tftd):
-                #         in_buffer_time = (sig.index[-1] - self.last_sig_exec[market]['time']) < buffer_time
-                #         if in_buffer_time:
-                #             logger.debug(f"in buffer time")
-
-                #         if not in_buffer_time:
-                #             logger.debug(f"case 2")
-                #             actions[market] = await exec_sig(sig, market, use_prev_sig=False)
-
                 if near_start(sig.index[-1], tftd):
                     logger.debug("near_start")
-                    # If last internal's sig is not executed
-                    # (sig activated/changed at last minute)
-                    if not executed(sig, self.last_sig_exec, market, tftd):
-                        logger.debug(f"case 3")
-                        actions[market] = await exec_sig(sig, market, use_prev_sig=True)
 
-                    # # If last internal's sig has been executed
-                    # # but sig changed
-                    # elif changed(sig, self.last_sig_exec, market, tftd):
-                    #     if self.last_sig_exec[market]['time'] < rounddown_dt(sig.index[-1], tftd):
-                    #         logger.debug(f"case 4")
-                    #         actions[market] = await exec_sig(sig, market, use_prev_sig=True)
+                    if not executed(sig, self.last_sig_exec, market, tftd):
+                        logger.debug(f"executing signal")
+                        actions[market] = await exec_sig(sig, market, use_prev_sig=True)
 
         return actions
 
@@ -144,15 +117,6 @@ class PatternStrategy(SingleEXStrategy):
 
         if orders:
             await self.trader.notifier.notify_open_orders_succ(orders)
-
-        # elif np.isnan(conf):
-        #     last_action = self.last_sig_exec[market]['action']
-
-        #     if last_action != to_action(conf, last_action):
-        #         logger.debug(f"Cancel {market} orders")
-        #         logger.debug(f"{market} indicator signal @ {utc_now()}\n{sig[-5:]}")
-        #         action = CANCEL
-        #         await self.trader.cancel_all_orders(market)
 
         return action
 
@@ -211,26 +175,8 @@ def executed(sig, last_sig_exec, market, tftd):
     action = last_sig_exec[market]['action']
     time = last_sig_exec[market]['time']
 
-    # if near_end(sig.index[-1], tftd):
-    #     if near_end(time, tftd) \
-    #     and time < roundup_dt(sig.index[-1], tftd) \
-    #     and time >= rounddown_dt(sig.index[-1], tftd):
-    #         logger.debug(f'Executed, time: {time}')
-    #         return True
-
-    #     else:
-    #         logger.debug(f'Not Executed, time: {time}')
-    #         return False
-
     if near_start(sig.index[-1], tftd):
-        # Last signal has been executed at old interval
-        # if near_end(time, tftd) \
-        # and time < roundup_dt(sig.index[-2], tftd) \
-        # and time >= rounddown_dt(sig.index[-2], tftd):
-        #     logger.debug(f'Executed, time: {time}')
-        #     return True
 
-        # Last signal has been executed at new interval
         if near_start(time, tftd) \
         and time < roundup_dt(sig.index[-1], tftd) \
         and time >= rounddown_dt(sig.index[-1], tftd) \

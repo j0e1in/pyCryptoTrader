@@ -267,11 +267,6 @@ class SingleEXTrader():
         if log_remain_time:
             td = tf_td(self.config['indicator_tf'])
 
-            # if near_end(utc_now(), td):
-            #     remaining_time = roundup_dt(utc_now(), td) - utc_now()
-            #     remaining_time -= timedelta(microseconds=remaining_time.microseconds)
-            #     logger.info(f"{remaining_time} left to end trading")
-            # else:
             remaining_time = roundup_dt(utc_now(), td) - utc_now() # - td / self.config['strategy']['near_end_ratio']
             remaining_time -= timedelta(microseconds=remaining_time.microseconds)
             logger.info(f"{remaining_time} left to start trading")

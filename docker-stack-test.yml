@@ -16,6 +16,7 @@ services:
               --ssl
               --manager
               --disable-trading
+              --log-signal
     env_file:
       - .env
     volumes:
