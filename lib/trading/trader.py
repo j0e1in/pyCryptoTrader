@@ -39,7 +39,6 @@ logger = logging.getLogger('pyct')
 class SingleEXTrader():
 
     ds_list = [
-        '_config',
         'enable_trading',
         'max_fund',
         'summary',
@@ -61,14 +60,13 @@ class SingleEXTrader():
 
         self.mongo = mongo
 
-        _config = custom_config if custom_config else config
-        self.uid = uid if uid else _config['uid']
+        self._config = custom_config if custom_config else config
+        self.uid = uid if uid else self._config['uid']
         self.ds = Datastore.create(f"{self.uid}:trader")
 
         if reset_state:
             self.ds.clear()
 
-        self._config = self.ds.get('_config', _config)
         self.config = self._config['trading']
         self.enable_trading = self.ds.get('enable_trading', not disable_trading)
         self.log = log
@@ -176,10 +174,6 @@ class SingleEXTrader():
         async def _set_startup_status():
             self.summary['start'] = utc_now()
             self.summary['now'] = utc_now()
-
-            for market in self.ex.markets:
-                self.ex.set_market_start_dt(market, self.summary['start'])
-
             self.summary['initial_balance'] = copy.deepcopy(self.ex.wallet)
             self.summary['initial_value'] = await self.ex.calc_account_value()
 
@@ -191,7 +185,12 @@ class SingleEXTrader():
         await self.wait_ex_to_be_ready()
         logger.info("Exchange is ready")
 
-        await _set_startup_status()
+        if not self.summary['start']:
+            await _set_startup_status()
+
+        for market in self.ex.markets:
+            self.ex.set_market_start_dt(market, self.summary['start'])
+
         await self.notifier.notify_start()
 
         logger.info("Start trading")
@@ -253,7 +252,7 @@ class SingleEXTrader():
         if (cur_time - last_log_time) > \
         tf_td(self.config['indicator_tf']) / 8:
             for market in self.ex.markets:
-                logger.info(f"{market} indicator signal @ {time_str}\n{sig[market][-12:]}")
+                logger.info(f"{market} indicator signal @ {time_str}\n{sig[market][-20:]}")
                 last_sig[market] = sig[market].iloc[-1]
 
             last_log_time = cur_time
@@ -261,7 +260,7 @@ class SingleEXTrader():
         else:
             for market in self.ex.markets:
                 if sig_changed(sig, market):
-                    logger.info(f"{market} indicator signal @ {time_str}\n{sig[market][-12:]}")
+                    logger.info(f"{market} indicator signal @ {time_str}\n{sig[market][-20:]}")
                     log_remain_time = True
 
         if log_remain_time:
@@ -747,6 +746,8 @@ class SingleEXTrader():
         self.summary['current_value'] = await self.ex.calc_account_value()
         self.summary['total_trade_fee'] = await self.ex.calc_trade_fee(start, now)
         self.summary['total_margin_fee'] = self.ex.calc_margin_fee(start, now)
+        self.summary['order_value'] = await self.ex.calc_order_value()
+        self.summary['position_value'] = await self.ex.calc_all_position_value()
         self.summary['PL'] = self.summary['current_value'] - self.summary['initial_value']
         self.summary['PL(%)'] = self.summary['PL'] / self.summary['initial_value'] * 100
         self.summary['PL_Eff'] = self.summary['PL(%)'] / self.summary['days'] * 0.3
@@ -1016,7 +1017,7 @@ class TraderManager():
                 if ue not in self.traders:
                     logger.info(f"Adding [{ue}]")
                     start_trader(ue)
-                    await asyncio.sleep(5)
+                    await asyncio.sleep(30)
 
             await asyncio.sleep(5)
 
