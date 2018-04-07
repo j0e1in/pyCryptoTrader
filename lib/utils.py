@@ -416,7 +416,9 @@ async def handle_ccxt_request(func, *args, **kwargs):
                 ccxt.ExchangeNotAvailable,
                 ccxt.ExchangeError,
                 ccxt.InvalidNonce,
-                KeyError) as err:
+                AttributeError,
+                KeyError,
+                ) as err:
 
             # finished fetching all ohlcv
             if is_empty_response(err):
