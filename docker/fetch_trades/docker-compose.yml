@@ -1,4 +1,4 @@
-version: '3.3'
+version: '3.5'
 services:
   fetch_trades:
     image: gcr.io/docker-reghub/pyct

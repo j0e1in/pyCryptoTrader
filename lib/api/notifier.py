@@ -1,5 +1,6 @@
 from hashlib import sha1
 
+import asyncio
 import aiohttp
 import base64
 import copy
@@ -20,8 +21,8 @@ class Messenger():
         self.config = self._config['apiclient']
         self.trader = trader
 
-        self.session = aiohttp.ClientSession()
-        self.secret = load_keys()[trader.userid]['FB_APP_SECRET']
+        # self.session = aiohttp.ClientSession()
+        self.secret = load_keys()['FB_APP_SECRET']
 
         self.default = {}
         self.default['header'] = {
@@ -88,7 +89,7 @@ class Messenger():
 
         summary['price'] /= len(orders)
 
-        route = f"/notification/order/open/{self.trader.userid}"
+        route = f"/notification/order/open/{self.trader.uid}"
         payload = {'orders': orders, 'summary': summary}
 
         return await self.request('post', route, payload)
@@ -146,7 +147,7 @@ class Messenger():
 
         summary['price'] /= len(orders)
 
-        route = f"/notification/order/failed/{self.trader.userid}"
+        route = f"/notification/order/fail/{self.trader.uid}"
         payload = {'orders': orders, 'summary': summary}
 
         return await self.request('post', route, payload)
@@ -157,74 +158,74 @@ class Messenger():
     async def notify_position_close(self, positions):
         pass
 
-    async def notify_position_danger(self, positions):
+    async def notify_position_danger_pl(self, positions):
         """ Warn for danger positions
             Send:
             {
-                "positions": [
-                    {
-                        "exchange": string
-                        "symbol": string
-                        "side": string
-                        "amount": float
-                        "price": float
-                        "value": float
-                        "timestamp": string,
-                        "PL": float
-                        "PL(%)": float
-                    },
-                    ...
-                ]
-            }
-        """
-        if not isinstance(positions, list):
-            positions = [positions]
-
-        positions = api_parse_positions(
-            positions, self.trader.config[self.trader.ex.exname]['margin_rate'])
-
-        for position in positions:
-            position['exchange'] = self.trader.ex.exname
-
-        route = f"/notification/position/danger/{self.trader.userid}"
-        payload = {'positions': positions}
-
-        return await self.request('post', route, payload)
-
-    async def notify_position_large_pl(self, positions):
-        """ Notify for large pl positions
-            {
-                "position": {
+                "positions": {
                     "exchange": string
+                    "id": string
                     "symbol": string
-                    "type": string
                     "side": string
                     "amount": float
                     "price": float
-                    "timestamp": string
-                    "margin": bool
-                    "PL" float
-                    "PL(%)" float
+                    "value": float
+                    "timestamp": string,
+                    "PL": float
+                    "PL(%)": float
                 }
             }
         """
         if not isinstance(positions, list):
             positions = [positions]
 
-        positions = api_parse_positions(
+        parsed_positions = api_parse_positions(
             positions, self.trader.config[self.trader.ex.exname]['margin_rate'])
 
-        for position in positions:
+        for i, position in enumerate(parsed_positions):
             position['exchange'] = self.trader.ex.exname
+            position['id'] = positions[i]['id']
 
-        route = f"/notification/position/large_pl/{self.trader.userid}"
-        payload = {'positions': positions}
+        route = f"/notification/position/danger/{self.trader.uid}"
+        payload = {'positions': parsed_positions}
+
+        return await self.request('post', route, payload)
+
+    async def notify_position_large_pl(self, positions):
+        """ Notify for large pl positions
+            {
+                "positions": {
+                    "exchange": string
+                    "id": string
+                    "symbol": string
+                    "side": string
+                    "amount": float
+                    "price": float
+                    "value": float
+                    "timestamp": string
+                    "PL": float
+                    "PL(%)": float
+                }
+            }
+        """
+        if not isinstance(positions, list):
+            positions = [positions]
+
+        parsed_positions = api_parse_positions(
+            positions, self.trader.config[self.trader.ex.exname]['margin_rate'])
+
+        for i, position in enumerate(parsed_positions):
+            position['exchange'] = self.trader.ex.exname
+            position['id'] = positions[i]['id']
+
+        route = f"/notification/position/large_pl/{self.trader.uid}"
+        payload = {'positions': parsed_positions}
 
         return await self.request('post', route, payload)
 
     async def notify_start(self):
         """ Notify for starting trader server """
-        route = f"/notification/start/{self.trader.userid}"
+        route = f"/notification/start/{self.trader.uid}"
         payload = {'message': 'Trader server has started'}
 
         return await self.request('post', route, payload)
@@ -237,14 +238,14 @@ class Messenger():
                 "message": string
             }
         """
-        route = f"/notification/log/{self.trader.userid}"
+        route = f"/notification/log/{self.trader.uid}"
         payload = {'level': level, 'message': msg}
 
         return await self.request('post', route, payload)
 
     async def notify_msg(self, msg):
         """ Send any message """
-        route = f"/notification/message/{self.trader.userid}"
+        route = f"/notification/message/{self.trader.uid}"
         payload = {'message': msg}
 
         return await self.request('post', route, payload)
@@ -253,41 +254,55 @@ class Messenger():
         if self.disable:
             return None
 
-        request_method = getattr(self.session, method)
-        _header = copy.deepcopy(self.default['header'])
-        _payload = copy.deepcopy(self.default['payload'])
+        async with aiohttp.ClientSession() as sess:
+            request_method = getattr(sess, method)
+            p_header = copy.deepcopy(self.default['header'])
+            p_payload = copy.deepcopy(self.default['payload'])
 
-        if isinstance(header, dict):
-            _header.update(header)
-        elif header:
-            logger.warning(f"Expect header to be dict but got {type(header)}")
+            if isinstance(header, dict):
+                p_header.update(header)
+            elif header:
+                logger.warning(f"Expect header to be dict but got {type(header)}")
 
-        if isinstance(payload, dict):
-            _payload.update(payload)
-        elif payload:
-            logger.warning(f"Expect payload to be dict but got {type(payload)}")
+            if isinstance(payload, dict):
+                p_payload.update(payload)
+            elif payload:
+                logger.warning(f"Expect payload to be dict but got {type(payload)}")
 
-        _payload = json.dumps(_payload)
-        _header['x-hub-signature'] = \
-            'sha1=' + gen_signature(_payload, self.secret, sha1)
+            p_payload = json.dumps(p_payload)
+            p_header['x-hub-signature'] = \
+                'sha1=' + gen_signature(p_payload, self.secret, sha1)
 
-        async with request_method(
-            self.base_url + route,
-            headers=_header,
-            data=_payload) as res:
+            retry = 0
+            retry_sec = 10
+            while retry < 3:
+                retry += 1
 
-            raw = await res.text()
-            content = {}
+                try:
+                    async with request_method(
+                        self.base_url + route,
+                        headers=p_header,
+                        data=p_payload) as res:
 
-            try:
-                content = json.loads(raw)
-            except json.JSONDecodeError:
-                logger.error(f"JSON load failed:\n{raw}")
+                        raw = await res.text()
+                        content = {}
 
-            return content
+                        try:
+                            content = json.loads(raw)
+                        except json.JSONDecodeError:
+                            logger.error(f"JSON load failed:\n{raw}")
+                            return {}
+                        else:
+                            logger.debug(f"Notifier {method} {self.base_url + route} response: {content}")
+                            return content
 
-    async def close(self):
-        await self.session.close()
+                except aiohttp.ClientConnectorError as err:
+                    logger.warning(f"{err}, retry in {retry_sec} seconds")
+                    await asyncio.sleep(retry_sec)
+                else:
+                    break
+
+            return {}
 
 
 def gen_signature(message, secret, algorithm, digest='hex'):

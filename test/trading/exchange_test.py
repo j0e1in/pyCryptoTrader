@@ -1,5 +1,5 @@
-from setup import setup, run
-setup()
+from setup import run
+
 
 from datetime import datetime
 from pprint import pprint
@@ -189,7 +189,7 @@ async def test_calc_all_position_value(ex):
 async def main():
     mongo = EXMongo()
 
-    key = load_keys()[config['userid']]['bitfinex']
+    key = load_keys()[config['uid']]['bitfinex']
     ex = Bitfinex(mongo, key['apiKey'], key['secret'], ccxt_verbose=False, log=True)
     await ex.ex.load_markets()
 

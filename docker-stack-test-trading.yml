@@ -13,9 +13,9 @@ services:
               --redis-host=redis
               --enable-api
               --env .env
-              --disable-trading
+              --ssl
+              --manager
               --log-signal
-              --log
     env_file:
       - .env
     volumes:
@@ -23,8 +23,8 @@ services:
       - ./log:/app/log
       - ./settings:/app/settings:ro
     networks:
-      - mongo_net
-      - redis_net
+      - mongo_net_swarm
+      - redis_net_swarm
     ports:
       - "8000:8000"
     secrets:
@@ -34,14 +34,13 @@ services:
         target: /app/private/fullchain.pem
       - source: privkey.pem
         target: /app/private/privkey.pem
-    restart: always
     deploy:
       replicas: 1
 
 networks:
-  mongo_net:
+  mongo_net_swarm:
     external: true
-  redis_net:
+  redis_net_swarm:
     external: true
 
 volumes:

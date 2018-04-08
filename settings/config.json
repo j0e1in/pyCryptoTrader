@@ -1,6 +1,6 @@
 {
-  "mode": "dev",
-  "userid": "j0e1in",
+  "mode": "debug",
+  "uid": "j0e1in",
 
   "use_multicore": true,
   "max_processes": 8,
@@ -21,7 +21,8 @@
     "orderbook_delay": 25,
     "orderbook_size": 400,
     "markets_info_delay": 5400,
-    "ohlcv_fetch_interval": 180
+    "ohlcv_fetch_interval": 180,
+    "position_check_interval": 300
   },
 
   "backtest": {
@@ -37,10 +38,9 @@
   },
 
   "trading": {
-    "margin": false,
     "indicator_tf": "8h",
     "trade_portion": 0.6,
-    "max_fund": 5000,
+    "max_fund": 200,
 
     "_conmment_maintain_portion": "ratio of balance in wallet and balance in markets",
     "maintain_portion": 0.05,
@@ -48,7 +48,7 @@
     // price difference (buffer) to the top price in orderbook
     "scale_order_near_percent": 0.002,
     "scale_order_close_far_percent": 0.005,
-    "scale_order_far_percent": 0.02,
+    "scale_order_far_percent": 0.03,
     "scale_order_count": 20,
 
     "summary_delay": 120,
@@ -83,7 +83,9 @@
       ]
     },
     "strategy": {
-      "data_days": 15
+      "data_days": 20,
+      "near_start_ratio": 0.05,
+      "near_end_ratio": 0.03
     },
     "params": {
       "common": {
@@ -179,6 +181,7 @@
     "margin_rate": 3.0,
     "force_liquidate_percent": 0.15,
     "indicator_tf": "8h",
+    "log_signal": false,
 
     // minimal USD value is allwed to open an order
     "min_order_value": 10,
@@ -250,23 +253,22 @@
 
     "params": {
       "common": {
-        "trade_portion": 0.7,
+        "trade_portion": 0.5,
         "stop_loss_percent": 0.06,
         "stop_profit_percent": 0.02,
         "ind_conf": 100,
-
         "stochrsi_length": 18,
         "stoch_length": 10,
         "stochrsi_slowk_length": 2,
         "stochrsi_slowd_length": 2,
         "stochrsi_upper": 70,
-        "stochrsi_lower": 25,
+        "stochrsi_lower": 40,
         "stochrsi_adx_length": 30,
         "stochrsi_di_length": 12,
         "stochrsi_rsi_length": 14,
         "stochrsi_rsi_upper": 80,
         "stochrsi_rsi_lower": 25,
-        "stochrsi_rsi_mom_thresh": 10,
+        "stochrsi_rsi_mom_thresh": 20,
         "stochrsi_mom_length": 20,
         "stochrsi_mom_ma_length": 10
       }
@@ -404,15 +406,19 @@
 
   "database": {
     // localhost or mongo (docker) or an external IP"
-    "default_host": "172.18.0.2",
+    "default_host": "127.0.0.1",
     "default_port": 27017,
     "auth": true,
     "username": "ex",
-    "password": "vv112358",
     "auth_db": "admin",
     "dbname_exchange": "exchange",
     "dbname_trade": "trading",
     "dbname_api": "api"
+  },
+
+  "datastore": {
+    "default_host": "127.0.0.1",
+    "default_port": 6379
   },
 
   "apiserver": {
@@ -420,21 +426,24 @@
     "keep_alive_timeout": 10,
     "request_timeout": 120,
     "response_timeout": 120,
-    "api_access": {
-      "j0e1in": {
-        "allow": [ "all" ],
-        "deny": []
-      },
-      "wayne": {
-        "allow": [ "all" ],
-        "deny": [
-          "change_max_fund",
-          "enable_markets",
-          "disable_markets",
-          "enable_trading",
-          "disable_trading"
-        ]
-      }
+    "auth_level": {
+      "1": [], // allow all
+      "2": [
+        "change_max_fund",
+        "enable_markets",
+        "disable_markets",
+        "enable_trading",
+        "disable_trading"
+      ],
+      "3": [
+        "change_log_level",
+        "change_large_pl_threshold",
+        "change_max_fund",
+        "enable_markets",
+        "disable_markets",
+        "enable_trading",
+        "disable_trading"
+      ]
     },
     "cert": "../private/fullchain.pem",
     "key": "../private/privkey.pem"
@@ -443,11 +452,13 @@
   "apiclient": {
     "messenger_host": "trader.csie.io",
     "large_pl_threshold": 15, // in percentage
-    "danger_pl_threshold": 12 // in percentage
+    "danger_pl_threshold": 35, // in percentage
+    "large_pl_diff": 3, // in percentage
+    "danger_pl_diff": 1 // in percentage
   },
 
   "authy": {
-    "seconds_to_expire": 300
+    "seconds_to_expire": 120
   }
 }
 

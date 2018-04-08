@@ -1,10 +1,8 @@
-from setup import run, setup
-setup()
+from setup import run
+
 
 from pprint import pprint
 from datetime import datetime
-import motor.motor_asyncio as motor
-import pandas as pd
 
 from analysis.hist_data import \
     fetch_ohlcv, \
@@ -47,7 +45,7 @@ async def test_fetch_trades():
 
 
 async def test_fetch_my_trades():
-    key = load_keys()[config['userid']]['bitfinex']
+    key = load_keys()[config['uid']]['bitfinex']
     exchange = init_ccxt_exchange('bitfinex', key['apiKey'], key['secret'])
     start = datetime(2017, 4, 1)
 
@@ -58,17 +56,17 @@ async def test_fetch_my_trades():
 
 
 async def test_find_missing_ohlcv():
-    mongo = motor.AsyncIOMotorClient('localhost', 27017)
+    mongo = EXMongo()
 
-    timeframe = '15m'
-    coll_tamplate = "bitfinex_ohlcv_ETHUSD_{}"
-    coll = getattr(mongo.exchange, coll_tamplate.format(timeframe))
+    tf = '8h'
+    coll = f"bitfinex_ohlcv_BTCUSD_{tf}"
+    coll = mongo.get_collection(config['database']['dbname_exchange'], coll)
 
-    start = datetime(2017, 10, 1)
-    end = datetime(2017, 11, 1)
+    start = datetime(2017, 8, 1)
+    end = datetime(2018, 4, 6)
 
     count = 0
-    missing_ohlcv_ts = await find_missing_ohlcv(coll, start, end, timeframe)
+    missing_ohlcv_ts = await find_missing_ohlcv(coll, start, end, tf)
     for ts in missing_ohlcv_ts:
         count += 1
         print("Missing: ", ts, '-', datetime.utcfromtimestamp(ms_sec(ts)))
@@ -82,8 +80,8 @@ async def test_fill_ohlcv_missing_timestamp():
     symbol = 'ETH/USD'
     timeframe = '15m'
 
-    start = datetime(2017, 10, 1)
-    end = datetime(2017, 11, 1)
+    start = datetime(2017, 8, 1)
+    end = datetime(2019, 1, 1)
 
     filled_df = await fill_missing_ohlcv(mongo, exchange, symbol, start, end,
                                          timeframe)

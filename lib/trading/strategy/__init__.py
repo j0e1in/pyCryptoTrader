@@ -1,2 +1,2 @@
-from trading.strategy.base_strategy import SingleEXStrategy
-from trading.strategy.pattern_strategy import PatternStrategy
+from trading.strategy.base_strategy import *
+from trading.strategy.pattern_strategy import *

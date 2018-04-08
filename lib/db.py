@@ -1,9 +1,14 @@
-from datetime import datetime
-from pymongo.errors import BulkWriteError
+from collections import MutableMapping
 from motor import motor_asyncio
+from redis import StrictRedis
+
+import asyncio
 import logging
 import pandas as pd
 import pymongo
+import pickle
+import six
+import re
 
 from utils import \
     INF, \
@@ -12,14 +17,12 @@ from utils import \
     ex_name, \
     config, \
     rsym, \
+    load_keys, \
     execute_mongo_ops
 
 pd.options.mode.chained_assignment = None
 
-
 logger = logging.getLogger('pyct')
-
-# TODO: Add insert_trades()
 
 
 class EXMongo():
@@ -32,11 +35,13 @@ class EXMongo():
             host = self.config['default_host']
         if not port:
             port = self.config['default_port']
+        self.host = host
+        self.port = port
 
         if not uri:
             if self.config['auth']:
                 user = self.config['username']
-                passwd = self.config['password']
+                passwd = load_keys()['mongo_passwd']
                 db = self.config['auth_db']
                 uri = f"mongodb://{user}:{passwd}@{host}:{port}/{db}"
             else:
@@ -44,16 +49,6 @@ class EXMongo():
 
         logger.info(f"Connecting mongo client to {host}:{port}")
         self.client = motor_asyncio.AsyncIOMotorClient(uri)
-
-    async def get_exchanges_info(self, ex):
-        # TODO: Read exchange summary
-        # self.update_exchanges_info()
-        # coll_names = await self.client.get_database(self.config['dbname_exchange']).collection_names()
-        pass
-
-    async def update_exchanges_info(self):
-        # TODO: Update exchange summary
-        pass
 
     async def export_to_csv(self, db, collection, path):
         await self._dump_to_file(db, collection, path, 'csv')
@@ -121,7 +116,8 @@ class EXMongo():
 
         return ms_dt(res[0]['timestamp'])
 
-    async def get_ohlcv(self, ex, symbol, timeframe, start, end, fields_condition={}, compress=False):
+    async def get_ohlcv(self, ex, symbol, timeframe, start, end,
+                        fields_condition={}, compress=False, coll_prefix=''):
         """ Read ohlcv of 'one' symbol and 'one' timeframe from mongodb into DataFrame,
             Params
                 ex: str or ccxt exchange instance
@@ -136,13 +132,14 @@ class EXMongo():
         condition = self.cond_timestamp_range(start, end)
 
         ex = ex_name(ex)
-        collection = f"{ex}_ohlcv_{rsym(symbol)}_{timeframe}"
+        collection = f"{coll_prefix}{ex}_ohlcv_{rsym(symbol)}_{timeframe}"
 
         coll = self.get_collection(db, collection)
         if not await self.coll_exist(coll):
             raise ValueError(f"Collection {collection} does not exist.")
 
         ohlcv = await self._read_to_dataframe(db, collection, condition,
+                                             fields_condition=fields_condition,
                                              index_col='timestamp',
                                              date_col='timestamp',
                                              date_parser=ms_dt)
@@ -209,7 +206,6 @@ class EXMongo():
                 }
         """
         trades = {}
-        timeframes = self._config['analysis']['exchanges'][ex_name(ex)]['timeframes']
         for sym in symbols:
             trades[sym] = await self.get_trades(ex, sym, start, end, fields_condition, compress)
         return trades
@@ -233,7 +229,7 @@ class EXMongo():
                 pymongo.UpdateOne(
                     {'timestamp': rec['timestamp']},
                     {'$set': rec},
-                    upsert=True))
+                    upsert=upsert))
 
             if len(ops) > 10000:
                 await execute_mongo_ops(coll.bulk_write(ops))
@@ -352,3 +348,171 @@ class EXMongo():
         """ Fetch fields in the collection and create an empty df with columns. """
         res = await coll.find_one({}, {'_id': 0})
         return pd.DataFrame(columns=res.keys())
+
+
+class DataStoreFactory():
+
+    def __init__(self, custom_config=None):
+        self._config = custom_config if custom_config else config
+        self.config = self._config['datastore']
+
+        self.redis = StrictRedis(host=self.config['default_host'],
+                                 port=self.config['default_port'],
+                                 password=load_keys()['redis_passwd'])
+
+    def update_redis(self, host=None, port=None, password=''):
+        args = self.redis.connection_pool.connection_kwargs
+        host = host if host else args['host']
+        port = port if port else args['port']
+        password = password if password else args['password']
+
+        self.redis = StrictRedis(host=host,
+                                 port=port,
+                                 password=password)
+
+    def create(self, name):
+        """ Create a named container """
+        return DataStoreContainer(name)
+
+
+class DataStoreContainer(MutableMapping):
+    serializer = pickle
+
+    def __init__(self, name):
+        self._setattr('name', name)
+        self._setattr('serializer', self.serializer)
+
+    def _getattr(self, key):
+        return super(DataStoreContainer).__getattr__(key)
+
+    def _setattr(self, key, val):
+        super().__setattr__(key, val)
+
+    def _delattr(self, key):
+        super().__delattr__(key)
+
+    def hasattr(self, key):
+        if key in self.__dict__:
+            return self._getattr(key)
+
+        val = Datastore.redis.hget(self.name, key)
+        return True if val else False
+
+    def __getattr__(self, key):
+        if key in self.__dict__:
+            return self._getattr(key)
+
+        val = Datastore.redis.hget(self.name, key)
+
+        if not val:
+            raise AttributeError(f"{repr(self)} has no attribute `{key}`")
+
+        try:
+            res = self.serializer.loads(val)
+        except pickle.UnpicklingError as err:
+            logger.error(f"{err.__class__} {err}")
+            return None
+        else:
+            return res
+
+    def __setattr__(self, key, val):
+        if self._valid_name(key):
+            val = self.serializer.dumps(val)
+            Datastore.redis.hset(self.name, key, val)
+        else:
+            raise ValueError(f"`{key}` is not a valid attribute name")
+
+    def __getitem__(self, key):
+        return self.__getattr__(key)
+
+    def __setitem__(self, key, val):
+        self.__setattr__(key, val)
+
+    def __delitem__(self, key):
+        if Datastore.redis.hexists(self.name, key):
+            Datastore.redis.hdel(self.name, key)
+        else:
+            raise AttributeError(f"{repr(self)} has no attribute `{key}`")
+
+    def __getstate__(self):
+        """ Called when this object is being serialized """
+        return (self.name)
+
+    def __setstate__(self, state):
+        """ Called when this object is being deserialized """
+        (name) = state
+
+        self._setattr('name', name)
+        self._setattr('serializer', self.serializer)
+
+    def __repr__(self):
+        """ Return a string representation of the object """
+        return f"DataStoreContainer({self.name}, " \
+               f"{self.keys()})"
+
+    def __eq__(self, obj):
+        if hasattr(obj, 'name') and obj.name == self.name \
+        and hasattr(obj, 'serializer') and obj.serializer == self.serializer:
+            return True
+        else:
+            return False
+
+    def __dir__(self):
+        return [*['name', 'serializer'], *self.keys()]
+
+    def __iter__(self):
+        keys = self.keys()
+        for k in keys:
+            yield k, getattr(self, k)
+
+    def __len__(self):
+        return len(Datastore.redis.hkeys(self.name))
+
+    def items(self):
+        return self.__iter__()
+
+    def keys(self):
+        _keys = []
+        for k in Datastore.redis.hkeys(self.name):
+            _keys.append(str(k, 'UTF-8'))
+        return _keys
+
+    def get(self, attr, default_val):
+        """ Get the attribute, if the attribute wasn't set, return default_val """
+        try:
+            attr in self
+        except AttributeError:
+            return default_val
+        else:
+            return self[attr]
+
+    def sync(self, ds_list, obj):
+        """ Store every attribute (of obj) in ds_list to datastore. """
+        for attr in ds_list:
+            self[attr] = getattr(obj, attr)
+
+    async def sync_routine(self, ds_list, obj):
+        while True:
+            await asyncio.sleep(2)
+            self.sync(ds_list, obj)
+
+    def clear(self):
+        Datastore.redis.delete(self.name)
+
+    @classmethod
+    def _valid_name(cls, key):
+        """
+        Check whether a key is a valid attribute name.
+        A key may be used as an attribute if:
+         * It is a string
+         * It matches /^[A-Za-z][A-Za-z0-9_]*$/ (i.e., a public attribute)
+         * The key doesn't overlap with any class attributes (for Attr,
+            those would be 'get', 'items', 'keys', 'values', 'mro', and
+            'register').
+        """
+        return (isinstance(key, six.string_types)
+                and re.match('^[A-Za-z_][A-Za-z0-9_]*$', key)
+                and not hasattr(cls, key))
+
+
+Datastore = DataStoreFactory()

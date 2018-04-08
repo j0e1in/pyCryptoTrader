@@ -25,6 +25,10 @@ class PatternStrategy(SingleExchangeStrategy):
         sig = self.calc_signal(market)
         self.execute_signal(sig, market, stop_loss, stop_profit)
 
+        if self._config['analysis']['log_signal']:
+            print(market, 'signal:')
+            print(sig)
+
     def calc_signal(self, market):
         """ Main algorithm which calculates signals.
             Returns {signal, timeframe}
