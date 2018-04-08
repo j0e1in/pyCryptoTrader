@@ -1,11 +1,10 @@
-from setup import setup, run
-setup()
+from setup import run
+
 
 from pprint import pprint
 
 from api import AuthyManager
 from db import EXMongo
-from trading.trader import SingleEXTrader
 from utils import load_json
 
 
@@ -21,10 +20,7 @@ async def test_create_user(authy, cred):
 
 async def test_one_touch(authy, cred):
     print('-- one_touch --')
-    res = await authy.one_touch(
-        cred['userid'],
-        "Test ask approval"
-    )
+    res = await authy.one_touch(cred['"authy"'], "Test ask approval")
     pprint(res)
 
 

@@ -1,5 +1,5 @@
-from setup import run, setup
-setup()
+from setup import run
+
 
 from copy import deepcopy
 from datetime import datetime

@@ -1,5 +1,5 @@
-from setup import setup, run
-setup()
+from setup import run
+
 
 from api import APIServer
 from db import EXMongo
@@ -15,7 +15,7 @@ async def main():
     trader = SingleEXTrader(mongo, 'bitfinex', 'pattern',
                             disable_trading=True,
                             log=True)
-    server = APIServer(trader)
+    server = APIServer(mongo, {'uid': trader})
 
     await server.run(access_log=True)
 

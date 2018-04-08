@@ -97,6 +97,9 @@ class EXBase():
         self.ohlcv_start_end = {}
         self.markets_start_dt = {}
 
+        if self._config['trading']['indicator_tf'] not in self.timeframes:
+            self.timeframes.append(self._config['trading']['indicator_tf'])
+
     def init_wallet(self):
         wallet = {}
         wallet['USD'] = 0
@@ -176,7 +179,7 @@ class EXBase():
 
                 await execute_mongo_ops(ops)
 
-        logger.info("Start ohlcv data stream...")
+        logger.info("Start ohlcv data stream")
         last_update = MIN_DT
 
         while True:
@@ -186,7 +189,7 @@ class EXBase():
                 await asyncio.sleep(5)
 
             tf = '1m'
-            td = tf_td(tf)
+            td = timedelta(seconds=self.config['ohlcv_fetch_interval'])
 
             # Fetch only 1m ohlcv
             for market in self.markets:
@@ -194,6 +197,7 @@ class EXBase():
                 if market in self.ohlcv_start_end:
                     end = self.ohlcv_start_end[market][tf]['end']
                     cur_time = rounddown_dt(utc_now(), td)
+                    cur_time = cur_time - timedelta(seconds=60)
 
                     if end < cur_time:
                         # Fetching one-by-one is faster and safer(from blocking)
@@ -209,15 +213,14 @@ class EXBase():
 
                 # 1. Sleep will be slighly shorter than expected
                 # 2. Add extra seconds because exchange server data preperation may delay
-                await asyncio.sleep(countdown.seconds + 40)
+                await asyncio.sleep(countdown.seconds + 10)
 
     async def _start_trade_stream(self):
-        # TODO
         not_implemented()
 
     async def _start_orderbook_stream(self, params={}):
         """ Fetch orderbook periodically. May not be needed if using `get_orderbook`."""
-        logger.info("Start orderbook data stream...")
+        logger.info("Start orderbook data stream")
 
         while True:
             for market in self.markets:
@@ -352,7 +355,7 @@ class EXBase():
         self._check_auth()
 
         if self.log:
-            logger.info("Updating wallet...")
+            logger.info("Updating wallet")
 
         res = await handle_ccxt_request(self.ex.fetch_balance)
 
@@ -510,6 +513,7 @@ class EXBase():
         for market in self.markets:
             end = self.ohlcv_start_end[market]['1m']['end']
             cur_time = rounddown_dt(utc_now(), td)
+            cur_time = rounddown_dt(cur_time-timedelta(seconds=1), td)
 
             if end < cur_time:
                 return False

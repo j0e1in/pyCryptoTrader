@@ -1,5 +1,4 @@
-from setup import run, setup
-setup()
+from setup import run
 
 from asyncio import ensure_future
 from datetime import timedelta
@@ -30,9 +29,9 @@ async def fetch_trades_to_mongo(coll, exchange, symbol, start, end):
 
         # [ MTS, OPEN, CLOSE, HIGH, LOW, VOLUME ]
         for trd in trades:
-            del trd['datetime']
-            del trd['info']
-            del trd['type']
+            trd.pop('datetime')
+            trd.pop('info')
+            trd.pop('type')
             processed_trades.append(trd)
 
         ops.append(ensure_future(coll.insert_many(processed_trades)))
@@ -78,7 +77,7 @@ async def main():
 
         logger.info(f"Finished fetching {symbol}.")
 
-    exchange.close()
+    await exchange.close()
 
 
 if __name__ == '__main__':

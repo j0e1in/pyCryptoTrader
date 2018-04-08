@@ -1,4 +1,4 @@
-version: '3.3'
+version: '3.5'
 services:
   main:
     build: ./
@@ -10,9 +10,13 @@ services:
     command: >
               --start-trader
               --mongo-host=mongo
+              --redis-host=redis
               --enable-api
               --env .env
               --ssl
+              --manager
+              --disable-trading
+              --log-signal
     env_file:
       - .env
     volumes:
@@ -20,7 +24,8 @@ services:
       - ./log:/app/log
       - ./settings:/app/settings:ro
     networks:
-      - mongo_net_stack
+      - mongo_net_swarm
+      - redis_net_swarm
     ports:
       - "8000:8000"
     secrets:
@@ -34,7 +39,9 @@ services:
       replicas: 1
 
 networks:
-  mongo_net_stack:
+  mongo_net_swarm:
+    external: true
+  redis_net_swarm:
     external: true
 
 volumes:

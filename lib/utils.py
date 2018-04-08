@@ -2,6 +2,7 @@ from pprint import pprint
 from collections import OrderedDict
 from datetime import datetime, timedelta
 from pymongo.errors import BulkWriteError
+from threading import Thread
 
 import asyncio
 import ccxt.async as ccxt
@@ -9,9 +10,9 @@ import calendar
 import functools
 import inspect
 import logging
+import logging.config
 import jstyleson as json
 import math
-import numpy as np
 import os
 import pandas as pd
 import sys
@@ -47,6 +48,7 @@ def load_config(file):
 
     return _config
 
+config = load_config('../settings/config.json')
 
 def load_keys(file=None):
     if not file:
@@ -56,16 +58,15 @@ def load_keys(file=None):
         return json.load(f)
 
 
-def load_env():
+def load_env(path=None):
+    if not path:
+        path = '../.env'
+
+    load_dotenv(dotenv_path=path)
+
     return { k.split('PYCT_')[1]: v \
         for k, v in os.environ.items() \
             if k.startswith('PYCT_') }
-
-
-# TODO: Add set_config and get_config method to let
-# classes set and get global config, like get_event_loop
-env = load_env()
-config = load_config('../settings/config.json')
 
 
 def combine(a, b):
@@ -90,11 +91,6 @@ def ms_sec(ms):
 
 def sec_ms(sec):
     return int(float(sec)*1000)
-
-
-def datetime_str(year, month, day, hour=0, min=0, sec=0):
-    dt = datetime(year, month, day, hour, min, sec)
-    return dt.strftime('%Y-%m-%d %H:%M:%S')
 
 
 def to_utc_timestamp(timestamp):
@@ -420,7 +416,9 @@ async def handle_ccxt_request(func, *args, **kwargs):
                 ccxt.ExchangeNotAvailable,
                 ccxt.ExchangeError,
                 ccxt.InvalidNonce,
-                KeyError) as err:
+                AttributeError,
+                KeyError,
+                ) as err:
 
             # finished fetching all ohlcv
             if is_empty_response(err):
@@ -693,3 +691,84 @@ class EXPeriod():
 
     def datetime_period(self, dt):
         return pd.Period(dt, self.freq)
+
+
+log_type = 'pyct_colored'
+
+if config['mode'] == 'debug':
+    addition_info = "\t  (%(filename)s @ %(funcName)s:%(lineno)d)"
+else:
+    addition_info = ""
+
+log_config = dict(
+    version = 1,
+    # disable_existing_loggers = False,
+    formatters = {
+        'pyct_default': { # has alignment but no color
+            'datefmt': "%Y-%m-%d %H:%M:%S",
+            'format': f"%(asctime)s | %(levelname)-8s | %(message)s{addition_info}"
+        },
+        'pyct_colored': { # has color but no alignment
+            'class': 'chromalog.log.ColorizingFormatter',
+            'datefmt': "%Y-%m-%d %H:%M:%S",
+            'format': f"%(asctime)s | %(levelname)s | %(message)s{addition_info}"
+        }
+    },
+    handlers = {
+        'pyct_default': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'pyct_default'
+        },
+        'pyct_colored': {
+            'class': 'chromalog.log.ColorizingStreamHandler',
+            'formatter': 'pyct_colored'
+        }
+    },
+    loggers = {
+        # '': {
+        #     'handlers': [log_type],
+        #     'level': 'DEBUG' \
+        #         if config['mode'] != 'production' \
+        #         else 'INFO',
+        #     'propagate': False
+        # },
+        'pyct': {
+            'handlers': [log_type], # switch between default and colored handlers
+            'level': 'DEBUG' \
+                if config['mode'] != 'production' \
+                else 'INFO',
+            'propagate': False
+        },
+        'ccxt': {
+            'handlers': [log_type],
+            'level': 'INFO',
+            'propagate': False
+        },
+        'root': {} # sanic root logger (gathers all sanic logs)
+    }
+)
+
+logging.config.dictConfig(log_config)
+
+
+def register_logging_file_handler(log_file, log_config):
+    """ Register file handler to all loggers. """
+    fh = logging.FileHandler(log_file, mode='a')
+    fh.setFormatter(
+        logging.Formatter(log_config['formatters']['pyct_default']['format'],
+                          log_config['formatters']['pyct_default']['datefmt']))
+
+    for log in log_config['loggers']:
+        logging.getLogger(log).addHandler(fh)
+
+
+def run_async_in_thread(func, *args, **kwargs):
+
+    def run_async(func, loop, *args, **kwargs):
+        loop.run_until_complete(func(*args, **kwargs))
+
+    loop = asyncio.new_event_loop()
+    th = Thread(target=run_async, args=(func, loop, *args), kwargs=kwargs)
+    th.start()
+
+    return th

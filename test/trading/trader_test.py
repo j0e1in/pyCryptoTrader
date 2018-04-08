@@ -1,5 +1,5 @@
-from setup import setup, run
-setup()
+from setup import run
+
 
 from concurrent.futures import FIRST_COMPLETED
 from pprint import pprint
@@ -112,6 +112,25 @@ async def test_gen_scale_orders(trader):
     print('Total value:', value)
 
 
+async def test_check_position_status(trader):
+    """ Special Test: need to modify the function to import dummy data
+        "raw_active_positions_sequence" as positions before testing.
+
+        Change:
+            while True:
+                positions = await self.ex.fetch_positions()
+
+        To:
+            from utils import load_json
+            data = load_json(config['dummy_data_file'])['raw_active_positions_sequence']
+
+            for i in range(len(data)):
+                positions = data[i]
+    """
+    print('-- check_position_status --')
+    await trader.check_position_status()
+
+
 async def main():
     mongo = EXMongo()
     trader = SingleEXTrader(mongo, 'bitfinex', 'pattern', log=True)
@@ -125,6 +144,7 @@ async def main():
     # await test_strategy(trader)
     # await test_calc_order_amount(trader)
     # await test_gen_scale_orders(trader)
+    # await test_check_position_status(trader)
 
     await trader.ex.ex.close()
 

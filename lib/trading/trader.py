@@ -1,16 +1,24 @@
 from asyncio import ensure_future
 from collections import OrderedDict
+from concurrent.futures import FIRST_COMPLETED
 from datetime import timedelta, datetime
+from threading import Thread
+from time import sleep
 
 import asyncio
 import copy
+import concurrent
 import logging
 import math
 import numpy as np
 import pandas as pd
 import random
 
+from analysis.hist_data import build_ohlcv
+from api import APIServer
 from api.notifier import Messenger
+from db import Datastore
+from trading.strategy import near_end
 from trading import strategy
 from trading import exchanges
 from utils import \
@@ -22,46 +30,62 @@ from utils import \
     smallest_tf, \
     tf_td, \
     MIN_DT, \
-    execute_mongo_ops
-
-from analysis.hist_data import build_ohlcv
+    execute_mongo_ops, \
+    run_async_in_thread
 
 logger = logging.getLogger('pyct')
 
 
 class SingleEXTrader():
 
-    def __init__(self, mongo, ex_id, strategy_name,
-                 userid=None,
+    ds_list = [
+        'enable_trading',
+        'max_fund',
+        'summary',
+        'margin_order_queue',
+    ]
+
+    def __init__(self, mongo,
+                 ex_id,
+                 strategy,
+                 uid=None,
                  custom_config=None,
                  ccxt_verbose=False,
                  disable_trading=False,
                  disable_ohlcv_stream=False,
                  disable_notification=False,
                  log=False,
-                 log_sig=False):
+                 log_sig=False,
+                 reset_state=False):
 
         self.mongo = mongo
+
         self._config = custom_config if custom_config else config
+        self.uid = uid if uid else self._config['uid']
+        self.ds = Datastore.create(f"{self.uid}:trader")
+
+        if reset_state:
+            self.ds.clear()
+
         self.config = self._config['trading']
-        self.enable_trading = not disable_trading
+        self.enable_trading = self.ds.get('enable_trading', not disable_trading)
         self.log = log
         self.log_sig = log_sig
+        self._stop = False
 
         # Requires self attributes above
         # Order of this initialization matters
-        self.userid = userid if userid else config['userid']
         self.notifier = Messenger(self, self._config, disable=disable_notification)
         self.ex = self.init_exchange(ex_id,
             notifier=self.notifier,
             ccxt_verbose=ccxt_verbose,
             disable_ohlcv_stream=disable_ohlcv_stream)
-        self.strategy = self.init_strategy(strategy_name)
+        self.strategy = self.init_strategy(strategy)
         self.ohlcvs = self.create_empty_ohlcv_store()
 
-        self.max_fund = self.config['max_fund']
-
-        self.summary = {
+        self.margin_order_queue = self.ds.get('margin_order_queue', OrderedDict())
+        self.max_fund = self.ds.get('max_fund', self.config['max_fund'])
+        self.summary = self.ds.get('summary', {
             'start': None,
             'now': None,                # Update in getter
             'days': 0,                  # Update in getter
@@ -74,10 +98,7 @@ class SingleEXTrader():
             'PL': 0,                    # Update in getter
             'PL(%)': 0,                 # Update in getter
             'PL_Eff': 0,                # Update in getter
-        }
-
-        self.margin_order_queue = OrderedDict()
-
+        })
 
     def init_exchange(self,
                       ex_id,
@@ -85,7 +106,7 @@ class SingleEXTrader():
                       ccxt_verbose=False,
                       disable_ohlcv_stream=False):
         """ Make an instance of a custom EX class. """
-        key = load_keys()[self.userid][ex_id]
+        key = load_keys()[self.uid][ex_id]
         ex_class = getattr(exchanges, str.capitalize(ex_id))
         return ex_class(
             self.mongo,
@@ -107,14 +128,49 @@ class SingleEXTrader():
 
     async def start(self):
         """ All-in-one entry for starting trading bot. """
+
+        async def cleanup(pending):
+            await self.ex.ex.close()
+            for task in pending:
+                task.cancel()
+
         # Get required starting tasks of exchange.
         ex_start_tasks = self.ex.start_tasks()
 
         # Start routines required by exchange and trader itself
-        await asyncio.gather(
-            *ex_start_tasks,
-            self._start()
-        )
+        done, pending = await asyncio.wait(
+            [
+                *ex_start_tasks,
+                self._start(),
+                self.check_position_status(),
+                self.ds.sync_routine(self.ds_list, self)
+            ],
+            return_when=FIRST_COMPLETED)
+
+        end = False
+        while not end:
+            for task in done:
+
+                # The trader stopped
+                if task._coro.__name__ == '_start':
+                    if self._stop:
+                        await cleanup(pending)
+                        return
+                    else:
+                        try:
+                            exp = task.exception()
+                        except concurrent.futures.TimeoutError:
+                            logger.warning(f"Task exception timeout")
+                        else:
+                            # Close ex before trader stops
+                            await cleanup(pending)
+                            raise exp
+            if not end:
+                done, pending = await asyncio.wait(pending,
+                    return_when=FIRST_COMPLETED)
+
+    def stop(self):
+        self._stop = True
 
     async def _start(self):
         """ Starting entry for OnlineTrader. """
@@ -122,14 +178,10 @@ class SingleEXTrader():
         async def _set_startup_status():
             self.summary['start'] = utc_now()
             self.summary['now'] = utc_now()
-
-            for market in self.ex.markets:
-                self.ex.set_market_start_dt(market, self.summary['start'])
-
             self.summary['initial_balance'] = copy.deepcopy(self.ex.wallet)
             self.summary['initial_value'] = await self.ex.calc_account_value()
 
-        logger.info(f"Start trader with user: {self.userid}")
+        logger.info(f"Start trader as user: {self.uid}")
 
         if not self.enable_trading:
             logger.info("Trading disabled")
@@ -137,11 +189,15 @@ class SingleEXTrader():
         await self.wait_ex_to_be_ready()
         logger.info("Exchange is ready")
 
-        await _set_startup_status()
+        if not self.summary['start']:
+            await _set_startup_status()
+
+        for market in self.ex.markets:
+            self.ex.set_market_start_dt(market, self.summary['start'])
 
         await self.notifier.notify_start()
 
-        logger.info("Start trading...")
+        logger.info("Start trading")
         await self.start_trading()
 
     async def wait_ex_to_be_ready(self):
@@ -156,9 +212,9 @@ class SingleEXTrader():
         last_log_time = MIN_DT
         last_sig = {market: np.nan for market in self.ex.markets}
         ohlcv_alive = True
+        await self.update_ohlcv()
 
-        while True:
-
+        while not self._stop:
             if await self.ex.is_ohlcv_uptodate():
                 # Read latest ohlcv from db
                 await self.update_ohlcv()
@@ -174,12 +230,11 @@ class SingleEXTrader():
             else:
                 ohlcv_alive = await self.check_ohlcv_is_updating()
 
-            await self.check_position_status()
-
             # Wait additional 90 sec for ohlcv of all markets to be fetched
             fetch_interval = timedelta(seconds=self.ex.config['ohlcv_fetch_interval'])
             countdown = roundup_dt(utc_now(), fetch_interval) - utc_now()
             await asyncio.sleep(countdown.seconds + 90)
+
 
     def log_signals(self, sig, last_log_time, last_sig):
         """ Log signal periodically or on signal change. """
@@ -194,16 +249,30 @@ class SingleEXTrader():
 
             return False
 
-        if (utc_now() - last_log_time) > \
-        tf_td(self.config['indicator_tf']) / 5:
-            for market in self.ex.markets:
-                logger.info(f"{market} indicator signal @ {utc_now()}\n{sig[market][-10:]}")
+        cur_time = utc_now()
+        time_str = cur_time.strftime("%Y-%m-%d %H:%M:%S")
+        log_remain_time = False
 
-            last_log_time = utc_now()
+        if (cur_time - last_log_time) > \
+        tf_td(self.config['indicator_tf']) / 8:
+            for market in self.ex.markets:
+                logger.info(f"{market} indicator signal @ {time_str}\n{sig[market][-20:]}")
+                last_sig[market] = sig[market].iloc[-1]
+
+            last_log_time = cur_time
+            log_remain_time = True
         else:
             for market in self.ex.markets:
                 if sig_changed(sig, market):
-                    logger.info(f"{market} indicator signal @ {utc_now()}\n{sig[market][-10:]}")
+                    logger.info(f"{market} indicator signal @ {time_str}\n{sig[market][-20:]}")
+                    log_remain_time = True
+
+        if log_remain_time:
+            td = tf_td(self.config['indicator_tf'])
+
+            remaining_time = roundup_dt(utc_now(), td) - utc_now() # - td / self.config['strategy']['near_end_ratio']
+            remaining_time -= timedelta(microseconds=remaining_time.microseconds)
+            logger.info(f"{remaining_time} left to start trading")
 
         return last_log_time, last_sig
 
@@ -267,7 +336,7 @@ class SingleEXTrader():
         res = await self._do_long_short(
             'short', symbol, confidence, type, scale_order=scale_order)
 
-        return True if res else False
+        return res
 
     async def close_position(self, symbol, confidence, type='limit', scale_order=True):
         res = None
@@ -278,8 +347,7 @@ class SingleEXTrader():
         res = await self._do_long_short(
             'close', symbol, 100, type, scale_order=scale_order)
 
-        return True if res else False
-
+        return res
 
     async def _do_long_short(self, action, symbol, confidence,
                              type='limit',
@@ -443,13 +511,13 @@ class SingleEXTrader():
                 price /= amount
 
                 logger.info(f"Created {symbol} scaled margin {side} order: "
-                            f"avg price: {price} amount: {amount} value: {price * amount}")
+                            f"avg price: {price} amount: {amount} value: {price * amount:0.2f}")
             else:
                 order = res
                 price = order['price']
                 amount = order['amount']
                 logger.info(f"Created {symbol} margin {side} order: "
-                            f"price: {price} amount: {amount} value: {price * amount}")
+                            f"price: {price} amount: {amount} value: {price * amount:0.2f}")
 
             # Queue open position if current action is to close position
             if has_opposite_open_position and not _action == 'close':
@@ -594,7 +662,7 @@ class SingleEXTrader():
         if not self.margin_order_queue:
             return None
 
-        positions = self.ex.fetch_positions()
+        positions = await self.ex.fetch_positions()
 
         for symbol, order in self.margin_order_queue.items():
             symbol_pos = filter_by(positions, ('symbol', symbol))
@@ -682,6 +750,8 @@ class SingleEXTrader():
         self.summary['current_value'] = await self.ex.calc_account_value()
         self.summary['total_trade_fee'] = await self.ex.calc_trade_fee(start, now)
         self.summary['total_margin_fee'] = self.ex.calc_margin_fee(start, now)
+        self.summary['order_value'] = await self.ex.calc_order_value()
+        self.summary['position_value'] = await self.ex.calc_all_position_value()
         self.summary['PL'] = self.summary['current_value'] - self.summary['initial_value']
         self.summary['PL(%)'] = self.summary['PL'] / self.summary['initial_value'] * 100
         self.summary['PL_Eff'] = self.summary['PL(%)'] / self.summary['days'] * 0.3
@@ -699,7 +769,6 @@ class SingleEXTrader():
         min_amount = self.ex.markets_info[symbol]['limits']['amount']['min']
         order_count = min(int(math.sqrt(2 * amount / min_amount) - 1), max_order_count)
         order_count = max(order_count, 1)
-        print('order_count:', order_count)
         amount_diff_base = amount / ((order_count + 1) * order_count / 2)
         cur_price = start_price
         dec = 100000000
@@ -729,7 +798,6 @@ class SingleEXTrader():
         n_orders = len(orders)
         while idx < n_orders-1:
             if orders[idx]['amount'] < min_amount:
-                print('merge')
                 cur_amount = orders[idx]['amount']
                 cur_price = orders[idx]['price']
                 merge_num = 1
@@ -769,11 +837,6 @@ class SingleEXTrader():
 
     def add_market(self, market):
         pass
-        # for market in self.ex.markets:
-        #     # New market is added
-        #     if market not in self.ex.markets_start_dt:
-        #         self.ex.set_market_start_dt(market, utc_now())
-        #         self.reset_orders
 
     def remove_market(self, market):
         pass
@@ -801,26 +864,173 @@ class SingleEXTrader():
 
     async def check_position_status(self):
         """ Check if any position is in danger or matches large PL(%) """
-        pos_large_pl = []
-        pos_danger_pl = []
         margin_rate = self.config[self.ex.exname]['margin_rate']
-        positions = await self.ex.fetch_positions()
+        pos_large_pl = self.ds.get('pos_large_pl', {})
+        pos_danger_pl = self.ds.get('pos_danger_pl', {})
 
-        for pos in positions:
-            base_value = pos['base_price'] * abs(pos['amount'])
+        while True:
+            await asyncio.sleep(self.ex.config['position_check_interval'])
 
-            # Use PL(%) without margin funding
-            pl_perc = pos['pl'] * margin_rate / base_value * 100
-            if pl_perc >= self._config['apiclient']['large_pl_threshold']:
-                pos_large_pl.append(pos)
+            positions = await self.ex.fetch_positions()
+            pos_ids = [p['id'] for p in positions]
 
-            # Use PL(%) with margin funding
-            pl_perc = -pos['pl'] / base_value * 100
-            if pl_perc >= self._config['apiclient']['danger_pl_threshold']:
-                pos_danger_pl.append(pos)
+            # Debug
+            for pos in positions:
+                base_value = pos['base_price'] * abs(pos['amount'])
+                pl_perc = pos['pl'] * margin_rate / base_value * 100
+                side = 'buy' if pos['amount'] > 0 else 'sell'
+                logger.debug(f"Active position -- {pos['symbol']}, ID: {pos['id']}, side: {side}, PL: {pl_perc:0.2f} %")
 
-        if pos_large_pl:
-            await self.notifier.notify_position_large_pl(pos_large_pl)
+            # Remove closed positions
+            to_del = []
+            for id in pos_large_pl:
+                if id not in pos_ids:
+                    to_del.append(id)
 
-        if pos_danger_pl:
-            await self.notifier.notify_position_danger(pos_danger_pl)
+            for id in to_del:
+                del pos_large_pl[id]
+
+            # Remove closed positions
+            to_del = []
+            for id in pos_danger_pl:
+                if id not in pos_ids:
+                    to_del.append(id)
+
+            for id in to_del:
+                del pos_danger_pl[id]
+
+            # Add new positions
+            for pos in positions:
+                # Initialize first time added position
+                if pos['id'] not in pos_large_pl:
+                    pos_large_pl[pos['id']] = {
+                        'last_notify_perc': None,
+                        'pos': pos
+                    }
+                else: # Update old position
+                    pos_large_pl[pos['id']]['pos'] = pos
+
+                if pos['id'] not in pos_danger_pl:
+                    pos_danger_pl[pos['id']] = {
+                        'last_notify_perc': None,
+                        'pos': pos
+                    }
+                else:
+                    pos_danger_pl[pos['id']]['pos'] = pos
+
+            # notify_position_large_pl
+            for id, pos in pos_large_pl.items():
+                base_value = pos['pos']['base_price'] * abs(pos['pos']['amount'])
+                pl_perc = pos['pos']['pl'] * margin_rate / base_value * 100
+
+                # Percentage meets threshold
+                if pl_perc >= self._config['apiclient']['large_pl_threshold']:
+
+                    # If has not been notified or percentage change > N%
+                    if not pos['last_notify_perc'] \
+                    or abs(pl_perc - pos['last_notify_perc']) >= \
+                    self._config['apiclient']['large_pl_diff']:
+                        await self.notifier.notify_position_large_pl(pos['pos'])
+                        pos['last_notify_perc'] = pl_perc
+
+            # notify_position_danger_pl
+            for id, pos in pos_danger_pl.items():
+                base_value = pos['pos']['base_price'] * abs(pos['pos']['amount'])
+                pl_perc = -pos['pos']['pl'] / base_value * 100
+
+                # Percentage meets threshold
+                if pl_perc >= self._config['apiclient']['danger_pl_threshold']:
+
+                    # If has not been notified or percentage change > N%
+                    if not pos['last_notify_perc'] \
+                    or abs(pl_perc - pos['last_notify_perc']) >= \
+                    self._config['apiclient']['danger_pl_diff']:
+                        await self.notifier.notify_position_danger_pl(pos['pos'])
+                        pos['last_notify_perc'] = pl_perc
+
+            # Sync state to datastore
+            self.ds.pos_large_pl = pos_large_pl
+            self.ds.pos_danger_pl = pos_danger_pl
+
+
+
+class TraderManager():
+    def __init__(self, mongo):
+        self.ds = Datastore.create("trader_manager")
+        self.mongo = mongo
+        self.apiserver = {}
+        self.traders = {}
+
+    async def start(self,
+              reset_state=False,
+              enable_api=False,
+              trader_args=None,
+              trader_kwargs=None,
+              apiserver_args=None,
+              apiserver_kwargs=None,
+              apiserver_run_args=None,
+              apiserver_run_kwargs=None):
+
+        futures = {}
+        loop = asyncio.get_event_loop()
+
+        def start_trader(ue):
+            uid, ex = ue.split('-')
+            try:
+                trader = SingleEXTrader(ex_id=ex, uid=uid, *trader_args, **trader_kwargs)
+            except KeyError:
+                logger.warning(f"Trader [{ue}] has no exchange API key")
+            else:
+                name = 'trader:' + str(ue)
+                futures[name] = asyncio.run_coroutine_threadsafe(trader.start(), loop)
+                self.traders[ue] = trader
+
+        if enable_api:
+            server = APIServer(self.mongo, self.traders,
+                               *apiserver_args,
+                               **apiserver_kwargs)
+            # Returns immediately
+            await server.run(*apiserver_run_args, **apiserver_run_kwargs)
+
+        if reset_state:
+            self.de.clear()
+
+        while True:
+            uid_ex = self.ds.get('uid_ex', [])
+            to_remove = []
+
+            for ue in self.traders:
+
+                # Remove trader
+                if ue not in uid_ex and not self.traders[ue]._stop:
+                    logger.info(f"Removing [{ue}]")
+                    name = 'trader:' + str(ue)
+                    self.traders[ue].stop()
+
+            for ue in uid_ex:
+                if ue not in self.traders:
+                    logger.info(f"Adding [{ue}]")
+                    start_trader(ue)
+                    await asyncio.sleep(30)
+
+            await asyncio.sleep(5)
+
+            for name in futures:
+                try:
+                    exp = futures[name].exception(timeout=1)
+                except concurrent.futures.TimeoutError:
+                    pass
+                else:
+                    ue = name.split(':')[1]
+
+                    if self.traders[ue]._stop:
+                        to_remove.append(ue)
+                    else:
+                        logger.warning(f"Trader [{ue}] got exception: {exp.__class__.__name__} {str(exp)}")
+                        logger.info(f"Restaring trader [{ue}]")
+                        start_trader(ue)
+
+            for ue in to_remove:
+                logger.debug(f'{ue} removed')
+                del self.traders[ue]
+                del futures[name]

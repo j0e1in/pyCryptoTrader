@@ -8,7 +8,6 @@ import logging
 from utils import load_keys, config
 
 logger = logging.getLogger('pytc')
-loop = asyncio.get_event_loop()
 
 class AuthyManager():
 
@@ -20,7 +19,8 @@ class AuthyManager():
         apikey = apikey if apikey else load_keys()['AUTHY_APIKEY']
         self.authy_app = AuthyApiClient(apikey)
 
-    async def create_user(self, email, phone, country_code):
+    async def create_user(self, uid, email, phone, country_code):
+        loop = asyncio.get_event_loop()
         user = await loop.run_in_executor(None,
             self.authy_app.users.create,
             email, phone, country_code)
@@ -29,36 +29,36 @@ class AuthyManager():
             if await self.user_exist(user.id):
                 return False, f"User already exists"
             else:
-                collname = f"authy_users"
+                collname = f"authy_account"
                 coll = self.mongo.get_collection(
                     self._config['database']['dbname_api'], collname)
 
                 await coll.insert_one({
-                    'userid': user.id,
+                    'uid': uid,
+                    'authyid': user.id,
                     'email': email,
                     'phone': phone,
                     'country_code': country_code,
                 })
 
+            logger.info(f"Created authy user {user.id}/{email}")
             return True, ''
         else:
-            logger.error(f"Creating authy user {email} failed: {user.errors()}")
+            logger.error(f"Creating authy user {user.id}/{email} failed: {user.errors()}")
             return False, user.errors()
 
-    async def one_touch(self, userid, message):
+    async def one_touch(self, authyid, message):
 
         async def save_transaction(request):
-            collname = f"one_touch_history"
             coll = self.mongo.get_collection(
-                self._config['database']['dbname_api'], collname)
+                self._config['database']['dbname_api'], "one_touch_history")
 
             await coll.insert_one(request)
 
         # Get email from database
-        collname = f"authy_users"
         coll = self.mongo.get_collection(
-            self._config['database']['dbname_api'], collname)
-        cred = await coll.find_one({'userid': userid}, {'_id': 0})
+            self._config['database']['dbname_api'], "authy_account")
+        cred = await coll.find_one({'authyid': authyid})
 
         details = {
             'Username': cred['email'],
@@ -67,12 +67,13 @@ class AuthyManager():
         # Wrap kwargs to function because run_in_executor doesn't accept
         wrapped_func = functools.partial(
             self.authy_app.one_touch.send_request,
-            userid,
+            int(cred['authyid']),
             message,
             seconds_to_expire=self.config['seconds_to_expire'],
             details=details)
         # hidden_details=hidden_details)
 
+        loop = asyncio.get_event_loop()
         res = await loop.run_in_executor(None, wrapped_func)
 
         if res.ok():
@@ -84,6 +85,8 @@ class AuthyManager():
             return False, ''
 
         if res.ok():
+            loop = asyncio.get_event_loop()
+
             while True:
                 res = await loop.run_in_executor(None,
                     self.authy_app.one_touch.get_approval_status, uuid)
@@ -107,17 +110,14 @@ class AuthyManager():
             )
             return False, ''
 
-    def get_userid(self, uid):
-        keys = load_keys()
-
-        if uid not in keys:
-            return ''
-
-        return keys[uid]['authy_userid']
-
-    async def user_exist(self, userid):
-        collname = f"authy_users"
+    async def user_exist(self, authyid):
         coll = self.mongo.get_collection(
-            self._config['database']['dbname_api'], collname)
-        res = await coll.find_one({'userid': userid})
+            self.mongo.config['dbname_api'], "authy_account")
+        res = await coll.find_one({'authyid': authyid})
         return False if not res else True
+
+    async def get_authyid(self, uid):
+        coll = self.mongo.get_collection(
+            self.mongo.config['dbname_api'], "authy_account")
+        res = await coll.find_one({'uid': uid})
+        return res['authyid'] if res else ''

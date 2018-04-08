@@ -1,14 +1,19 @@
 #!/bin/bash
 
-USERNAME=$1
-IP=$2
+REMOTE=$1
 
-if [ -z $USERNAME ] | [ -z $IP ]; then
-  echo "Usage: remote_deploy_mongo_data_volume.sh [USERNAME] [IP]"
+# Split remote by '@'
+IFS='@' read -r -a REMOTE <<< $REMOTE
+
+USERNAME=${REMOTE[0]}
+HOST=${REMOTE[1]}
+
+if [ -z $USERNAME ] | [ -z $HOST ]; then
+  echo "Usage: remote_deploy_mongo_data_volume.sh [username]@[host]"
   exit 1
 fi
 
-echo "Deploy mongo data to $USERNAME@$IP"
+echo "Deploy mongo data to $USERNAME@$HOST"
 
 read -p "Press [Enter] to continue..."
 
@@ -19,9 +24,9 @@ docker run -v mongo_data:/volume --rm loomchild/volume-backup backup - > ~/mongo
 
 # Copy to remote
 echo "Uploading mongo_data..."
-scp ~/mongo_data.tar.bz2 $USERNAME@$IP:~/
+scp ~/mongo_data.tar.bz2 $USERNAME@$HOST:~/
 
 # Restore (use scripts/mongodb/mongo_container_setup.sh to restore for first time)
 echo "Restoring mongo_data..."
-ssh $USERNAME@$IP "docker volume create mongo_data && \
-                   cat mongo_data.tar.bz2 | docker run -i -v mongo_data:/volume --rm loomchild/volume-backup restore -"
+ssh $USERNAME@$HOST "docker volume create mongo_data && \
+                     cat mongo_data.tar.bz2 | docker run -i -v mongo_data:/volume --rm loomchild/volume-backup restore -"

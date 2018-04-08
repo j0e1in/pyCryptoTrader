@@ -1,5 +1,5 @@
-from setup import run, setup
-setup()
+from setup import run
+
 
 from asyncio import ensure_future
 from datetime import datetime, timedelta
@@ -110,7 +110,7 @@ async def main():
 
             logger.info(f"Finished fetching {symbol} {timeframe}")
 
-    exchange.close()
+    await exchange.close()
 
 
 if __name__ == '__main__':

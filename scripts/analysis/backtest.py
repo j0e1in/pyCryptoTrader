@@ -1,5 +1,5 @@
-from setup import run, setup
-setup()
+from setup import run
+
 
 from datetime import datetime
 from pprint import pprint
@@ -14,18 +14,19 @@ from db import EXMongo
 from utils import config, print_to_file
 
 
-async def test_single_period(mongo, market, plot):
+async def test_single_period(mongo, market, plot, log_signal):
     # dt = (datetime(2017, 8, 1), datetime(2018, 3, 5))
     # dt = (datetime(2017, 8, 1), datetime(2017, 12, 10))
     # dt = (datetime(2017, 10, 1), datetime(2018, 2, 20))
-    dt = (datetime(2018, 1, 1), datetime(2018, 3, 20))
+    dt = (datetime(2018, 3, 1), datetime(2018, 4, 5))
 
     _config = copy.deepcopy(config)
     _config['analysis']['exchanges']['bitfinex']['markets'] = [market]
     _config['matplot']['enable'] = plot
+    _config['analysis']['log_signal'] = log_signal
 
     options = {
-        'strategy': PatternStrategy('bitfinex'),
+        'strategy': PatternStrategy('bitfinex', custom_config=_config),
         'start': dt[0],
         'end': dt[1],
         'custom_config': _config,
@@ -60,7 +61,7 @@ async def test_single_period(mongo, market, plot):
 
     return report
 
-async def test_special_periods_of_markets(mongo, plot):
+async def test_special_periods_of_markets(mongo, plot, log_signal):
 
     markets = [
         "BTC/USD",
@@ -83,7 +84,7 @@ async def test_special_periods_of_markets(mongo, plot):
     total_pl = 0
 
     for market in markets:
-        report = await test_single_period(mongo, market, plot)
+        report = await test_single_period(mongo, market, plot, log_signal)
         total_pl += report['PL(%)']
 
     print(f"Total PL(%): {total_pl/len(markets)}")
@@ -137,6 +138,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--plot', action='store_true', help="Plot backtest results")
+    parser.add_argument('--log-signal', action='store_true', help="Print strategy signal")
 
     argv = parser.parse_args()
 
@@ -148,7 +150,7 @@ async def main():
 
     mongo = EXMongo()
 
-    await test_special_periods_of_markets(mongo, argv.plot)
+    await test_special_periods_of_markets(mongo, argv.plot, argv.log_signal)
     # await test_special_periods(mongo)
     # await test_random_periods(mongo)
 

@@ -103,14 +103,14 @@ coll = db.getCollectionNames()
 
 // Create unique id index and timestamp index for trades
 
-collection = db.getCollection('authy_users')
+collection = db.getCollection('authy_account')
 
 // Find duplicates
 collection.aggregate(
     [
         {
             "$group": {
-                "_id": { "userid": "$userid" },
+                "_id": { "uid": "$uid" },
                 "dups": { "$push": "$_id" },
                 "count": { "$sum": 1 }
             }
@@ -127,4 +127,4 @@ collection.aggregate(
 })
 
 // Create unique index
-collection.createIndex({ "userid": 1 }, { unique: true })
+collection.createIndex({ "uid": 1 }, { unique: true })
