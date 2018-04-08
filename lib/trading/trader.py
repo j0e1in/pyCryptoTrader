@@ -322,7 +322,7 @@ class SingleEXTrader():
         res = await self._do_long_short(
             'long', symbol, confidence, type, scale_order=scale_order)
 
-        return True if res else False
+        return res
 
     async def short(self, symbol, confidence, type='limit', scale_order=True):
         """ Cancel all orders, close buy positions
