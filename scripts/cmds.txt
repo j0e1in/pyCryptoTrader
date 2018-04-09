@@ -68,3 +68,6 @@ docker run -d \
 --network mongo_net \
 --volume mongo_data:/data/db \
 mongo:3.6 --auth
+
+# Add traders
+python app.py --add-trader="(1492068960851477,bitfinex),(1634221979967223,bitfinex)"

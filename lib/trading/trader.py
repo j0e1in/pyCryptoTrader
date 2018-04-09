@@ -317,7 +317,7 @@ class SingleEXTrader():
         res = None
 
         if not self.enable_trading:
-            return True
+            return {}
 
         res = await self._do_long_short(
             'long', symbol, confidence, type, scale_order=scale_order)
@@ -331,7 +331,7 @@ class SingleEXTrader():
         res = None
 
         if not self.enable_trading:
-            return True
+            return {}
 
         res = await self._do_long_short(
             'short', symbol, confidence, type, scale_order=scale_order)
@@ -342,10 +342,10 @@ class SingleEXTrader():
         res = None
 
         if not self.enable_trading:
-            return True
+            return {}
 
         res = await self._do_long_short(
-            'close', symbol, 100, type, scale_order=scale_order)
+            'close', symbol, confidence, type, scale_order=scale_order)
 
         return res
 
