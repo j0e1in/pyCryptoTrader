@@ -22,7 +22,7 @@ class SingleExchangeStrategy():
     """
 
     def __init__(self, ex, custom_config=None):
-        self._config = custom_config if custom_config else config
+        self._config = custom_config or config
         self.p = self._config['analysis']['params']['common']
 
         self.ex = ex

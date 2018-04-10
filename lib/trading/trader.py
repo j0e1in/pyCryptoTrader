@@ -60,7 +60,7 @@ class SingleEXTrader():
 
         self.mongo = mongo
 
-        self._config = custom_config if custom_config else config
+        self._config = custom_config or config
         self.uid = uid if uid else self._config['uid']
         self.ds = Datastore.create(f"{self.uid}:trader")
 

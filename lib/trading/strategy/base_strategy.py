@@ -6,7 +6,7 @@ class SingleEXStrategy():
     def __init__(self, trader, custom_config=None):
         self.trader = trader
 
-        self._config = custom_config if custom_config else config
+        self._config = custom_config or config
         self.p = self.trader.config['params']['common']
 
     def refresh(self):

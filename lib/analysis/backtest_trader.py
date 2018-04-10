@@ -67,7 +67,7 @@ class SimulatedTrader():
 
     def __init__(self, timer, strategy=None, custom_config=None):
         # If custom_config is not specified, use default config
-        self._config = custom_config if custom_config else config
+        self._config = custom_config or config
         self.config = self._config['analysis']
 
         self.strategy = strategy
@@ -515,8 +515,6 @@ class SimulatedTrader():
         copy_orders = deepcopy(self.orders)
         for ex, orders in copy_orders.items():
             for id, order in orders.items():
-
-                # print(self.wallet['bitfinex']['USD'])
 
                 # Close margin position, all margin orders are closed at market price
                 if self.is_margin_close(order):
@@ -1031,8 +1029,6 @@ class FastTrader(SimulatedTrader):
         cost = 0
         earn = 0
         amount = order['amount']
-
-        # print(self.op_wallet['bitfinex']['USD'])
 
         if not order['margin']:
             if self.is_buy(order):

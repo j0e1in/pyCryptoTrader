@@ -69,7 +69,7 @@ class EXBase():
         self.disable_ohlcv_stream = disable_ohlcv_stream
         self.notifier = notifier
 
-        self._config = custom_config if custom_config else config
+        self._config = custom_config or config
         self.config = self._config['ccxt']
 
         self.ex = init_ccxt_exchange(ex_id, apikey, secret,

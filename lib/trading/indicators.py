@@ -24,7 +24,7 @@ category = 'trading'
 class Indicator():
 
     def __init__(self, custom_config=None):
-        _config = custom_config if custom_config else config
+        _config = custom_config or config
         self.config = _config[category]['params']
         self.p = _config[category]['params']['common']
 

@@ -28,7 +28,7 @@ logger = logging.getLogger('pyct')
 class EXMongo():
 
     def __init__(self, *, host=None, port=None, uri=None, custom_config=None):
-        self._config = custom_config if custom_config else config
+        self._config = custom_config or config
         self.config = self._config['database']
 
         if not host:
@@ -353,7 +353,7 @@ class EXMongo():
 class DataStoreFactory():
 
     def __init__(self, custom_config=None):
-        self._config = custom_config if custom_config else config
+        self._config = custom_config or config
         self.config = self._config['datastore']
 
         self.redis = StrictRedis(host=self.config['default_host'],

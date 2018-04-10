@@ -59,7 +59,7 @@ class APIServer():
         self.authy = AuthyManager(mongo)
         self.log_level = self.ds.get('log_level', {})
 
-        _config = custom_config if custom_config else config
+        _config = custom_config or config
         self._config = self.ds.get('_config', _config)
         self.config = self._config['apiserver']
 
