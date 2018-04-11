@@ -24,7 +24,8 @@ class SingleExchangeStrategy():
 
     def __init__(self, ex, custom_config=None):
         self._config = custom_config or config
-        self.p = self._config['analysis']['params']['common']
+        self.ind = Indicator(custom_config=custom_config)
+        self.params = {}
 
         self.ex = ex
         self.fast_mode = False
@@ -33,16 +34,17 @@ class SingleExchangeStrategy():
 
     def set_config(self, cfg):
         self._config = cfg
-        self.p = cfg['analysis']['params']['common']
+        self.params = cfg['analysis']['params']
+        self.ind.config = self.params
         self.init_vars()
 
     def init(self, trader):
         self.ops = []
         self.trader = trader
-        self.markets = self.trader.markets[self.ex]
-        self.timeframes = self.trader.timeframes[self.ex]
-        self.ohlcvs = self.trader.ohlcvs[self.ex]
-        self.trades = self.trader.trades[self.ex]
+        self.markets = trader.markets[self.ex]
+        self.timeframes = trader.timeframes[self.ex]
+        self.ohlcvs = trader.ohlcvs[self.ex]
+        self.trades = trader.trades[self.ex]
         self.init_vars()
         return self
 
