@@ -7,7 +7,7 @@ import ccxt.async as ccxt
 import inspect
 import logging
 
-from analysis.hist_data import fetch_ohlcv
+from analysis.hist_data import fetch_ohlcv, build_ohlcv
 from utils import \
     config, \
     utc_now, \
@@ -146,7 +146,7 @@ class EXBase():
 
         return tasks
 
-    async def _start_ohlcv_stream(self):
+    async def _start_ohlcv_stream(self, build_ohlcv=False):
 
         async def fetch_ohlcv_to_mongo(symbol, start, end, timeframe):
             ops = []
@@ -207,6 +207,9 @@ class EXBase():
             last_update = utc_now()
 
             if await self.is_ohlcv_uptodate():
+                if build_ohlcv:
+                    self.build_recent_ohlcvs()
+
                 self.ready['ohlcv'] = True
                 fetch_interval = timedelta(seconds=self.config['ohlcv_fetch_interval'])
                 countdown = roundup_dt(utc_now(), fetch_interval) - utc_now()
@@ -519,3 +522,18 @@ class EXBase():
                 return False
 
         return True
+
+    async def build_recent_ohlcv(self):
+        src_tf = '1m'
+
+        # Build ohlcvs from 1m
+        for market in self.markets:
+            for tf in self.timeframes:
+                if tf != src_tf:
+                    src_end_dt = await self.mongo.get_ohlcv_end(self.exname, market, src_tf)
+                    target_end_dt = await self.mongo.get_ohlcv_end(self.exname, market, tf)
+                    target_start_dt = target_end_dt - tf_td(tf) * 5
+
+                    # Build ohlcv starting from 5 bars earlier from latest bar
+                    await build_ohlcv(self.mongo, self.exname, market, src_tf, tf,
+                                    start=target_start_dt, end=src_end_dt)

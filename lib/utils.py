@@ -365,6 +365,9 @@ def format_value(n, digits=5):
 
 
 def check_periods(periods):
+    if not isinstance(periods, list):
+        periods = [periods]
+
     for p in periods:
         if p[0] >= p[1]:
             return False
@@ -426,11 +429,7 @@ async def handle_ccxt_request(func, *args, **kwargs):
                 break
 
             # server or server-side connection error
-            elif isinstance(err, ccxt.ExchangeError) \
-            and not (str(err).find("Web server is returning an unknown error") >= 0
-            or       str(err).find("Ratelimit") >= 0
-            or       str(err).find("Cannot connect to host") >= 0
-            or       str(err).find("unavailable") >= 0):
+            elif isinstance(err, ccxt.ExchangeError):
                 logger.warning(f"ExchangeError, {type(err)} {str(err)}")
 
             elif isinstance(err, ccxt.ExchangeNotAvailable)\

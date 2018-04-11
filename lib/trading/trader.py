@@ -277,24 +277,6 @@ class SingleEXTrader():
         return last_log_time, last_sig
 
     async def update_ohlcv(self):
-
-        async def build_recent_ohlcv():
-            src_tf = '1m'
-
-            # Build ohlcvs from 1m
-            for market in self.ex.markets:
-                for tf in self.ex.timeframes:
-                    if tf != src_tf:
-                        src_end_dt = await self.mongo.get_ohlcv_end(self.ex.exname, market, src_tf)
-                        target_end_dt = await self.mongo.get_ohlcv_end(self.ex.exname, market, tf)
-                        target_start_dt = target_end_dt - tf_td(tf) * 5
-
-                        # Build ohlcv starting from 5 bars earlier from latest bar
-                        await build_ohlcv(self.mongo, self.ex.exname, market, src_tf, tf,
-                                        start=target_start_dt, end=src_end_dt)
-
-        await build_recent_ohlcv()
-
         # Get newest ohlcvs
         td = timedelta(days=self.config['strategy']['data_days'])
         end = roundup_dt(utc_now(), timedelta(minutes=1))

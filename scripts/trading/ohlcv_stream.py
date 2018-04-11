@@ -46,7 +46,7 @@ async def main():
 
     ex = EXBase(mongo, 'bitfinex', log=True)
 
-    await ex._start_ohlcv_stream()
+    await ex._start_ohlcv_stream(build_ohlcv=True)
     await ex.ex.close()
 
 
