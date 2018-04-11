@@ -14,6 +14,8 @@ import numpy as np
 from analysis.backtest_trader import SimulatedTrader, FastTrader
 from utils import \
     INF, \
+    MIN_DT, \
+    MAX_DT, \
     config, \
     Timer, \
     tf_td, \
@@ -21,7 +23,7 @@ from utils import \
     check_periods
 
 try:
-    from analysis.plot import Plot
+    from analysis import Plot
 except ImportError:
     pass
 

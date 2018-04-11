@@ -22,6 +22,7 @@ logger = logging.getLogger('pyct')
 
 INF = 9999999
 MIN_DT = datetime(1970, 1, 1)
+MAX_DT = datetime(9999, 1, 1)
 
 
 def get_project_root():

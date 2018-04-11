@@ -3,6 +3,7 @@ from datetime import timedelta
 import copy
 import logging
 
+from analysis import Indicator
 from utils import config
 
 logger = logging.getLogger('pyct')

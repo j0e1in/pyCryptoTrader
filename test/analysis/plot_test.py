@@ -4,7 +4,7 @@ from setup import run
 from datetime import datetime
 import pandas as pd
 
-from analysis.plot import Plot
+from analysis import Plot
 from analysis.backtest_trader import SimulatedTrader
 from db import EXMongo
 from utils import config, Timer
