@@ -1,3 +1,4 @@
+# For building and pushing image
 version: '3.5'
 services:
   main:
@@ -5,53 +6,10 @@ services:
     image: gcr.io/docker-reghub/pyct
     deploy:
       replicas: 0
-  trade:
-    image: gcr.io/docker-reghub/pyct
-    command: >
-              --start-trader
-              --mongo-host=mongo
-              --redis-host=redis
-              --enable-api
-              --env .env
-              --disable-trading
-              --log-signal
-              --log
-    env_file:
-      - .env
-    volumes:
-      - ./data:/app/data
-      - ./log:/app/log
-      - ./settings:/app/settings:ro
-    networks:
-      - mongo_net
-      - redis_net
-    ports:
-      - "8000:8000"
-    secrets:
-      - source: keys.json
-        target: /app/private/keys.json
-      - source: fullchain.pem
-        target: /app/private/fullchain.pem
-      - source: privkey.pem
-        target: /app/private/privkey.pem
-    restart: always
-    deploy:
-      replicas: 1
 
-networks:
-  mongo_net:
-    external: true
-  redis_net:
-    external: true
-
-volumes:
-  mongo_data:
-    external: true
 
 secrets:
   keys.json:
     file: ./private/keys.json
-  fullchain.pem:
-    file: ./private/fullchain.pem
-  privkey.pem:
-    file: ./private/privkey.pem
+  redis-passwd:
+    file: ./private/redis-passwd

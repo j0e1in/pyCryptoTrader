@@ -30,16 +30,37 @@ echo "Deploy $TYPE docker stack"
 
 read -p "Press [Enter] to continue..."
 
-docker-compose build
+if [ $TYPE == 'optimize' ]; then
+  PROJ_DIR=pyCryptoTrader
+  rm -rf $PROJ_DIR
+  unzip -q $PROJ_DIR.zip
+  cd $PROJ_DIR
+  source .env
 
-docker stack rm crypto
-docker stack rm data
-echo \"wait for 20 seconds...\"
-sleep 20
+  docker-compose build $build_args
 
-docker stack deploy -c docker-stack-data-stream.yml data
-docker stack deploy -c docker-stack-$TYPE.yml crypto
-echo \"wait for 10 seconds...\"
-sleep 10
+  docker stack rm optimize
+  echo "wait for 20 seconds..."
+  sleep 20
 
-docker service logs -f crypto_trade
+  docker stack deploy -c docker-stack-$TYPE.yml optimize
+  echo "wait for 10 seconds..."
+  sleep 10
+
+  docker service logs -f optimize_optimize
+
+else
+  docker-compose build $build_args
+
+  docker stack rm crypto
+  docker stack rm data
+  echo "wait for 20 seconds..."
+  sleep 20
+
+  docker stack deploy -c docker-stack-data-stream.yml data
+  docker stack deploy -c docker-stack-$TYPE.yml crypto
+  echo "wait for 10 seconds..."
+  sleep 10
+
+  docker service logs -f crypto_trade
+fi

@@ -25,7 +25,7 @@ from utils import \
     check_periods
 
 try:
-    from analysis import Plot
+    from analysis.plot import Plot
 except ImportError:
     pass
 
@@ -493,7 +493,7 @@ class ParamOptimizer():
                 'timeframes': timeframes,
             }
 
-        data_feed = await get_data_feed(req, start, end)
+        data_feed = await get_data_feed(self.mongo, req, start, end)
         info = {
             'name': name,
             'ex': ex,
@@ -720,7 +720,7 @@ def get_types(d):
     return dtypes
 
 
-async def get_data_feed(req, start=None, end=None, trades=False):
+async def get_data_feed(mongo, req, start=None, end=None, trades=False):
     """ Read ohlcv and trades(optional) from mongodb.
         Param
             req: {
@@ -739,7 +739,6 @@ async def get_data_feed(req, start=None, end=None, trades=False):
     if start >= end:
         raise ValueError("Start datatime must < end")
 
-    mongo = EXMongo()
     data_feed = {'ohlcvs': {}, 'trades': {}}
 
     for ex in req:

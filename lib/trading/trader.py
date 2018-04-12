@@ -856,7 +856,6 @@ class SingleEXTrader():
             positions = await self.ex.fetch_positions()
             pos_ids = [p['id'] for p in positions]
 
-            # Debug
             for pos in positions:
                 base_value = pos['base_price'] * abs(pos['amount'])
                 pl_perc = pos['pl'] * margin_rate / base_value * 100

@@ -1,0 +1,30 @@
+version: '3.5'
+services:
+  main:
+    build: ./
+    image: gcr.io/docker-reghub/pyct
+    deploy:
+      replicas: 0
+  optimize:
+    image: gcr.io/docker-reghub/pyct
+    command: >
+              --optimize-params optimize
+              --name=${INDICATOR_NAME}
+              --mongo-host=${REMOTE_MONGO_IP}
+    env_file:
+      - .env
+    volumes:
+      - ./log:/app/log
+      - ./settings:/app/settings:ro
+    ports:
+      - "8000:8000"
+    secrets:
+      - source: keys.json
+        target: /app/private/keys.json
+    deploy:
+      replicas: 1
+
+
+secrets:
+  keys.json:
+    file: ./private/keys.json
