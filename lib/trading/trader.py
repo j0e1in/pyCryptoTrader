@@ -79,6 +79,7 @@ class SingleEXTrader():
             disable_ohlcv_stream=disable_ohlcv_stream)
         self.strategy = self.init_strategy(strategy)
         self.ohlcvs = self.create_empty_ohlcv_store()
+        self.ohlcv_up = self.ds.get('ohlcv_up', True)
 
         self.margin_order_queue = self.ds.get('margin_order_queue', OrderedDict())
         self.max_fund = self.ds.get('max_fund', self.config['max_fund'])
@@ -208,7 +209,6 @@ class SingleEXTrader():
 
         last_log_time = MIN_DT
         last_sig = {market: np.nan for market in self.ex.markets}
-        self.ohlcv_up = self.ds.get('ohlcv_up', True)
         await self.update_ohlcv()
 
         while not self._stop:

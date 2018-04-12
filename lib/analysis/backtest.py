@@ -639,19 +639,19 @@ class ParamOptimizer():
                 timedelta(days=self._config['analysis']['optimization_delay'])}
         }).sort([('PL(%)', -1)]).limit(1).to_list(length=INF)
 
-        if not best_result: return []
+        if not best_result: return [], 0
 
         coll = self.mongo.get_collection(
             self.mongo.config['dbname_analysis'], f'param_set_{name}')
         params = await coll.find_one({'idx': best_result[0]['param_idx']})
 
-        if not params: return []
+        if not params: return [], 0
 
         coll = self.mongo.get_collection(
             self.mongo.config['dbname_analysis'], f'param_set_meta')
         meta = await coll.find_one({'name': name})
 
-        if not meta: return []
+        if not meta: return [], 0
 
         p = {col: val for col, val in zip(meta['columns'], params['params'])}
 
