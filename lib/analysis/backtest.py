@@ -474,7 +474,7 @@ class ParamOptimizer():
         _config['analysis']['exchanges'][ex]['markets'] = [market]
 
         start, end = period
-        num_tests = len(combs)
+        num_tests = len(combs) - last_idx
         logger.info(f"Running {ex} {market} {start}->{end} "
                     f"optimization with << {num_tests} >> tests.")
 
@@ -509,6 +509,7 @@ class ParamOptimizer():
         # Start optimization
         for idx, row in combs.iterrows():
             if idx <= last_idx: # skip backtested params
+                n_reports_left -= 1
                 continue
 
             params = OrderedDict(row.to_dict())
