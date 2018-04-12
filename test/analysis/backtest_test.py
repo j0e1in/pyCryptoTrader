@@ -27,7 +27,7 @@ async def test_backtest_runner_run_single_period(mongo):
     period = (datetime(2018, 1, 1), datetime(2018, 3, 1))
 
     strategy = PatternStrategy('bitfinex')
-    bt_runner = BacktestRunner(mongo, strategy, multicore=False)
+    bt_runner = BacktestRunner(strategy)
 
     summary = await bt_runner.run_periods(period)
     pprint(summary)
@@ -40,7 +40,7 @@ async def test_backtest_runner_run_multi_periods(mongo):
         periods.append((datetime(2017, 3, i+1), datetime(2017, 4, i+1)))
 
     strategy = PatternStrategy('bitfinex')
-    bt_runner = BacktestRunner(mongo, strategy)
+    bt_runner = BacktestRunner(strategy)
 
     summary = await bt_runner.run_periods(periods)
     pprint(summary)
@@ -52,7 +52,7 @@ async def test_backtest_runner_run_random_periods(mongo):
     period_size_range = (15, 29)
 
     strategy = PatternStrategy('bitfinex')
-    bt_runner = BacktestRunner(mongo, strategy)
+    bt_runner = BacktestRunner(strategy)
 
     periods = bt_runner.generate_random_periods(start, end, period_size_range, 15)
     summary = await bt_runner.run_periods(periods)
@@ -66,7 +66,7 @@ async def test_backtest_runner_run_period_with_shift_step(mongo):
     shift_step = 5
 
     strategy = PatternStrategy('bitfinex')
-    bt_runner = BacktestRunner(mongo, strategy)
+    bt_runner = BacktestRunner(strategy)
 
     periods = bt_runner.generate_periods_with_shift_step(start, end, period_size, shift_step)
     summary = await bt_runner.run_periods(periods)
@@ -74,17 +74,12 @@ async def test_backtest_runner_run_period_with_shift_step(mongo):
 
 
 async def test_param_optimizer(mongo):
-    periods = []
-    for i in range(2):
-        periods.append((datetime(2017, 3, i+1), datetime(2017, 3, i+15)))
-
+    period = (datetime(2017, 8, 1), datetime(2018, 3, 5))
     strategy = PatternStrategy('bitfinex')
-    optimizer = ParamOptimizer(mongo, strategy, periods)
+    optimizer = ParamOptimizer(mongo, strategy)
 
     optimizer.optimize_range('trade_portion', 0.1, 0.2, 0.1)
-    summaries = await optimizer.run()
-    summary = optimizer.analyze_summary(summaries, 'best_params')
-    print(summary)
+    await optimizer.run(period)
 
 
 async def main():

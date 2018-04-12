@@ -105,7 +105,7 @@ async def test_special_periods(mongo):
     ]
 
     strategy = PatternStrategy('bitfinex')
-    bt_runner = BacktestRunner(mongo, strategy)
+    bt_runner = BacktestRunner(strategy)
 
     summary = await bt_runner.run_periods(periods)
     pprint(summary)
@@ -120,7 +120,7 @@ async def test_random_periods(mongo):
     period_size_range = (7, 100)
 
     strategy = PatternStrategy('bitfinex')
-    bt_runner = BacktestRunner(mongo, strategy)
+    bt_runner = BacktestRunner(strategy)
 
     periods = bt_runner.generate_random_periods(start, end, period_size_range, 2000)
 

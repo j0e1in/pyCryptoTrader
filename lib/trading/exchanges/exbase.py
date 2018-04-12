@@ -208,7 +208,7 @@ class EXBase():
 
             if await self.is_ohlcv_uptodate():
                 if build_ohlcv:
-                    self.build_recent_ohlcvs()
+                    await self.build_recent_ohlcvs()
 
                 self.ready['ohlcv'] = True
                 fetch_interval = timedelta(seconds=self.config['ohlcv_fetch_interval'])
@@ -523,12 +523,13 @@ class EXBase():
 
         return True
 
-    async def build_recent_ohlcv(self):
+    async def build_recent_ohlcvs(self):
         src_tf = '1m'
+        tfs = self._config['analysis']['exchanges'][self.exname]['timeframes_all']
 
         # Build ohlcvs from 1m
         for market in self.markets:
-            for tf in self.timeframes:
+            for tf in tfs:
                 if tf != src_tf:
                     src_end_dt = await self.mongo.get_ohlcv_end(self.exname, market, src_tf)
                     target_end_dt = await self.mongo.get_ohlcv_end(self.exname, market, tf)

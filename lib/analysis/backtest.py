@@ -19,7 +19,9 @@ from utils import \
     config, \
     Timer, \
     tf_td, \
+    utc_now, \
     roundup_dt, \
+    rounddown_dt, \
     check_periods
 
 try:
@@ -37,53 +39,24 @@ logger = logging.getLogger('pyct')
 # logger = multiprocessing.log_to_stderr()
 # logger.setLevel(multiprocessing.SUBDEBUG)
 
-# TODO: reuse data for multiple tests, don't read data everytime
-
-
 class Backtest():
 
-    def __init__(self, mongo):
-        self.mongo = mongo
+    def __init__(self, strategy, data_feed, start, end,
+                 enable_plot=False,
+                 custom_config=None):
 
-    async def init(self, **options):
-        """ Can be used to reset and run tests with different options.
-            Param
-                options: {
-                    'strategy': a strategy object
-                    'start': datetime
-                    'end': datetime
-                    'enable_trade_feed': bool, default is False (optional)
-                                         Turn on trade feed if strategy requires it
-                    'custom_config': (optional) JSON, loaded config
-                }
-        """
-        self._set_init_options(**options)
-        self.strategy.init(self.trader)
+        if not data_feed:
+            raise ValueError(f"Data feed is empty")
 
-        await self._get_all_data()
-        self.start, self.end = self.get_real_start_end()
-
-        return self
-
-    def _set_init_options(self, **options):
-        if 'custom_config' in options:
-            _config = options['custom_config']
-        else:
-            _config = config
-
-        self.strategy = options['strategy']
-        self.start = options['start']
-        self.end = options['end']
-
-        if self.start >= self.end:
-            raise ValueError(f"backtest start datetime must > end")
-
-        if 'enable_trade_feed' in options:
-            self.enable_trade_feed = options['enable_trade_feed']
-        else:
-            self.enable_trade_feed = False
-
+        _config = custom_config or config
+        self._config = _config
         self.config = _config['backtest']
+        self.strategy = strategy
+        self.enable_plot = enable_plot
+        self.ohlcvs = data_feed['ohlcvs']
+        self.trades = data_feed['trades']
+        self.start = start
+        self.end = end
         self.timer = Timer(self.start, self.config['base_timeframe'])
 
         if self.config['fast_mode']:
@@ -93,25 +66,14 @@ class Backtest():
         else:
             self.trader = SimulatedTrader(self.timer, self.strategy, custom_config=_config)
 
-        if 'enable_plot' in options:
-            self.enable_plot = options['enable_plot']
-        else:
-            self.enable_plot = _config['matplot']['enable']
+        for ex in self.trader.markets:
+            avail_markets = list(data_feed['ohlcvs'][ex].keys())
 
-        if self.enable_plot:
-            self.plot = Plot(custom_config=_config)
+            for market in self.trader.markets[ex]:
+                if market not in avail_markets:
+                    raise ValueError(f"Data feed has no market {market}")
 
-        self.markets = self.trader.markets
-        self.timeframes = self.trader.timeframes
-
-    async def _get_all_data(self):
-        self.ohlcvs = {}
-        self.trades = {}
-        for ex, markets in self.markets.items():
-            self.ohlcvs[ex] = await self.mongo.get_ohlcvs_of_symbols(ex, markets, self.timeframes[ex], self.start, self.end)
-
-            if self.enable_trade_feed:
-                self.trades[ex] = await self.mongo.get_trades_of_symbols(ex, markets, self.start, self.end)
+        self.strategy.init(self.trader)
 
     def run(self):
         self.report = self._init_report()
@@ -206,7 +168,7 @@ class Backtest():
         for ex, wallet in self.trader.wallet.items():
             for curr, amount in wallet.items():
 
-                min_tf = self.timeframes[ex][0]
+                min_tf = self.trader.timeframes[ex][0]
                 dt = roundup_dt(dt, tf_td(min_tf))
 
                 if curr == 'USD':
@@ -234,49 +196,33 @@ class Backtest():
         return total_value
 
     def plot_result(self):
+        """ Plot ohlcv and orders. """
+        plot = Plot(custom_config=self._config)
+
         for ex, markets in self.ohlcvs.items():
             for market, tfs in markets.items():
 
                 # Plot ohlc
                 ohlc = self.ohlcvs[ex][market][self.trader.config['indicator_tf']]
-                self.plot.plot_ohlc(ohlc)
+                plot.plot_ohlc(ohlc)
 
                 # Plot orders
                 orders = self.get_order_history_by_market(ex, market)
-                self.plot.plot_order_annotation(orders, ohlc)
+                plot.plot_order_annotation(orders, ohlc)
 
-        self.plot.tight_layout()
-        self.plot.show()
+        plot.tight_layout()
+        plot.show()
 
     def get_order_history_by_market(self, ex, market):
+        """ Return order history of a market. """
         orders = []
         for ord in list(self.trader.order_history[ex].values()):
             if ord['market'] == market:
                 orders.append(ord)
         return orders
 
-    def get_real_start_end(self):
-        """ Get real start and end of ohlcv rather than using that are requested by user. """
-        start = self.end
-        end = self.start
-
-        for ex, markets in self.markets.items():
-            for market in markets:
-
-                if len(self.ohlcvs[ex][market]['1m']) is 0:
-                    raise RuntimeError(f"No ohlcv in {ex} {market} '1m' from {start} to {end}")
-
-                dt = self.ohlcvs[ex][market]['1m'].index[0]
-                if dt < start:
-                    start = dt
-
-                dt = self.ohlcvs[ex][market]['1m'].index[-1]
-                if dt > end:
-                    end = dt
-
-        return start, end
-
     def clean_order_history(self):
+        """ Remove fields starts with 'op_' from order history. """
         for _, orders in self.trader.order_history.items():
             for _, order in orders.items():
                 fields = list(order.keys())
@@ -293,12 +239,10 @@ class BacktestRunner():
 
     """
 
-    def __init__(self, mongo, strategy, multicore=True, custom_config=None):
-        self._config = custom_config if custom_config is not None else config
-
-        self.mongo = mongo
+    def __init__(self, strategy, data_feed, custom_config=None):
+        self._config = custom_config or config
         self.strategy = strategy
-        self.multicore = multicore
+        self.data_feed = data_feed
 
     async def run_periods(self, periods):
         """
@@ -314,11 +258,6 @@ class BacktestRunner():
         n_reports_left = len(periods)
 
         def run_backtest(backtest):
-            days = (opts['end'] - opts['start']).days
-
-            if self._config['mode'] == 'debug':
-                logger.debug(f"Backtesting {opts['start']} / {opts['end']} ({days} days)")
-
             report = backtest.run()
             reports_q.put({
                 'period': (backtest.start, backtest.end),
@@ -327,17 +266,10 @@ class BacktestRunner():
             del backtest
 
         for start, end in periods:
-            opts = {
-                'strategy': self.strategy,
-                'start': start,
-                'end': end,
-                'enable_plot': False,
-                'custom_config': self._config
-            }
+            backtest = await Backtest(self.strategy, self.data_feed, start, end,
+                enable_plot=False, custom_config=self._config)
 
-            backtest = await Backtest(self.mongo).init(**opts)
-
-            if self.multicore and self._config['use_multicore']:
+            if self._config['use_multicore']:
                 if ps.full():
                     reports.append(reports_q.get())
                     ps.get().join()
@@ -466,11 +398,10 @@ class ParamOptimizer():
     # TODO: Change optimizer to run all params in one period to reuse data and enable multicore
 
     def __init__(self, mongo, strategy, custom_config=None):
-        self._config = custom_config if custom_config else config
-        self.params = self._config['analysis']['params']['common']
-
+        self._config = custom_config or config
         self.mongo = mongo
         self.strategy = strategy
+        self.params = self._config['analysis']['params']['common']
 
         self._init_param_queue()
 
@@ -508,78 +439,223 @@ class ParamOptimizer():
             n *= len(self.param_d[k])
         return n
 
-    def get_combinations(self):
-        return gen_combinations(
-            self.param_d.values(),
-            columns=self.param_d.keys(),
-            types=get_types(self.param_d))
-
-    def get_combinations_large(self, f):
+    def get_combinations(self, f=None):
         return gen_combinations_large(
             self.param_d.values(),
             columns=self.param_d.keys(),
             to_file=f)
 
-    async def run(self, combs, periods):
-        if not check_periods(periods):
+    async def run(self, combs, period, ex, market, name=''):
+
+        reports_q = Queue(self._config['max_processes'])
+        ps = queue.Queue(self._config['max_processes'])
+        n_reports_left = len(combs)
+
+        def run_backtest(backtest, idx):
+            report = backtest.run()
+            reports_q.put([idx, report])
+            del backtest
+
+        if not check_periods(period):
             raise ValueError("Periods is invalid.")
 
-        config = copy.deepcopy(self._config)
+        _config = copy.deepcopy(self._config)
 
-        num_tests = len(combs) * len(periods)
-        logger.info(f"Running optimization with << {num_tests} >> tests.")
+        # Find last checkpoint to resume
+        tf = _config['analysis']['indicator_tf']
+        last_idx = await self.last_checkpoint(name, ex, market, tf, period)
 
-        summaries = []
+        # Remove other exchanges
+        _config['analysis']['exchanges'] = {
+            ex: _config['analysis']['exchanges'][ex]
+        }
 
+        # Remove other markets
+        _config['analysis']['exchanges'][ex]['markets'] = [market]
+
+        start, end = period
+        num_tests = len(combs)
+        logger.info(f"Running {ex} {market} {start}->{end} "
+                    f"optimization with << {num_tests} >> tests.")
+
+        logger.info(f"Starting from param set {last_idx+1}")
+
+        # Construct data_feed request
+        req = {}
+        exs = _config['analysis']['exchanges']
+        for ex in exs:
+            symbols = exs[ex]['markets']
+            timeframes = exs[ex]['timeframes']
+            if _config['analysis']['indicator_tf'] not in timeframes:
+                timeframes += [_config['analysis']['indicator_tf']]
+            req[ex] = {
+                'symbols': symbols,
+                'timeframes': timeframes,
+            }
+
+        data_feed = await get_data_feed(req, start, end)
+        info = {
+            'name': name,
+            'ex': ex,
+            'symbol': market,
+            'tf': _config['analysis']['indicator_tf'],
+            'datetime': roundup_dt(utc_now(), timedelta(minutes=1)),
+            'start': start,
+            'end': end,
+        }
+        reports = []
         count = 0
-        for i in range(len(combs)):
-            params = OrderedDict(combs.iloc[i].to_dict())
-            config['analysis']['params']['common'] = params
 
-            self.strategy.set_config(config)
+        # Start optimization
+        for idx, row in combs.iterrows():
+            if idx <= last_idx: # skip backtested params
+                continue
 
-            bt_runner = BacktestRunner(self.mongo, self.strategy, custom_config=config)
-            summaries.append({
-                'params': params,
-                'summary': await bt_runner.run_periods(periods)
-            })
+            params = OrderedDict(row.to_dict())
+            _config['analysis']['params'][market] = params
 
-            num_tests -= len(periods)
-            count += len(periods)
-            if count >= 10: # periodically log number of remaining tests
+            self.strategy.set_config(_config)
+            backtest = Backtest(self.strategy, data_feed, start, end,
+                enable_plot=False, custom_config=_config)
+
+            if ps.full():
+                reports.append(reports_q.get())
+                n_reports_left -= 1
+                ps.get().join()
+
+            if self._config['use_multicore']:
+                p = Process(target=run_backtest, args=(backtest, idx))
+                p.start()
+                ps.put(p)
+            else: # for debugging
+                if reports_q.full():
+                    reports.append(reports_q.get())
+                    n_reports_left -= 1
+
+                run_backtest(backtest, idx)
+
+            num_tests -= 1
+            count += 1
+            if count == 1000: # periodically log number of remaining tests
                 count = 0
                 logger.info(f"{num_tests} tests remaining")
 
-        return summaries
+            if len(reports) >= 1000:
+                await self.save_reports(name, reports, info)
+                await self.update_optimization_meta(name, ex, market, tf, period)
+                reports = []
 
-    @staticmethod
-    def analyze_summary(summaries, summary_type):
-        """
-            Param
-                summaries: list of dicts returned by ParamOptimizer.run()
-                summary_type: one of the options provided, eg. 'best_params'
-        """
-        if summary_type == 'best_params':
-            cols = list(summaries[0]['params'].keys()) + list(summaries[0]['summary'])
-            df = pd.DataFrame(columns=cols)
-            params_df = pd.DataFrame(columns=list(summaries[0]['params'].keys()))
+        while n_reports_left > 0:
+            reports.append(reports_q.get())
+            n_reports_left -= 1
 
-            for summ in summaries:
-                params = summ['params']
-                summary = summ['summary']
+        await self.save_reports(name, reports, info)
 
-                tmp_df = params_df.append(params, ignore_index=True)
+        # Wait for all processes to terminate
+        # (should be unecessary here because getting reports already blocks)
+        if self._config['use_multicore']:
+            while ps.qsize() > 0:
+                ps.get().join()
 
-                for i in range(len(summary)-1):
-                    tmp_df = tmp_df.append(tmp_df.iloc[0].copy(), ignore_index=True)
+    async def save_reports(self, name, reports, info):
 
-                tmp_df = pd.concat([tmp_df, summary], axis=1)
-                df = df.append(tmp_df, ignore_index=True)
+        def parse_report(report):
+            return {
+                'days': report['days'],
+                'PL(%)': report['PL(%)'],
+                'PL_Eff': report['PL_Eff'],
+            }
 
-            df.sort_values(by='PL_Eff', ascending=False, inplace=True)
-            return df
+        if not reports:
+            return
 
-        # TODO: use multi-core for testing multiple params
+        if not isinstance(reports, list):
+            reports = [reports]
+
+        thresh = self._config['analysis']['param_optmization_save_threshold']
+        parsed = []
+
+        for report in reports:
+            idx = report[0]
+            rep = report[1]
+
+            if rep['PL(%)'] >= thresh:
+                parsed.append({
+                    **info,
+                    **parse_report(rep),
+                    **{'param_idx': idx},
+                })
+
+        coll = self.mongo.get_collection(
+            self.mongo.config['dbname_analysis'],
+            f'param_optimization_{name}')
+
+        if parsed:
+            await coll.insert_many(parsed)
+
+    async def last_checkpoint(self, name, ex, symbol, tf, period):
+        coll = self.mongo.get_collection(
+            self.mongo.config['dbname_analysis'], f'param_optimization_{name}')
+
+        # Find backtests that are within optimization_delay days
+        res = await coll.find({
+            'name': name,
+            'ex': ex,
+            'symbol': symbol,
+            'tf': tf,
+            'datetime': {'$gte': period[1] -
+                timedelta(days=self._config['analysis']['optimization_delay'])}
+        }).sort([('param_idx', -1)]).limit(1).to_list(length=INF)
+
+        return res[0]['param_idx'] if res else 0
+
+    async def update_optimization_meta(self, name, ex, symbol, tf, period):
+        coll_opt_meta = self.mongo.get_collection(
+            self.mongo.config['dbname_analysis'], 'param_optimization_meta')
+
+        best_param, pl = await self.get_best_param(name, ex, symbol, tf, period)
+
+        if best_param:
+            await coll_opt_meta.update_one(
+                {'name': name, 'ex': ex, 'symbol': symbol, 'tf': tf},
+                {'$set': {
+                    **{'name': name, 'ex': ex, 'symbol': symbol, 'tf': tf},
+                    **{'best_param': best_param,
+                       'PL(%)': pl,
+                       'datetime': rounddown_dt(utc_now(), timedelta(minutes=1))}
+                }}, upsert=True)
+
+    async def get_best_param(self, name, ex, symbol, tf, period):
+
+        # Get best PL param index
+        coll = self.mongo.get_collection(
+            self.mongo.config['dbname_analysis'], f'param_optimization_{name}')
+        best_result = await coll.find({
+            'name': name,
+            'ex': ex,
+            'symbol': symbol,
+            'tf': tf,
+            'datetime': {'$gte': period[1] -
+                timedelta(days=self._config['analysis']['optimization_delay'])}
+        }).sort([('PL(%)', -1)]).limit(1).to_list(length=INF)
+
+        if not best_result: return []
+
+        coll = self.mongo.get_collection(
+            self.mongo.config['dbname_analysis'], f'param_set_{name}')
+        params = await coll.find_one({'idx': best_result[0]['param_idx']})
+
+        if not params: return []
+
+        coll = self.mongo.get_collection(
+            self.mongo.config['dbname_analysis'], f'param_set_meta')
+        meta = await coll.find_one({'name': name})
+
+        if not meta: return []
+
+        p = {col: val for col, val in zip(meta['columns'], params['params'])}
+
+        return p, best_result[0]['PL(%)']
 
 
 def gen_combinations(arrays, columns=None, types=None):
@@ -642,3 +718,36 @@ def get_types(d):
         else:
             dtypes[k] = type(v)
     return dtypes
+
+
+async def get_data_feed(req, start=None, end=None, trades=False):
+    """ Read ohlcv and trades(optional) from mongodb.
+        Param
+            req: {
+                'bitfinex': {
+                    'symbols': [...],
+                    'timeframes: [...]
+                },
+                ...
+            }
+            start: datatime
+            end: datatime
+    """
+    start = start or MIN_DT
+    end = end or MAX_DT
+
+    if start >= end:
+        raise ValueError("Start datatime must < end")
+
+    mongo = EXMongo()
+    data_feed = {'ohlcvs': {}, 'trades': {}}
+
+    for ex in req:
+        syms = req[ex]['symbols']
+        tfs = req[ex]['timeframes']
+        data_feed['ohlcvs'][ex] = await mongo.get_ohlcvs_of_symbols(ex, syms, tfs, start, end)
+
+        if trades:
+            data_feed['trades'][ex] = await mongo.get_trades_of_symbols(ex, syms, start, end)
+
+    return data_feed

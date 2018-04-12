@@ -45,8 +45,8 @@ def parse_args():
 async def main():
     argv = parse_args()
 
-    mongo_host = argv.mongo_host if argv.mongo_host else None
-    redis_host = argv.redis_host if argv.redis_host else None
+    mongo_host = argv.mongo_host or None
+    redis_host = argv.redis_host or None
 
     mongo = EXMongo(host=mongo_host)
     Datastore.update_redis(host=redis_host)

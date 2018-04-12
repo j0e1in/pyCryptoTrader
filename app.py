@@ -12,7 +12,7 @@ def parse_args():
     parser.add_argument('--build-ohlcvs', action='store_true', help="Execute build_ohlcv.py")
     parser.add_argument('--fetch-ohlcvs', action='store_true', help="Execute fetch_all_ohlcvs.py")
     parser.add_argument('--fetch-trades', action='store_true', help="Execute fetch_all_trades.py")
-    parser.add_argument('--optimize', action='store_true', help="Execute optimize_params.py")
+    parser.add_argument('--optimize-params', action='store_true', help="Execute optimize_params.py")
     parser.add_argument('--backtest', action='store_true', help="Execute backtest.py")
 
     # Mongodb
@@ -72,7 +72,7 @@ def main():
     elif argv.fetch_trades:
         os.system(f"python scripts/analysis/fetch_all_trades.py {argv_remain}")
 
-    elif argv.optimize:
+    elif argv.optimize_params:
         os.system(f"python scripts/analysis/optimize_params.py {argv_remain}")
 
     elif argv.backtest:
