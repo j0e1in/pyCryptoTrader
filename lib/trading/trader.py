@@ -39,10 +39,7 @@ logger = logging.getLogger('pyct')
 class SingleEXTrader():
 
     ds_list = [
-        'enable_trading',
-        'max_fund',
-        'summary',
-        'margin_order_queue',
+        'enable_trading', 'max_fund', 'summary', 'margin_order_queue', 'ohlcv_up'
     ]
 
     def __init__(self, mongo,
@@ -211,7 +208,7 @@ class SingleEXTrader():
 
         last_log_time = MIN_DT
         last_sig = {market: np.nan for market in self.ex.markets}
-        ohlcv_up = True
+        self.ohlcv_up = self.ds.get('ohlcv_up', True)
         await self.update_ohlcv()
 
         while not self._stop:
@@ -221,15 +218,15 @@ class SingleEXTrader():
                 await self.execute_margin_order_queue()
                 sig = await self.strategy.run()
 
-                if not ohlcv_up:
+                if not self.ohlcv_up:
                     await self.notifier.notify_msg("Ohlcv stream is up")
-                    ohlcv_up = True
+                    self.ohlcv_up = True
 
                 if self.log_sig:
                     last_log_time, last_sig = self.log_signals(sig, last_log_time, last_sig)
             else:
-                if ohlcv_up and not await self.check_ohlcv_is_updating():
-                    ohlcv_up = False
+                if self.ohlcv_up and not await self.check_ohlcv_is_updating():
+                    self.ohlcv_up = False
                     await self.notifier.notify_msg("Ohlcv stream is down")
 
             # Wait additional 90 sec for ohlcv of all markets to be fetched
