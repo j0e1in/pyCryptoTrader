@@ -54,8 +54,6 @@ if [ $TYPE == 'optimize' ]; then
     cd $PROJ_DIR && \
     source .env && \
     \
-    docker-compose build $build_args && \
-    \
     docker stack rm optimize && \
     echo \"wait for 20 seconds...\" && \
     sleep 20 && \
@@ -71,6 +69,7 @@ else
     rm -rf $PROJ_DIR && \
     unzip -q $PROJ_DIR.zip && \
     cd $PROJ_DIR && \
+    source .env && \
     \
     docker-compose build $build_args && \
     \

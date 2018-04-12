@@ -9,8 +9,8 @@ services:
     image: gcr.io/docker-reghub/pyct
     command: >
               --optimize-params optimize
-              --name=${INDICATOR_NAME}
-              --mongo-host=${REMOTE_MONGO_IP}
+              --name="$${INDICATOR_NAME}"
+              --mongo-host="$${REMOTE_MONGO_IP}"
     env_file:
       - .env
     volumes:

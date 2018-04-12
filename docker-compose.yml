@@ -6,10 +6,3 @@ services:
     image: gcr.io/docker-reghub/pyct
     deploy:
       replicas: 0
-
-
-secrets:
-  keys.json:
-    file: ./private/keys.json
-  redis-passwd:
-    file: ./private/redis-passwd

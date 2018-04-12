@@ -31,13 +31,7 @@ echo "Deploy $TYPE docker stack"
 read -p "Press [Enter] to continue..."
 
 if [ $TYPE == 'optimize' ]; then
-  PROJ_DIR=pyCryptoTrader
-  rm -rf $PROJ_DIR
-  unzip -q $PROJ_DIR.zip
-  cd $PROJ_DIR
   source .env
-
-  docker-compose build $build_args
 
   docker stack rm optimize
   echo "wait for 20 seconds..."
@@ -50,6 +44,7 @@ if [ $TYPE == 'optimize' ]; then
   docker service logs -f optimize_optimize
 
 else
+  source .env
   docker-compose build $build_args
 
   docker stack rm crypto
