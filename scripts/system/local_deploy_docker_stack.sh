@@ -33,6 +33,8 @@ read -p "Press [Enter] to continue..."
 if [ $TYPE == 'optimize' ]; then
   source .env
 
+  gcloud docker -- pull gcr.io/docker-reghub/pyct
+
   docker stack rm optimize
   echo "wait for 20 seconds..."
   sleep 20
