@@ -211,7 +211,7 @@ class SingleEXTrader():
 
         last_log_time = MIN_DT
         last_sig = {market: np.nan for market in self.ex.markets}
-        ohlcv_alive = True
+        ohlcv_up = True
         await self.update_ohlcv()
 
         while not self._stop:
@@ -221,14 +221,16 @@ class SingleEXTrader():
                 await self.execute_margin_order_queue()
                 sig = await self.strategy.run()
 
-                if not ohlcv_alive:
-                    await self.notifier.notify_msg("Ohlcv stream is alive")
-                    ohlcv_alive = True
+                if not ohlcv_up:
+                    await self.notifier.notify_msg("Ohlcv stream is up")
+                    ohlcv_up = True
 
                 if self.log_sig:
                     last_log_time, last_sig = self.log_signals(sig, last_log_time, last_sig)
             else:
-                ohlcv_alive = await self.check_ohlcv_is_updating()
+                if ohlcv_up and not await self.check_ohlcv_is_updating():
+                    ohlcv_up = False
+                    await self.notifier.notify_msg("Ohlcv stream is down")
 
             # Wait additional 90 sec for ohlcv of all markets to be fetched
             fetch_interval = timedelta(seconds=self.ex.config['ohlcv_fetch_interval'])
@@ -824,12 +826,10 @@ class SingleEXTrader():
         pass
 
     async def check_ohlcv_is_updating(self):
-        """ Check if all ohlcvs are older by more than 3 * ohlcv_fetch_interval.
-            If it is true, means ohlcv fetch stream is down.
-        """
+        """ Check if all ohlcvs are older by more than 5 * ohlcv_fetch_interval. """
         await self.ex.update_ohlcv_start_end()
 
-        td = timedelta(seconds=self.ex.config['ohlcv_fetch_interval'] * 3)
+        td = timedelta(seconds=self.ex.config['ohlcv_fetch_interval'] * 5)
 
         for market in self.ex.markets:
             end = self.ex.ohlcv_start_end[market]['1m']['end']
@@ -837,10 +837,6 @@ class SingleEXTrader():
 
             if cur_time - end < td:
                 return True
-
-        # This function didn't return, means ohlcv stream is down,
-        # send notification to clients
-        await self.notifier.notify_msg("Ohlcv stream is down")
 
         return False
 
