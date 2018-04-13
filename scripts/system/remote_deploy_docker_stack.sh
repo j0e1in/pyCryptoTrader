@@ -80,6 +80,7 @@ else # deploy trader
   TAIL_LOG="docker service logs -f $SERVICE_NAME"
 fi
 
+REGHUB_KEYFILE=private/docker-reghub-0065a93a0ed4.json
 
 # Actually executing commands
 # Zip and upload source code
@@ -96,12 +97,16 @@ ssh $USERNAME@$HOST \
   cd $PROJ_DIR && \
   source .env && \
   \
+  # Authorize access permission to gcr container registry
+  gcloud auth activate-service-account --key-file $REGHUB_KEYFILE
+  gcloud auth configure-docker
+  \
   $DEPLOY_CMD && \
   $GET_IMAGE && \
   \
   docker stack rm $STACK_NAME && \
-  echo \"wait for 10 seconds...\" && \
-  sleep 10 && \
+  echo \"wait for 20 seconds...\" && \
+  sleep 20 && \
   \
   docker stack deploy -c $DOCKER_DIR/$STACK_FILE $STACK_NAME && \
   echo \"wait for 10 seconds...\" && \

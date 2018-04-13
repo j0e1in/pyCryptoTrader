@@ -68,14 +68,19 @@ else # deploy trader
 fi
 
 # Actually executing commands
+# Authorize access permission to gcr container registry
+REGHUB_KEYFILE=private/docker-reghub-0065a93a0ed4.json
+gcloud auth activate-service-account --key-file $REGHUB_KEYFILE
+gcloud auth configure-docker
+
 source .env
 
 $DEPLOY_CMD
 $GET_IMAGE
 
 docker stack rm $STACK_NAME
-echo "wait for 10 seconds..."
-sleep 10
+echo "wait for 20 seconds..."
+sleep 20
 
 docker stack deploy -c $DOCKER_DIR/$STACK_FILE $STACK_NAME
 echo "wait for 10 seconds..."
