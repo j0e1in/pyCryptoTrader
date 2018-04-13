@@ -1,6 +1,7 @@
 authy
-ccxt==1.11.149
+ccxt==1.12.160
 chromalog
+python-digitalocean
 jstyleson
 matplotlib
 motor
