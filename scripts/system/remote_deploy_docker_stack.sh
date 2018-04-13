@@ -53,28 +53,28 @@ fi
 
 
 DEPLOY_CMD=":"
+STACK_FILE=docker-stack-$TYPE.yml
 
 # deploy any python app.py command
 if [ "$TYPE" == 'uni' ]; then
   DEPLOY_CMD="export PYCT_CMD=\"$CMD\""
-  STACK_FILE=docker-stack.yml
   STACK_NAME=crypto
   SERVICE_NAME=$STACK_NAME"_main"
   TAIL_LOG="docker service logs -f $SERVICE_NAME"
 
 # deploy parameter optimization
 elif [ "$TYPE" == 'optimize' ]; then
-  STACK_FILE=docker-stack-$TYPE.yml
   STACK_NAME=optimize
   SERVICE_NAME=$STACK_NAME"_optimize"
   TAIL_LOG="docker service logs -f $SERVICE_NAME"
 
 elif [ "$TYPE" == 'db' ]; then
-  STACK_FILE=docker-stack-$TYPE.yml
   STACK_NAME=db
 
+elif [ "$TYPE" == 'data' ]; then
+  STACK_NAME=ohlcv
+
 else # deploy trader
-  STACK_FILE=docker-stack-$TYPE.yml
   STACK_NAME=crypto
   SERVICE_NAME=$STACK_NAME"_trade"
   TAIL_LOG="docker service logs -f $SERVICE_NAME"

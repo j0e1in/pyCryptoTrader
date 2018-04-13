@@ -8,9 +8,8 @@ services:
               --redis-host=redis
               --enable-api
               --env .env
-              --ssl
-              --manager
               --disable-trading
+              --log
               --log-signal
     env_file:
       - ../.env

@@ -1,23 +1,5 @@
 version: '3.5'
 services:
-  ohlcv:
-    image: gcr.io/docker-reghub/pyct
-    command: >
-              --ohlcv-stream
-              --mongo-host=mongo
-    volumes:
-      - ../data:/app/data
-      - ../log:/app/log
-      - ../settings:/app/settings:ro
-    networks:
-      - mongo_net_swarm
-    secrets:
-      - source: keys.json
-        target: /app/private/keys.json
-    depends_on:
-      - mongo
-    deploy:
-      replicas: 1
   mongo:
     image: mongo:3.6
     command: mongod --smallfiles --logpath=/dev/null --quiet --auth
