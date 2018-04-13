@@ -599,19 +599,19 @@ class ParamOptimizer():
 
     async def last_checkpoint(self, name, ex, symbol, tf, period):
         coll = self.mongo.get_collection(
-            self.mongo.config['dbname_analysis'], f'param_optimization_{name}')
+            self.mongo.config['dbname_analysis'], f'param_optimization_meta')
 
         # Find backtests that are within optimization_delay days
-        res = await coll.find({
+        res = await coll.find_one({
             'name': name,
             'ex': ex,
             'symbol': symbol,
             'tf': tf,
             'datetime': {'$gte': period[1] -
                 timedelta(days=self._config['analysis']['optimization_delay'])}
-        }).sort([('param_idx', -1)]).limit(1).to_list(length=INF)
+        })
 
-        return res[0]['param_idx'] if res else 0
+        return res['last_checkpoint'] if res else 0
 
     async def update_optimization_meta(self, name, ex, symbol, tf, period, last_idx):
         coll_opt_meta = self.mongo.get_collection(
@@ -627,7 +627,7 @@ class ParamOptimizer():
                     **{'best_param': best_param,
                        'PL(%)': pl,
                        'datetime': rounddown_dt(utc_now(), timedelta(minutes=1)),
-                       'last_backtest_idx': last_idx}
+                       'last_checkpoint': last_idx}
                 }}, upsert=True)
 
     async def get_best_param(self, name, ex, symbol, tf, period):
