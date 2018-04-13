@@ -1,6 +1,7 @@
 #!/bin/bash
 
 PROJ_DIR=pyCryptoTrader
+DOCKER_DIR=docker
 CUR_DIR=$(pwd)
 
 if [[ "$CUR_DIR" != */$PROJ_DIR ]]; then
@@ -19,8 +20,10 @@ fi
 build_args=""
 
 while :; do
-    case $3 in
+    case $2 in
       --no-cache) build_args="$build_args --no-cache";;
+      --pull) pull="true";;
+      --cmd=*) IFS='=' read -r _ CMD <<< $2;; # split by first '='
       *) break
     esac
     shift
@@ -30,16 +33,40 @@ echo "Deploy $TYPE docker stack"
 
 read -p "Press [Enter] to continue..."
 
-if [ $TYPE == 'optimize' ]; then
+if [ $pull = "true" ]; then
+  GET_IMAGE="docker pull gcr.io/docker-reghub/pyct"
+else
+  GET_IMAGE="docker-compose build $build_args"
+fi
+
+# deploy any python app.py command
+if [ $TYPE = "uni" ]; then
+  export PYCT_CMD=$CMD
   source .env
 
-  gcloud docker -- pull gcr.io/docker-reghub/pyct
+  $GET_IMAGE
+
+  docker stack rm pyct
+  echo "wait for 10 seconds..."
+  sleep 10
+
+  docker stack deploy -c $DOCKER_DIR/docker-stack.yml pyct
+  echo "wait for 10 seconds..."
+  sleep 10
+
+  docker service logs -f pyct_main
+
+# deploy parameter optimization
+elif [ $TYPE = 'optimize' ]; then
+  source .env
+
+  $GET_IMAGE
 
   docker stack rm optimize
   echo "wait for 20 seconds..."
   sleep 20
 
-  docker stack deploy -c docker-stack-$TYPE.yml optimize
+  docker stack deploy -c $DOCKER_DIR/docker-stack-$TYPE.yml optimize
   echo "wait for 10 seconds..."
   sleep 10
 
@@ -47,15 +74,16 @@ if [ $TYPE == 'optimize' ]; then
 
 else
   source .env
-  docker-compose build $build_args
+
+  $GET_IMAGE
 
   docker stack rm crypto
   docker stack rm data
   echo "wait for 20 seconds..."
   sleep 20
 
-  docker stack deploy -c docker-stack-data-stream.yml data
-  docker stack deploy -c docker-stack-$TYPE.yml crypto
+  docker stack deploy -c $DOCKER_DIR/docker-stack-data-stream.yml data
+  docker stack deploy -c $DOCKER_DIR/docker-stack-$TYPE.yml crypto
   echo "wait for 10 seconds..."
   sleep 10
 

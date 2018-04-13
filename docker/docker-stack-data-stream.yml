@@ -6,9 +6,9 @@ services:
               --ohlcv-stream
               --mongo-host=mongo
     volumes:
-      - ./data:/app/data
-      - ./log:/app/log
-      - ./settings:/app/settings:ro
+      - ../data:/app/data
+      - ../log:/app/log
+      - ../settings:/app/settings:ro
     networks:
       - mongo_net_swarm
     secrets:
@@ -41,7 +41,7 @@ services:
               --requirepass \"$$(cat /run/secrets/redis-passwd)\""
     volumes:
       - redis_data:/data
-      - ./settings/redis.conf:/etc/redis/redis.conf
+      - ../settings/redis.conf:/etc/redis/redis.conf
     networks:
       - redis_net_swarm
     ports:
@@ -66,6 +66,6 @@ volumes:
 
 secrets:
   keys.json:
-    file: ./private/keys.json
+    file: ../private/keys.json
   redis-passwd:
-    file: ./private/redis-passwd
+    file: ../private/redis-passwd

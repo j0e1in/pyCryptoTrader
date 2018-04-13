@@ -1,10 +1,5 @@
 version: '3.5'
 services:
-  main:
-    build: ./
-    image: gcr.io/docker-reghub/pyct
-    deploy:
-      replicas: 0
   trade:
     image: gcr.io/docker-reghub/pyct
     command: >
@@ -14,14 +9,15 @@ services:
               --enable-api
               --env .env
               --ssl
-              --manager
+              # --manager
+              --disable-trading
               --log-signal
     env_file:
-      - .env
+      - ../.env
     volumes:
-      - ./data:/app/data
-      - ./log:/app/log
-      - ./settings:/app/settings:ro
+      - ../data:/app/data
+      - ../log:/app/log
+      - ../settings:/app/settings:ro
     networks:
       - mongo_net_swarm
       - redis_net_swarm
@@ -49,8 +45,8 @@ volumes:
 
 secrets:
   keys.json:
-    file: ./private/keys.json
+    file: ../private/keys.json
   fullchain.pem:
-    file: ./private/fullchain.pem
+    file: ../private/fullchain.pem
   privkey.pem:
-    file: ./private/privkey.pem
+    file: ../private/privkey.pem
