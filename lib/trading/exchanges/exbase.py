@@ -452,8 +452,15 @@ class EXBase():
             self.ohlcv_start_end[market] = {}
             self.ohlcv_start_end[market][tf] = {}
 
-            start = await self.mongo.get_ohlcv_start(self.exname, market, tf)
-            end = await self.mongo.get_ohlcv_end(self.exname, market, tf)
+            try:
+                start = await self.mongo.get_ohlcv_start(self.exname, market, tf)
+            except ValueError:
+                start = MIN_DT
+
+            try:
+                end = await self.mongo.get_ohlcv_end(self.exname, market, tf)
+            except ValueError:
+                end = MIN_DT
 
             self.ohlcv_start_end[market][tf]['start'] = start
             self.ohlcv_start_end[market][tf]['end'] = end
