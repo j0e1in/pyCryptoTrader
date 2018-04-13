@@ -53,6 +53,7 @@ fi
 
 
 DEPLOY_CMD=":"
+TAIL_LOG=":"
 STACK_FILE=docker-stack-$TYPE.yml
 
 # deploy any python app.py command
