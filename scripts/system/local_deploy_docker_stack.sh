@@ -33,59 +33,52 @@ echo "Deploy $TYPE docker stack"
 
 read -p "Press [Enter] to continue..."
 
-if [ $pull = "true" ]; then
+if [ "$pull" == "true" ]; then
   GET_IMAGE="docker pull gcr.io/docker-reghub/pyct"
 else
   GET_IMAGE="docker-compose build $build_args"
 fi
 
+DEPLOY_CMD=""
+
 # deploy any python app.py command
-if [ $TYPE = "uni" ]; then
-  export PYCT_CMD=$CMD
-  source .env
-
-  $GET_IMAGE
-
-  docker stack rm pyct
-  echo "wait for 10 seconds..."
-  sleep 10
-
-  docker stack deploy -c $DOCKER_DIR/docker-stack.yml pyct
-  echo "wait for 10 seconds..."
-  sleep 10
-
-  docker service logs -f pyct_main
+if [ "$TYPE" == 'uni' ]; then
+  DEPLOY_CMD="export PYCT_CMD=\"$CMD\""
+  STACK_FILE=docker-stack.yml
+  STACK_NAME=crypto
+  SERVICE_NAME=$STACK_NAME"_main"
+  TAIL_LOG="docker service logs -f $SERVICE_NAME"
 
 # deploy parameter optimization
-elif [ $TYPE = 'optimize' ]; then
-  source .env
+elif [ "$TYPE" == 'optimize' ]; then
+  STACK_FILE=docker-stack-$TYPE.yml
+  STACK_NAME=optimize
+  SERVICE_NAME=$STACK_NAME"_optimize"
+  TAIL_LOG="docker service logs -f $SERVICE_NAME"
 
-  $GET_IMAGE
+elif [ "$TYPE" == 'db' ]; then
+  STACK_FILE=docker-stack-$TYPE.yml
+  STACK_NAME=db
 
-  docker stack rm optimize
-  echo "wait for 20 seconds..."
-  sleep 20
-
-  docker stack deploy -c $DOCKER_DIR/docker-stack-$TYPE.yml optimize
-  echo "wait for 10 seconds..."
-  sleep 10
-
-  docker service logs -f optimize_optimize
-
-else
-  source .env
-
-  $GET_IMAGE
-
-  docker stack rm crypto
-  docker stack rm data
-  echo "wait for 20 seconds..."
-  sleep 20
-
-  docker stack deploy -c $DOCKER_DIR/docker-stack-data-stream.yml data
-  docker stack deploy -c $DOCKER_DIR/docker-stack-$TYPE.yml crypto
-  echo "wait for 10 seconds..."
-  sleep 10
-
-  docker service logs -f crypto_trade
+else # deploy trader
+  STACK_FILE=docker-stack-$TYPE.yml
+  STACK_NAME=crypto
+  SERVICE_NAME=$STACK_NAME"_trade"
+  TAIL_LOG="docker service logs -f $SERVICE_NAME"
 fi
+
+# Actually executing commands
+source .env
+
+$DEPLOY_CMD
+$GET_IMAGE
+
+docker stack rm $STACK_NAME
+echo "wait for 10 seconds..."
+sleep 10
+
+docker stack deploy -c $DOCKER_DIR/$STACK_FILE $STACK_NAME
+echo "wait for 10 seconds..."
+sleep 10
+
+$TAIL_LOG
