@@ -50,4 +50,5 @@ power_state:
   delay: "now"
   mode: reboot
   message: First reboot
+  timeout: 120 # sec
   condition: True

@@ -75,3 +75,5 @@ python app.py --add-trader="(1492068960851477,bitfinex),(1634221979967223,bitfin
 
 # Authenticate gcloud using key file
 gcloud auth activate-service-account --key-file [KEY_FILE]
+# Make `docker` command to use `gcloud docker`
+gcloud auth configure-docker
