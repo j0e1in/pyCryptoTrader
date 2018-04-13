@@ -120,6 +120,8 @@ async def optimize_params(mongo, ex, argv):
     end = rounddown_dt(utc_now(), tftd)
     period = (start, end)
 
+    logger.info(f"Start optimizing {markets}")
+
     for market in markets:
         start_time = datetime.now()
 

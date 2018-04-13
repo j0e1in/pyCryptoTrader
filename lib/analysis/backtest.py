@@ -543,7 +543,8 @@ class ParamOptimizer():
 
             if len(reports) >= 1000:
                 await self.save_reports(name, reports, info)
-                await self.update_optimization_meta(name, ex, market, tf, period)
+                await self.update_optimization_meta(name, ex, market, tf, period,
+                                                    last_idx=reports[-1][0])
                 reports = []
 
         while n_reports_left > 0:
@@ -551,6 +552,8 @@ class ParamOptimizer():
             n_reports_left -= 1
 
         await self.save_reports(name, reports, info)
+        await self.update_optimization_meta(name, ex, market, tf, period,
+                                            last_idx=reports[-1][0])
 
         # Wait for all processes to terminate
         # (should be unecessary here because getting reports already blocks)
@@ -587,11 +590,11 @@ class ParamOptimizer():
                     **{'param_idx': idx},
                 })
 
-        coll = self.mongo.get_collection(
-            self.mongo.config['dbname_analysis'],
-            f'param_optimization_{name}')
-
+        # Save high PL params
         if parsed:
+            coll = self.mongo.get_collection(
+                self.mongo.config['dbname_analysis'],
+                f'param_optimization_{name}')
             await coll.insert_many(parsed)
 
     async def last_checkpoint(self, name, ex, symbol, tf, period):
@@ -610,7 +613,7 @@ class ParamOptimizer():
 
         return res[0]['param_idx'] if res else 0
 
-    async def update_optimization_meta(self, name, ex, symbol, tf, period):
+    async def update_optimization_meta(self, name, ex, symbol, tf, period, last_idx):
         coll_opt_meta = self.mongo.get_collection(
             self.mongo.config['dbname_analysis'], 'param_optimization_meta')
 
@@ -623,7 +626,8 @@ class ParamOptimizer():
                     **{'name': name, 'ex': ex, 'symbol': symbol, 'tf': tf},
                     **{'best_param': best_param,
                        'PL(%)': pl,
-                       'datetime': rounddown_dt(utc_now(), timedelta(minutes=1))}
+                       'datetime': rounddown_dt(utc_now(), timedelta(minutes=1)),
+                       'last_backtest_idx': last_idx}
                 }}, upsert=True)
 
     async def get_best_param(self, name, ex, symbol, tf, period):

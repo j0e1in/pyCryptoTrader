@@ -59,6 +59,8 @@ scp mongo_data.tar.bz2 $USERNAME@$IP:~/
 # Restore (use scripts/mongodb/mongo_container_setup.sh to restore for first time)
 cat mongo_data.tar.bz2 | docker run -i -v mongo_data:/volume --rm loomchild/volume-backup restore -
 
+# Cleanup docker images/containers
+docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v /etc:/etc:ro spotify/docker-gc
 
 # Start standalone mongo container
 docker stop mongo
