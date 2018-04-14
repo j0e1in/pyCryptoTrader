@@ -39,17 +39,18 @@ while :; do
     shift
 done
 
-echo "Deploy $TYPE docker stack to $USERNAME@$HOST"
-
-read -p "Press [Enter] to continue..."
-
 # If --pull argument is specified,
 # pull from docker registry instead of build from source
 if [ "$pull" == "true" ]; then
+  IMG_ACTION=pulling
   GET_IMAGE="docker pull gcr.io/docker-reghub/pyct"
 else
+  IMG_ACTION=building
   GET_IMAGE="docker-compose build $build_args"
 fi
+
+echo -e "\n>>>  Deploy $TYPE docker stack to $USERNAME@$HOST by $IMG_ACTION image  <<<\n"
+read -p "Press [Enter] to continue..."
 
 
 DEPLOY_CMD=":"
@@ -73,13 +74,14 @@ elif [ "$TYPE" == 'db' ]; then
   STACK_NAME=db
 
 elif [ "$TYPE" == 'data' ]; then
+  STACK_NAME=data
   SERVICE_NAME=$STACK_NAME"_ohlcv"
-  TAIL_LOG="docker service logs -f $SERVICE_NAME"
+  TAIL_LOG='docker service logs -f $SERVICE_NAME'
 
 else # deploy trader
   STACK_NAME=crypto
   SERVICE_NAME=$STACK_NAME"_trade"
-  TAIL_LOG="docker service logs -f $SERVICE_NAME"
+  TAIL_LOG='docker service logs -f $SERVICE_NAME'
 fi
 
 REGHUB_KEYFILE=private/docker-reghub-0065a93a0ed4.json
@@ -115,4 +117,3 @@ ssh $USERNAME@$HOST \
   sleep 10 && \
   \
   $TAIL_LOG"
-
