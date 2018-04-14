@@ -4,15 +4,16 @@ from datetime import datetime
 
 import asyncio
 import logging
+import os
 
 from api import APIServer
 from db import EXMongo, Datastore
 from trading.trader import SingleEXTrader, TraderManager
-from utils import config
+from utils import config, load_env
 
 
 timestr = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-log_file = f"start_trader_{config['uid']}_{timestr}.log"
+log_file = f"trader/start_trader_{config['uid']}_{timestr}.log"
 
 logger = logging.getLogger('pyct')
 
@@ -45,10 +46,13 @@ def parse_args():
 async def main():
     argv = parse_args()
 
+    load_env()
+
     mongo_host = argv.mongo_host or None
     redis_host = argv.redis_host or None
+    ssl = True if os.environ['DEPLOY_ENV'] == 'prod' else False
 
-    mongo = EXMongo(host=mongo_host)
+    mongo = EXMongo(host=mongo_host, ssl=ssl)
     Datastore.update_redis(host=redis_host)
 
     if not argv.manager:

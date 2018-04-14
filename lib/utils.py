@@ -1,7 +1,8 @@
+from dotenv import load_dotenv
 from pprint import pprint
 from collections import OrderedDict
 from datetime import datetime, timedelta
-from pymongo.errors import BulkWriteError
+from pymongo.errors import BulkWriteError, ServerSelectionTimeoutError
 from threading import Thread
 
 import asyncio
@@ -64,10 +65,6 @@ def load_env(path=None):
         path = '../.env'
 
     load_dotenv(dotenv_path=path)
-
-    return { k.split('PYCT_')[1]: v \
-        for k, v in os.environ.items() \
-            if k.startswith('PYCT_') }
 
 
 def combine(a, b):
@@ -380,12 +377,14 @@ async def execute_mongo_ops(ops):
     elif len(ops) == 0:
         return True
 
-    if not isinstance(ops[0], asyncio.Future):
-        raise ValueError("ops must be asyncio.Future(s)")
+    for i, op in enumerate(ops):
+        if not isinstance(ops[0], asyncio.Future):
+            ops[i] = asyncio.ensure_future(op)
 
     try:
-        await asyncio.gather(*ops)
-    except BulkWriteError as err:
+        res = await asyncio.gather(*ops)
+    except (BulkWriteError) as err:
+
         for msg in err.details['writeErrors']:
             if 'duplicate' in msg['errmsg']:
                 continue
@@ -393,7 +392,7 @@ async def execute_mongo_ops(ops):
                 pprint(err.details)
                 raise BulkWriteError(err)
     else:
-        return True
+        return res
 
 
 async def handle_ccxt_request(func, *args, **kwargs):

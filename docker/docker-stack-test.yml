@@ -30,13 +30,15 @@ services:
         target: /app/private/fullchain.pem
       - source: privkey.pem
         target: /app/private/privkey.pem
+      - source: mongod.pem
+        target: /app/private/mongod.pem
     deploy:
       replicas: 1
       restart_policy:
         condition: any
         delay: 5s
         max_attempts: 5
-        window: 20s
+
 
 networks:
   mongo_net_swarm:
@@ -55,3 +57,5 @@ secrets:
     file: ../private/fullchain.pem
   privkey.pem:
     file: ../private/privkey.pem
+  mongod.pem:
+    file: ../private/mongod.pem

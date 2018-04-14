@@ -3,8 +3,8 @@ version: '3.5'
 services:
   main:
     build:
-      context: ./docker/Dockerfiles
-      dockerfile: Dockerfile-main
+      context: .
+      dockerfile: ./docker/Dockerfiles/Dockerfile-main
     image: gcr.io/docker-reghub/pyct
     deploy:
       replicas: 0

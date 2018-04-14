@@ -66,12 +66,12 @@ elif [ "$TYPE" == 'db' ]; then
 elif [ "$TYPE" == 'data' ]; then
   STACK_NAME=data
   SERVICE_NAME=$STACK_NAME"_ohlcv"
-  TAIL_LOG='docker service logs -f $SERVICE_NAME'
+  TAIL_LOG="docker service logs -f $SERVICE_NAME"
 
 else # deploy trader
   STACK_NAME=crypto
   SERVICE_NAME=$STACK_NAME"_trade"
-  TAIL_LOG='docker service logs -f $SERVICE_NAME'
+  TAIL_LOG="docker service logs -f $SERVICE_NAME"
 fi
 
 # Actually executing commands

@@ -28,16 +28,26 @@ logger = logging.getLogger('pyct')
 
 class EXMongo():
 
-    def __init__(self, *, host=None, port=None, uri=None, custom_config=None):
+    def __init__(self, *,
+                 host=None,
+                 port=None,
+                 uri=None,
+                 ssl=False,
+                 cert_file=None,
+                 ca_file=None,
+                 custom_config=None):
         self._config = custom_config or config
         self.config = self._config['database']
 
-        if not host:
-            host = self.config['default_host']
-        if not port:
-            port = self.config['default_port']
-        self.host = host
-        self.port = port
+        host = host or self.config['default_host']
+        port = port or self.config['default_port']
+
+        if ssl:
+            cert_file = cert_file or self.config['cert']
+            ca_file = ca_file or self.config['ca']
+        else:
+            cert_file = None
+            ca_file = None
 
         if not uri:
             if self.config['auth']:
@@ -48,8 +58,12 @@ class EXMongo():
             else:
                 uri = f"mongodb://{host}:{port}/"
 
+        self.host = host
+        self.port = port
+
         logger.info(f"Connecting mongo client to {host}:{port}")
-        self.client = motor_asyncio.AsyncIOMotorClient(uri)
+        self.client = motor_asyncio.AsyncIOMotorClient(
+            uri, ssl_certfile=cert_file, ssl_ca_certs=ca_file)
 
     async def export_to_csv(self, db, collection, path):
         await self._dump_to_file(db, collection, path, 'csv')

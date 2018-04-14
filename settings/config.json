@@ -316,6 +316,8 @@
     "default_host": "127.0.0.1",
     "default_port": 27017,
     "auth": true,
+    "ca": "../private/fullchain.pem",
+    "cert": "../private/mongod.pem",
     "username": "ex",
     "auth_db": "admin",
     "dbname_exchange": "exchange",

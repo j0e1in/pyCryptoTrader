@@ -17,15 +17,22 @@ services:
     secrets:
       - source: keys.json
         target: /app/private/keys.json
+      - source: fullchain.pem
+        target: /app/private/fullchain.pem
+      - source: mongod.pem
+        target: /app/private/mongod.pem
     deploy:
       replicas: 1
       restart_policy:
         condition: on-failure
         delay: 5s
         max_attempts: 5
-        window: 20s
 
 
 secrets:
   keys.json:
     file: ../private/keys.json
+  fullchain.pem:
+    file: ../private/fullchain.pem
+  mongod.pem:
+    file: ../private/mongod.pem

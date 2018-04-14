@@ -20,7 +20,7 @@ RUN wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz && \
   rm -rf ta-lib && \
   rm ta-lib-0.4.0-src.tar.gz
 
-COPY requirements-docker.txt /app/
+COPY ./requirements-docker.txt /app/
 
 RUN pip install -U pip && \
   pip install -r requirements-docker.txt && \

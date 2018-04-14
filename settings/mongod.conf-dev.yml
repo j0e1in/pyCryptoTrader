@@ -43,9 +43,8 @@ net:
   bindIp: 0.0.0.0
   wireObjectCheck: true
   ssl:
-    mode: preferSSL # 'disabled', 'allowSSL', 'preferSSL', 'requireSSL'
+    mode: allowSSL # 'disabled', 'allowSSL', 'preferSSL', 'requireSSL'
     PEMKeyFile: /app/private/mongod.pem
-    # PEMKeyFile: /app/private/privkey.pem
     # CAFile: /app/private/fullchain.pem
     allowConnectionsWithoutCertificates: true
 

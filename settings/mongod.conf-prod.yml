@@ -44,9 +44,8 @@ net:
   ssl:
     mode: requireSSL # 'disabled', 'allowSSL', 'preferSSL', 'requireSSL'
     PEMKeyFile: /app/private/mongod.pem
-    # PEMKeyFile: /app/private/privkey.pem
     # CAFile: /app/private/fullchain.pem
-    allowConnectionsWithoutCertificates: true
+    allowConnectionsWithoutCertificates: false
 
 # replication:
 #   oplogSizeMB: <int>
