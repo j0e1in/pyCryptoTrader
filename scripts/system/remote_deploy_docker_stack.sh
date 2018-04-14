@@ -73,7 +73,8 @@ elif [ "$TYPE" == 'db' ]; then
   STACK_NAME=db
 
 elif [ "$TYPE" == 'data' ]; then
-  STACK_NAME=ohlcv
+  SERVICE_NAME=$STACK_NAME"_ohlcv"
+  TAIL_LOG="docker service logs -f $SERVICE_NAME"
 
 else # deploy trader
   STACK_NAME=crypto
