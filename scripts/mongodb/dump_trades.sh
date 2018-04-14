@@ -7,7 +7,7 @@ dest="$HOME/mongo_backup/trades"
 mkdir -p $dest
 
 prefix=$ex"_ohlcv_"
-mongodump --out $dest --excludeCollectionsWithPrefix=$prefix
+mongodump -d $db --out $dest --excludeCollectionsWithPrefix=$prefix
 
 cd $dest
 mv "exchange" "trades"
