@@ -12,6 +12,7 @@ import re
 
 from utils import \
     INF, \
+    MIN_DT, \
     ms_dt, \
     dt_ms, \
     ex_name, \
@@ -63,7 +64,7 @@ class EXMongo():
         res = await self.get_first_ohclv(ex, sym, tf)
         return ms_dt(res['timestamp'])
 
-    async def get_first_ohclv(self, ex, sym, tf):
+    async def get_first_ohclv(self, ex, sym, tf, exception=True):
         collname = f"{ex}_ohlcv_{rsym(sym)}_{tf}"
         coll = self.get_collection(self.config['dbname_exchange'], collname)
         res = await coll.find({}) \
@@ -72,7 +73,11 @@ class EXMongo():
             .to_list(length=INF)
 
         if not res:
-            raise ValueError(f"{collname} does not exist")
+            if exception:
+                raise ValueError(f"{collname} does not exist")
+            else:
+                # if asked not to raise exception, return MIN_DT instead
+                return MIN_DT
 
         return res[0]
 
@@ -81,7 +86,7 @@ class EXMongo():
         res = await self.get_last_ohclv(ex, sym, tf)
         return ms_dt(res['timestamp'])
 
-    async def get_last_ohclv(self, ex, sym, tf):
+    async def get_last_ohclv(self, ex, sym, tf, exception=True):
         collname = f"{ex}_ohlcv_{rsym(sym)}_{tf}"
         coll = self.get_collection(self.config['dbname_exchange'], collname)
         res = await coll.find({}) \
@@ -89,8 +94,11 @@ class EXMongo():
             .limit(1) \
             .to_list(length=INF)
 
-        if not res:
-            raise ValueError(f"{collname} does not exist")
+        if exception:
+                raise ValueError(f"{collname} does not exist")
+            else:
+                # if asked not to raise exception, return MIN_DT instead
+                return MIN_DT
 
         return res[0]
 

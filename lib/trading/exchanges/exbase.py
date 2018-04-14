@@ -452,15 +452,8 @@ class EXBase():
             self.ohlcv_start_end[market] = {}
             self.ohlcv_start_end[market][tf] = {}
 
-            try:
-                start = await self.mongo.get_ohlcv_start(self.exname, market, tf)
-            except ValueError:
-                start = MIN_DT
-
-            try:
-                end = await self.mongo.get_ohlcv_end(self.exname, market, tf)
-            except ValueError:
-                end = MIN_DT
+            start = await self.mongo.get_ohlcv_start(self.exname, market, tf, exception=False)
+            end = await self.mongo.get_ohlcv_end(self.exname, market, tf, exception=False)
 
             self.ohlcv_start_end[market][tf]['start'] = start
             self.ohlcv_start_end[market][tf]['end'] = end
@@ -539,7 +532,7 @@ class EXBase():
             for tf in tfs:
                 if tf != src_tf:
                     src_end_dt = await self.mongo.get_ohlcv_end(self.exname, market, src_tf)
-                    target_end_dt = await self.mongo.get_ohlcv_end(self.exname, market, tf)
+                    target_end_dt = await self.mongo.get_ohlcv_end(self.exname, market, tf, exception=False)
                     target_start_dt = target_end_dt - tf_td(tf) * 5
 
                     # Build ohlcv starting from 5 bars earlier from latest bar
