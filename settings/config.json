@@ -183,11 +183,11 @@
           "XRP/USD",
           "ZEC/USD",
 
-          "SAN/USD",
-          "OMG/USD",
-          "ETP/USD",
+          "BTG/USD",
           "EDO/USD",
-          "BTG/USD"
+          "ETP/USD",
+          "OMG/USD",
+          "SAN/USD",
         ],
         "currencies": [
           "BTC",
