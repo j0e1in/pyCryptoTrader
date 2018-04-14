@@ -60,7 +60,7 @@ STACK_FILE=docker-stack-$TYPE.yml
 # deploy any python app.py command
 if [ "$TYPE" == 'uni' ]; then
   DEPLOY_CMD="export PYCT_CMD=\"$CMD\""
-  STACK_NAME=crypto
+  STACK_NAME=pyct
   SERVICE_NAME=$STACK_NAME"_main"
   TAIL_LOG="docker service logs -f $SERVICE_NAME"
 

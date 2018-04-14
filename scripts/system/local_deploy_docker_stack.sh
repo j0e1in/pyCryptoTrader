@@ -39,7 +39,7 @@ else
   GET_IMAGE="docker-compose build $build_args"
 fi
 
-echo -e "\n>>>  Deploy $TYPE docker stack to $USERNAME@$HOST by $IMG_ACTION image  <<<\n"
+echo -e "\n>>>  Deploy $TYPE docker stack by $IMG_ACTION image  <<<\n"
 read -p "Press [Enter] to continue..."
 
 
@@ -49,8 +49,8 @@ STACK_FILE=docker-stack-$TYPE.yml
 
 # deploy any python app.py command
 if [ "$TYPE" == 'uni' ]; then
-  DEPLOY_CMD="export PYCT_CMD=\"$CMD\""
-  STACK_NAME=crypto
+  export PYCT_CMD="$CMD"
+  STACK_NAME=pyct
   SERVICE_NAME=$STACK_NAME"_main"
   TAIL_LOG="docker service logs -f $SERVICE_NAME"
 
@@ -82,7 +82,6 @@ gcloud auth configure-docker
 
 source .env
 
-$DEPLOY_CMD
 $GET_IMAGE
 
 docker stack rm $STACK_NAME
