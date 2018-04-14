@@ -59,9 +59,9 @@ class EXMongo():
         if format == 'csv':
             df.to_csv(path, index=False)
 
-    async def get_ohlcv_start(self, ex, sym, tf):
+    async def get_ohlcv_start(self, ex, sym, tf, exception=True):
         """ Get datetime of first ohlcv in a collection. """
-        res = await self.get_first_ohclv(ex, sym, tf)
+        res = await self.get_first_ohclv(ex, sym, tf, exception)
         return ms_dt(res['timestamp'])
 
     async def get_first_ohclv(self, ex, sym, tf, exception=True):
@@ -81,9 +81,9 @@ class EXMongo():
 
         return res[0]
 
-    async def get_ohlcv_end(self, ex, sym, tf):
+    async def get_ohlcv_end(self, ex, sym, tf, exception=True):
         """ Get datetime of last ohlcv in a collection. """
-        res = await self.get_last_ohclv(ex, sym, tf)
+        res = await self.get_last_ohclv(ex, sym, tf, exception)
         return ms_dt(res['timestamp'])
 
     async def get_last_ohclv(self, ex, sym, tf, exception=True):
@@ -94,7 +94,8 @@ class EXMongo():
             .limit(1) \
             .to_list(length=INF)
 
-        if exception:
+        if not res:
+            if exception:
                 raise ValueError(f"{collname} does not exist")
             else:
                 # if asked not to raise exception, return MIN_DT instead
