@@ -1,17 +1,22 @@
 version: '3.5'
 services:
   mongo:
-    image: mongo:3.6
-    command: mongod --smallfiles --logpath=/dev/null --quiet --auth
-    environment:
-      - MONGO_DATA_DIR=/data/db
-      - MONGO_LOG_DIR=/dev/null
+    image: gcr.io/docker-reghub/mongo
+    env_file:
+      - ../.env
     volumes:
       - mongo_data:/data/db
+      - ../log:/app/log
+      - ../settings:/app/settings:ro
     networks:
       - mongo_net_swarm
     ports:
       - 27017:27017
+    secrets:
+      - source: mongod.pem
+        target: /app/private/mongod.pem
+      - source: fullchain.pem
+        target: /app/private/fullchain.pem
     deploy:
       replicas: 1
   redis:
@@ -23,6 +28,7 @@ services:
               --requirepass \"$$(cat /run/secrets/redis-passwd)\""
     volumes:
       - redis_data:/data
+      - ../log:/app/log
       - ../settings/redis.conf:/etc/redis/redis.conf
     networks:
       - redis_net_swarm
@@ -51,3 +57,7 @@ secrets:
     file: ../private/keys.json
   redis-passwd:
     file: ../private/redis-passwd
+  mongod.pem:
+    file: ../private/mongod.pem
+  fullchain.pem:
+    file: ../private/fullchain.pem

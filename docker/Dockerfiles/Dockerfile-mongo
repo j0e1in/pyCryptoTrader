@@ -1,0 +1,7 @@
+FROM mongo:3.6
+
+WORKDIR /app
+
+COPY ./docker/scripts/start-mongo.sh /app
+
+ENTRYPOINT ["./start-mongo.sh"]

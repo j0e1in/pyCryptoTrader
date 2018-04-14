@@ -2,7 +2,16 @@
 version: '3.5'
 services:
   main:
-    build: ./
+    build:
+      context: ./docker/Dockerfiles
+      dockerfile: Dockerfile-main
     image: gcr.io/docker-reghub/pyct
+    deploy:
+      replicas: 0
+  mongo:
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfiles/Dockerfile-mongo
+    image: gcr.io/docker-reghub/mongo
     deploy:
       replicas: 0
