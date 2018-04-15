@@ -7,7 +7,7 @@ services:
               --name="$${INDICATOR_NAME}"
               --mongo-host="$${REMOTE_MONGO_IP}"
               --symbols="$${OPTIMIZE_SYMBOLS}"
-              ${MONGO_SSL}
+              --mongo-ssl
     env_file:
       - ../.env
     volumes:
