@@ -42,10 +42,10 @@ net:
   bindIp: 0.0.0.0
   wireObjectCheck: true
   ssl:
-    mode: requireSSL # 'disabled', 'allowSSL', 'preferSSL', 'requireSSL'
-    PEMKeyFile: /app/private/mongod.pem
-    # CAFile: /app/private/fullchain.pem
-    allowConnectionsWithoutCertificates: false
+    mode: preferSSL # 'disabled', 'allowSSL', 'preferSSL', 'requireSSL'
+    PEMKeyFile: /app/private/ssl/mongod.pem
+    # CAFile: /app/private/ssl/ca.pem
+    allowConnectionsWithoutCertificates: true
 
 # replication:
 #   oplogSizeMB: <int>

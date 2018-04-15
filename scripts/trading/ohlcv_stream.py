@@ -20,6 +20,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--symbols', type=str, help="Symbols to fetch, eg. --symbols=BTC/USD,ETH/USD")
     parser.add_argument('--rate-limit', type=int, help="Fetch ohlcv request rate (in ms)")
+    parser.add_argument('--mongo-ssl', action='store_true', help='Add SSL files to mongo client')
     parser.add_argument('--mongo-host', type=str, help="Specify mongodb host,\n"
                                                        "eg. localhost (host connect to mongo on host)\n"
                                                        "    mongo (container connect to mongo container)\n"
@@ -47,7 +48,7 @@ async def main():
                 f"{pformat(config['trading']['bitfinex']['markets'])}")
 
     mongo_host = argv.mongo_host if argv.mongo_host else None
-    mongo = EXMongo(host=mongo_host)
+    mongo = EXMongo(host=mongo_host, ssl=argv.mongo_ssl)
 
     ex = EXBase(mongo, 'bitfinex', log=True)
 

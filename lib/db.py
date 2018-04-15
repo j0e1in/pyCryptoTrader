@@ -45,9 +45,11 @@ class EXMongo():
         if ssl:
             cert_file = cert_file or self.config['cert']
             ca_file = ca_file or self.config['ca']
+            ssl_status = 'enabled'
         else:
             cert_file = None
             ca_file = None
+            ssl_status = 'disabled'
 
         if not uri:
             if self.config['auth']:
@@ -61,7 +63,7 @@ class EXMongo():
         self.host = host
         self.port = port
 
-        logger.info(f"Connecting mongo client to {host}:{port}")
+        logger.info(f"Connecting mongo client to {host}:{port} with ssl {ssl_status}")
         self.client = motor_asyncio.AsyncIOMotorClient(
             uri, ssl_certfile=cert_file, ssl_ca_certs=ca_file)
 

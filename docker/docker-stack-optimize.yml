@@ -7,6 +7,7 @@ services:
               --name="$${INDICATOR_NAME}"
               --mongo-host="$${REMOTE_MONGO_IP}"
               --symbols="$${OPTIMIZE_SYMBOLS}"
+              ${MONGO_SSL}
     env_file:
       - ../.env
     volumes:
@@ -18,9 +19,9 @@ services:
       - source: keys.json
         target: /app/private/keys.json
       - source: fullchain.pem
-        target: /app/private/fullchain.pem
+        target: /app/private/ssl/fullchain.pem
       - source: mongod.pem
-        target: /app/private/mongod.pem
+        target: /app/private/ssl/mongod.pem
     deploy:
       replicas: 1
       restart_policy:
@@ -33,6 +34,6 @@ secrets:
   keys.json:
     file: ../private/keys.json
   fullchain.pem:
-    file: ../private/fullchain.pem
+    file: ../private/ssl/fullchain.pem
   mongod.pem:
-    file: ../private/mongod.pem
+    file: ../private/ssl/mongod.pem

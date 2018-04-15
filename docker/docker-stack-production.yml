@@ -10,6 +10,7 @@ services:
               --env .env
               --ssl
               --manager
+              ${MONGO_SSL}
     env_file:
       - ../.env
     environment:
@@ -27,11 +28,11 @@ services:
       - source: keys.json
         target: /app/private/keys.json
       - source: fullchain.pem
-        target: /app/private/fullchain.pem
+        target: /app/private/ssl/fullchain.pem
       - source: privkey.pem
-        target: /app/private/privkey.pem
+        target: /app/private/ssl/privkey.pem
       - source: mongod.pem
-        target: /app/private/mongod.pem
+        target: /app/private/ssl/mongod.pem
     deploy:
       replicas: 1
       restart_policy:
@@ -54,8 +55,8 @@ secrets:
   keys.json:
     file: ../private/keys.json
   fullchain.pem:
-    file: ../private/fullchain.pem
+    file: ../private/ssl/fullchain.pem
   privkey.pem:
-    file: ../private/privkey.pem
+    file: ../private/ssl/privkey.pem
   mongod.pem:
-    file: ../private/mongod.pem
+    file: ../private/ssl/mongod.pem

@@ -5,6 +5,7 @@ services:
     command: >
               --ohlcv-stream
               --mongo-host=mongo
+              ${MONGO_SSL}
     volumes:
       - ../data:/app/data
       - ../log:/app/log
@@ -14,13 +15,15 @@ services:
     secrets:
       - source: keys.json
         target: /app/private/keys.json
+      - source: mongod.pem
+        target: /app/private/ssl/mongod.pem
     deploy:
       replicas: 1
       restart_policy:
         condition: any
         delay: 5s
         max_attempts: 5
-        window: 20s
+
 
 networks:
   mongo_net_swarm:
@@ -33,3 +36,5 @@ volumes:
 secrets:
   keys.json:
     file: ../private/keys.json
+  mongod.pem:
+    file: ../private/ssl/mongod.pem

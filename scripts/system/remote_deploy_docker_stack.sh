@@ -33,6 +33,7 @@ while :; do
     case $3 in
       --no-cache) build_args="$build_args --no-cache";;
       --pull) pull="true";;
+      --mongo-ssl) mongo_ssl="true";;
       --cmd=*) IFS='=' read -r _ CMD <<< $3;; # split by first '='
       *) break
     esac
@@ -48,6 +49,13 @@ else
   IMG_ACTION=building
   GET_IMAGE="docker-compose build $build_args"
 fi
+
+if [ "$mongo_ssl" == "true" ]; then
+  MONGO_SSL="export MONGO_SSL=--mongo-ssl"
+else
+  MONGO_SSL=":"
+fi
+
 
 echo -e "\n>>>  Deploy $TYPE docker stack to $USERNAME@$HOST by $IMG_ACTION image  <<<\n"
 read -p "Press [Enter] to continue..."
@@ -76,12 +84,12 @@ elif [ "$TYPE" == 'db' ]; then
 elif [ "$TYPE" == 'data' ]; then
   STACK_NAME=data
   SERVICE_NAME=$STACK_NAME"_ohlcv"
-  TAIL_LOG='docker service logs -f $SERVICE_NAME'
+  TAIL_LOG="docker service logs -f $SERVICE_NAME"
 
 else # deploy trader
   STACK_NAME=crypto
   SERVICE_NAME=$STACK_NAME"_trade"
-  TAIL_LOG='docker service logs -f $SERVICE_NAME'
+  TAIL_LOG="docker service logs -f $SERVICE_NAME"
 fi
 
 REGHUB_KEYFILE=private/docker-reghub-0065a93a0ed4.json
@@ -106,6 +114,7 @@ ssh $USERNAME@$HOST \
   gcloud auth configure-docker
   \
   $DEPLOY_CMD && \
+  $MONGO_SSL && \
   $GET_IMAGE && \
   \
   docker stack rm $STACK_NAME && \

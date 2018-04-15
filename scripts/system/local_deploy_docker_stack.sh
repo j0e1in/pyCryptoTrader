@@ -23,6 +23,7 @@ while :; do
     case $2 in
       --no-cache) build_args="$build_args --no-cache";;
       --pull) pull="true";;
+      --mongo-ssl) export MONGO_SSL=--mongo-ssl;;
       --cmd=*) IFS='=' read -r _ CMD <<< $2;; # split by first '='
       *) break
     esac
@@ -38,6 +39,7 @@ else
   IMG_ACTION=building
   GET_IMAGE="docker-compose build $build_args"
 fi
+
 
 echo -e "\n>>>  Deploy $TYPE docker stack by $IMG_ACTION image  <<<\n"
 read -p "Press [Enter] to continue..."
