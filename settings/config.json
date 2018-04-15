@@ -59,7 +59,6 @@
 
       // markets to trade
       "markets": [
-        "BTC/USD",
         "XRP/USD"
       ],
       "markets_all": [
@@ -75,7 +74,12 @@
         "OMG/USD",
         "XMR/USD",
         "XRP/USD",
-        "ZEC/USD"
+        "ZEC/USD",
+
+        "BTG/USD",
+        "EDO/USD",
+        "ETP/USD",
+        "SAN/USD",
       ],
       "timeframes": [
           "1m",
@@ -171,10 +175,10 @@
         "markets_all": [
           "BTC/USD",
           "BCH/USD",
+          "DASH/USD",
           "ETH/USD",
           "ETC/USD",
           "EOS/USD",
-          "DASH/USD",
           "IOTA/USD",
           "LTC/USD",
           "NEO/USD",
@@ -186,7 +190,6 @@
           "BTG/USD",
           "EDO/USD",
           "ETP/USD",
-          "OMG/USD",
           "SAN/USD",
         ],
         "currencies": [
@@ -316,8 +319,8 @@
     "default_host": "127.0.0.1",
     "default_port": 27017,
     "auth": true,
-    "ca": "../private/fullchain.pem",
-    "cert": "../private/mongod.pem",
+    "ca": null,
+    "cert": "../private/ssl/mongod.pem",
     "username": "ex",
     "auth_db": "admin",
     "dbname_exchange": "exchange",
@@ -355,8 +358,8 @@
         "disable_trading"
       ]
     },
-    "cert": "../private/fullchain.pem",
-    "key": "../private/privkey.pem"
+    "cert": "../private/ssl/fullchain.pem",
+    "key": "../private/ssl/privkey.pem"
   },
 
   "apiclient": {
