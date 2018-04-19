@@ -1,5 +1,5 @@
 authy
-ccxt==1.12.160
+ccxt==1.13.7
 chromalog
 python-digitalocean
 jstyleson
