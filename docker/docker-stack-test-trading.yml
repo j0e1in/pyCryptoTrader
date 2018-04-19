@@ -1,0 +1,61 @@
+version: '3.5'
+services:
+  trade:
+    image: gcr.io/docker-reghub/pyct
+    command: >
+              --start-trader
+              --mongo-host=mongo
+              --redis-host=redis
+              --enable-api
+              --env .env
+              --ssl
+              --manager
+              --log-signal
+              ${MONGO_SSL}
+    env_file:
+      - ../.env
+    volumes:
+      - ../data:/app/data
+      - ../log:/app/log
+      - ../settings:/app/settings:ro
+    networks:
+      - mongo_net_swarm
+      - redis_net_swarm
+    ports:
+      - "8000:8000"
+    secrets:
+      - source: keys.json
+        target: /app/private/keys.json
+      - source: fullchain.pem
+        target: /app/private/ssl/fullchain.pem
+      - source: privkey.pem
+        target: /app/private/ssl/privkey.pem
+      - source: mongod.pem
+        target: /app/private/ssl/mongod.pem
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 5
+
+
+networks:
+  mongo_net_swarm:
+    external: true
+  redis_net_swarm:
+    external: true
+
+volumes:
+  mongo_data:
+    external: true
+
+secrets:
+  keys.json:
+    file: ../private/keys.json
+  fullchain.pem:
+    file: ../private/ssl/fullchain.pem
+  privkey.pem:
+    file: ../private/ssl/privkey.pem
+  mongod.pem:
+    file: ../private/ssl/mongod.pem

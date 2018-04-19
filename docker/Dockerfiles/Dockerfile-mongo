@@ -1,0 +1,7 @@
+FROM mongo:3.6
+
+WORKDIR /app
+
+COPY ./docker/scripts/entrypoint-mongo.sh /app
+
+ENTRYPOINT ["./entrypoint-mongo.sh"]

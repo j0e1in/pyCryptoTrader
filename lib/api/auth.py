@@ -12,7 +12,7 @@ logger = logging.getLogger('pytc')
 class AuthyManager():
 
     def __init__(self, mongo, apikey=None, custom_config=None):
-        self._config = custom_config if custom_config else config
+        self._config = custom_config or config
         self.config = self._config['authy']
         self.mongo = mongo
 

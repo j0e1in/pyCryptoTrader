@@ -4,15 +4,16 @@ from datetime import datetime
 
 import asyncio
 import logging
+import os
 
 from api import APIServer
 from db import EXMongo, Datastore
 from trading.trader import SingleEXTrader, TraderManager
-from utils import config
+from utils import config, load_env
 
 
 timestr = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-log_file = f"start_trader_{config['uid']}_{timestr}.log"
+log_file = f"trader/start_trader_{config['uid']}_{timestr}.log"
 
 logger = logging.getLogger('pyct')
 
@@ -28,6 +29,7 @@ def parse_args():
     parser.add_argument('--enable-api', action='store_true', help='Enable API server for clients to request data')
     parser.add_argument('--enable-ohlcv-stream', action='store_true', help='Enable fetching ohlcvs')
     parser.add_argument('--ssl', action='store_true', help='Enable SSL, only works if API sever is enabled')
+    parser.add_argument('--mongo-ssl', action='store_true', help='Add SSL files to mongo client')
     parser.add_argument('--disable-trading', action='store_true', help='Disable creating orders')
     parser.add_argument('--disable-notification', action='store_true', help='Disable sending notification to clients')
     parser.add_argument('--redis-host', type=str, help='Specify redis host')
@@ -45,10 +47,12 @@ def parse_args():
 async def main():
     argv = parse_args()
 
-    mongo_host = argv.mongo_host if argv.mongo_host else None
-    redis_host = argv.redis_host if argv.redis_host else None
+    load_env()
 
-    mongo = EXMongo(host=mongo_host)
+    mongo_host = argv.mongo_host or None
+    redis_host = argv.redis_host or None
+
+    mongo = EXMongo(host=mongo_host, ssl=argv.mongo_ssl)
     Datastore.update_redis(host=redis_host)
 
     if not argv.manager:

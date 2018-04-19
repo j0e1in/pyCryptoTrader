@@ -29,4 +29,4 @@ scp ~/mongo_data.tar.bz2 $USERNAME@$HOST:~/
 # Restore (use scripts/mongodb/mongo_container_setup.sh to restore for first time)
 echo "Restoring mongo_data..."
 ssh $USERNAME@$HOST "docker volume create mongo_data && \
-                     cat mongo_data.tar.bz2 | docker run -i -v mongo_data:/volume --rm loomchild/volume-backup restore -"
+                     cat mongo_data.tar.bz2 | docker run -i -v mongo_data:/volume --rm loomchild/volume-backup restore - &&"

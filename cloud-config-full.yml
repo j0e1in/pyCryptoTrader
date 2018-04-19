@@ -1,0 +1,54 @@
+#cloud-config
+users:
+  - name: j0e1in
+    groups: sudo
+    shell: /bin/bash
+    sudo: ['ALL=(ALL) NOPASSWD:ALL']
+    ssh-authorized-keys:
+      - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDjuVmdynduTrOq6Z9/GPkjc6zhtPjnOuOOU2AS+b0Idi+SbNwFVZfN6tib6R5Y76gGdPTZA2Qrf/ZpRBQuEycaFS07CGuIn42RNCE7G0XdGIAuGkHBXQ8Z3T++V8FoMTf/GdgzUXEOVSVFDPOSPCajorEC6se7sgB36yqDywWGvTFV+Wq/929WWmCitbF97L1Y5mtF/phRjGnfduW73wrSHsXmBfYJoCfXUQ4RGaZeFDPicDpPDMVdi4rcsSw2jwUpXWiAPHF4OjW77pABHgmgtV0Kk3sBVVm0X8/GCeXbTUJTF5QHsvM9Rn5sDP+crrBEA49wprFZEhVRrkNBV5rV j0e1in@dell-xps-ubuntu
+
+package_upgrade: true
+packages:
+  - htop
+  - zip
+
+  # For docker
+  - apt-transport-https
+  - ca-certificates
+  - curl
+  - software-properties-common
+
+runcmd:
+    # Install docker-ce
+  - "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -"
+  - "sudo add-apt-repository \
+    \"deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable\""
+  - "sudo apt-get update"
+  - "sudo apt-get install -y docker-ce"
+
+    # Install docker-compose
+  - "sudo curl -L https://github.com/docker/compose/releases/download/1.19.0/docker-compose-`uname -s`-`uname -m` -o /usr/local/bin/docker-compose"
+  - "sudo chmod +x /usr/local/bin/docker-compose"
+  - "sudo rm -rf /usr/bin/docker-compose"
+
+  # Giving non-root access ( reboot to take effect)
+  - "sudo usermod -aG docker j0e1in"
+
+  # Install gcloud
+  - "export CLOUD_SDK_REPO=\"cloud-sdk-$(lsb_release -c -s)\""
+  - "echo \"deb http://packages.cloud.google.com/apt $CLOUD_SDK_REPO main\" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list"
+  - "curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -"
+  - "sudo apt-get update && sudo apt-get install -y google-cloud-sdk"
+
+    # Install mongo client
+  - "sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 2930ADAE8CAF5059EE73BB4B58712A2291FA4AD5"
+  - "echo \"deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu xenial/mongodb-org/3.6 multiverse\" | sudo tee /etc/apt/sources.list.d/mongodb-org-3.6.list"
+  - "sudo apt-get update"
+  - "sudo apt-get install -y mongodb-org"
+
+power_state:
+  delay: "now"
+  mode: reboot
+  message: First reboot
+  timeout: 120 # sec
+  condition: True

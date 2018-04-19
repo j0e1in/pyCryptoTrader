@@ -59,6 +59,8 @@ scp mongo_data.tar.bz2 $USERNAME@$IP:~/
 # Restore (use scripts/mongodb/mongo_container_setup.sh to restore for first time)
 cat mongo_data.tar.bz2 | docker run -i -v mongo_data:/volume --rm loomchild/volume-backup restore -
 
+# Cleanup docker images/containers
+docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v /etc:/etc:ro spotify/docker-gc
 
 # Start standalone mongo container
 docker stop mongo
@@ -68,3 +70,12 @@ docker run -d \
 --network mongo_net \
 --volume mongo_data:/data/db \
 mongo:3.6 --auth
+
+# Add traders
+python app.py --add-trader="(1492068960851477,bitfinex),(1634221979967223,bitfinex)"
+
+
+# Authenticate gcloud using key file
+gcloud auth activate-service-account --key-file [KEY_FILE]
+# Make `docker` command to use `gcloud docker`
+gcloud auth configure-docker

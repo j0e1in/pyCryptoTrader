@@ -19,7 +19,7 @@ logger = logging.getLogger('pyct')
 class Plot():
 
     def __init__(self, size=(), subplot_opts={}, custom_config=None):
-        self._config = custom_config if custom_config else config
+        self._config = custom_config or config
         self.config = self._config['matplot']
 
         # Create subplots, to access subplots use indexing,

@@ -17,7 +17,7 @@ logger = logging.getLogger('pyct')
 class Messenger():
 
     def __init__(self, trader, custom_config=None, ssl=True, disable=False):
-        self._config = custom_config if custom_config else config
+        self._config = custom_config or config
         self.config = self._config['apiclient']
         self.trader = trader
 

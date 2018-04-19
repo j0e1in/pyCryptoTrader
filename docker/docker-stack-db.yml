@@ -1,35 +1,22 @@
 version: '3.5'
 services:
-  ohlcv:
-    image: gcr.io/docker-reghub/pyct
-    command: >
-              --ohlcv-stream
-              --mongo-host=mongo
-    volumes:
-      - ./data:/app/data
-      - ./log:/app/log
-      - ./settings:/app/settings:ro
-    networks:
-      - mongo_net_swarm
-    secrets:
-      - source: keys.json
-        target: /app/private/keys.json
-    depends_on:
-      - mongo
-    deploy:
-      replicas: 1
   mongo:
-    image: mongo:3.6
-    command: mongod --smallfiles --logpath=/dev/null --quiet --auth
-    environment:
-      - MONGO_DATA_DIR=/data/db
-      - MONGO_LOG_DIR=/dev/null
+    image: gcr.io/docker-reghub/mongo
+    env_file:
+      - ../.env
     volumes:
       - mongo_data:/data/db
+      - ../log:/app/log
+      - ../settings:/app/settings:ro
     networks:
       - mongo_net_swarm
     ports:
       - 27017:27017
+    secrets:
+      - source: mongod.pem
+        target: /app/private/ssl/mongod.pem
+      - source: ca.pem
+        target: /app/private/ssl/ca.pem
     deploy:
       replicas: 1
   redis:
@@ -41,7 +28,8 @@ services:
               --requirepass \"$$(cat /run/secrets/redis-passwd)\""
     volumes:
       - redis_data:/data
-      - ./settings/redis.conf:/etc/redis/redis.conf
+      - ../log:/app/log
+      - ../settings/redis.conf:/etc/redis/redis.conf
     networks:
       - redis_net_swarm
     ports:
@@ -66,6 +54,10 @@ volumes:
 
 secrets:
   keys.json:
-    file: ./private/keys.json
+    file: ../private/keys.json
   redis-passwd:
-    file: ./private/redis-passwd
+    file: ../private/redis-passwd
+  mongod.pem:
+    file: ../private/ssl/mongod.pem
+  ca.pem:
+    file: ../private/ssl/ca.pem

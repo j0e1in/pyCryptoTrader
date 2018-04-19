@@ -12,6 +12,7 @@ import re
 
 from utils import \
     INF, \
+    MIN_DT, \
     ms_dt, \
     dt_ms, \
     ex_name, \
@@ -27,16 +28,28 @@ logger = logging.getLogger('pyct')
 
 class EXMongo():
 
-    def __init__(self, *, host=None, port=None, uri=None, custom_config=None):
-        self._config = custom_config if custom_config else config
+    def __init__(self, *,
+                 host=None,
+                 port=None,
+                 uri=None,
+                 ssl=False,
+                 cert_file=None,
+                 ca_file=None,
+                 custom_config=None):
+        self._config = custom_config or config
         self.config = self._config['database']
 
-        if not host:
-            host = self.config['default_host']
-        if not port:
-            port = self.config['default_port']
-        self.host = host
-        self.port = port
+        host = host or self.config['default_host']
+        port = port or self.config['default_port']
+
+        if ssl and host != '127.0.0.1' and host != 'localhost':
+            cert_file = cert_file or self.config['cert']
+            ca_file = ca_file or self.config['ca']
+            ssl_status = 'enabled'
+        else:
+            cert_file = None
+            ca_file = None
+            ssl_status = 'disabled'
 
         if not uri:
             if self.config['auth']:
@@ -47,8 +60,12 @@ class EXMongo():
             else:
                 uri = f"mongodb://{host}:{port}/"
 
-        logger.info(f"Connecting mongo client to {host}:{port}")
-        self.client = motor_asyncio.AsyncIOMotorClient(uri)
+        self.host = host
+        self.port = port
+
+        logger.info(f"Connecting mongo client to {host}:{port} with ssl {ssl_status}")
+        self.client = motor_asyncio.AsyncIOMotorClient(
+            uri, ssl_certfile=cert_file, ssl_ca_certs=ca_file)
 
     async def export_to_csv(self, db, collection, path):
         await self._dump_to_file(db, collection, path, 'csv')
@@ -58,12 +75,12 @@ class EXMongo():
         if format == 'csv':
             df.to_csv(path, index=False)
 
-    async def get_ohlcv_start(self, ex, sym, tf):
+    async def get_ohlcv_start(self, ex, sym, tf, exception=True):
         """ Get datetime of first ohlcv in a collection. """
-        res = await self.get_first_ohclv(ex, sym, tf)
+        res = await self.get_first_ohclv(ex, sym, tf, exception)
         return ms_dt(res['timestamp'])
 
-    async def get_first_ohclv(self, ex, sym, tf):
+    async def get_first_ohclv(self, ex, sym, tf, exception=True):
         collname = f"{ex}_ohlcv_{rsym(sym)}_{tf}"
         coll = self.get_collection(self.config['dbname_exchange'], collname)
         res = await coll.find({}) \
@@ -72,16 +89,20 @@ class EXMongo():
             .to_list(length=INF)
 
         if not res:
-            raise ValueError(f"{collname} does not exist")
+            if exception:
+                raise ValueError(f"{collname} does not exist")
+            else:
+                # if asked not to raise exception, return MIN_DT instead
+                return {'timestamp': dt_ms(MIN_DT)}
 
         return res[0]
 
-    async def get_ohlcv_end(self, ex, sym, tf):
+    async def get_ohlcv_end(self, ex, sym, tf, exception=True):
         """ Get datetime of last ohlcv in a collection. """
-        res = await self.get_last_ohclv(ex, sym, tf)
+        res = await self.get_last_ohclv(ex, sym, tf, exception)
         return ms_dt(res['timestamp'])
 
-    async def get_last_ohclv(self, ex, sym, tf):
+    async def get_last_ohclv(self, ex, sym, tf, exception=True):
         collname = f"{ex}_ohlcv_{rsym(sym)}_{tf}"
         coll = self.get_collection(self.config['dbname_exchange'], collname)
         res = await coll.find({}) \
@@ -90,7 +111,11 @@ class EXMongo():
             .to_list(length=INF)
 
         if not res:
-            raise ValueError(f"{collname} does not exist")
+            if exception:
+                raise ValueError(f"{collname} does not exist")
+            else:
+                # if asked not to raise exception, return MIN_DT instead
+                return {'timestamp': dt_ms(MIN_DT)}
 
         return res[0]
 
@@ -318,6 +343,17 @@ class EXMongo():
                           .to_list(length=INF)
         return order[0]['group_id'] if order else 0
 
+    async def get_params(self):
+        collname = f"param_optimization_meta"
+        coll = self.get_collection(self.config['dbname_analysis'], collname)
+        res =  await coll.find({}, {'_id': 0}).to_list(length=INF)
+        params = {}
+
+        for rec in res:
+            params[rec['symbol']] = rec['best_param']
+
+        return params
+
     @staticmethod
     async def check_columns(collection, columns):
         sample = await collection.find_one({}, {'_id': 0})
@@ -353,7 +389,7 @@ class EXMongo():
 class DataStoreFactory():
 
     def __init__(self, custom_config=None):
-        self._config = custom_config if custom_config else config
+        self._config = custom_config or config
         self.config = self._config['datastore']
 
         self.redis = StrictRedis(host=self.config['default_host'],

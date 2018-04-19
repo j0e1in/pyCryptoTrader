@@ -68,7 +68,7 @@ async def test_normarl_order_execution(order_type, trader, mongo):
         cur_time = trader.timer.now()
         next_time = trader.timer.next()
 
-        trader.feed_data(next_time, ohlcvs, trades)
+        trader.feed_data(start, next_time, ohlcvs, trades)
         trader.tick()
 
         if not bought and cur_time >= buy_time:
@@ -122,7 +122,7 @@ async def test_margin_order_execution(order_type, trader, mongo):
     while cur_time < end:
         cur_time = trader.timer.now()
         next_time = trader.timer.next()
-        trader.feed_data(next_time, ohlcvs)
+        trader.feed_data(start, next_time, ohlcvs)
         trader.tick()
 
         if not bought and cur_time >= buy_time:

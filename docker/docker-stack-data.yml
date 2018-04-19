@@ -1,0 +1,40 @@
+version: '3.5'
+services:
+  ohlcv:
+    image: gcr.io/docker-reghub/pyct
+    command: >
+              --ohlcv-stream
+              --mongo-host=mongo
+              ${MONGO_SSL}
+    volumes:
+      - ../data:/app/data
+      - ../log:/app/log
+      - ../settings:/app/settings:ro
+    networks:
+      - mongo_net_swarm
+    secrets:
+      - source: keys.json
+        target: /app/private/keys.json
+      - source: mongod.pem
+        target: /app/private/ssl/mongod.pem
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 5
+
+
+networks:
+  mongo_net_swarm:
+    external: true
+
+volumes:
+  mongo_data:
+    external: true
+
+secrets:
+  keys.json:
+    file: ../private/keys.json
+  mongod.pem:
+    file: ../private/ssl/mongod.pem

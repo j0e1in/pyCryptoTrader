@@ -39,10 +39,7 @@ logger = logging.getLogger('pyct')
 class SingleEXTrader():
 
     ds_list = [
-        'enable_trading',
-        'max_fund',
-        'summary',
-        'margin_order_queue',
+        'enable_trading', 'max_fund', 'summary', 'margin_order_queue', 'ohlcv_up'
     ]
 
     def __init__(self, mongo,
@@ -60,7 +57,7 @@ class SingleEXTrader():
 
         self.mongo = mongo
 
-        self._config = custom_config if custom_config else config
+        self._config = custom_config or config
         self.uid = uid if uid else self._config['uid']
         self.ds = Datastore.create(f"{self.uid}:trader")
 
@@ -82,6 +79,7 @@ class SingleEXTrader():
             disable_ohlcv_stream=disable_ohlcv_stream)
         self.strategy = self.init_strategy(strategy)
         self.ohlcvs = self.create_empty_ohlcv_store()
+        self.ohlcv_up = self.ds.get('ohlcv_up', True)
 
         self.margin_order_queue = self.ds.get('margin_order_queue', OrderedDict())
         self.max_fund = self.ds.get('max_fund', self.config['max_fund'])
@@ -211,7 +209,6 @@ class SingleEXTrader():
 
         last_log_time = MIN_DT
         last_sig = {market: np.nan for market in self.ex.markets}
-        ohlcv_alive = True
         await self.update_ohlcv()
 
         while not self._stop:
@@ -221,14 +218,16 @@ class SingleEXTrader():
                 await self.execute_margin_order_queue()
                 sig = await self.strategy.run()
 
-                if not ohlcv_alive:
-                    await self.notifier.notify_msg("Ohlcv stream is alive")
-                    ohlcv_alive = True
+                if not self.ohlcv_up:
+                    await self.notifier.notify_msg("Ohlcv stream is up")
+                    self.ohlcv_up = True
 
                 if self.log_sig:
                     last_log_time, last_sig = self.log_signals(sig, last_log_time, last_sig)
             else:
-                ohlcv_alive = await self.check_ohlcv_is_updating()
+                if self.ohlcv_up and not await self.check_ohlcv_is_updating():
+                    self.ohlcv_up = False
+                    await self.notifier.notify_msg("Ohlcv stream is down")
 
             # Wait additional 90 sec for ohlcv of all markets to be fetched
             fetch_interval = timedelta(seconds=self.ex.config['ohlcv_fetch_interval'])
@@ -277,24 +276,6 @@ class SingleEXTrader():
         return last_log_time, last_sig
 
     async def update_ohlcv(self):
-
-        async def build_recent_ohlcv():
-            src_tf = '1m'
-
-            # Build ohlcvs from 1m
-            for market in self.ex.markets:
-                for tf in self.ex.timeframes:
-                    if tf != src_tf:
-                        src_end_dt = await self.mongo.get_ohlcv_end(self.ex.exname, market, src_tf)
-                        target_end_dt = await self.mongo.get_ohlcv_end(self.ex.exname, market, tf)
-                        target_start_dt = target_end_dt - tf_td(tf) * 5
-
-                        # Build ohlcv starting from 5 bars earlier from latest bar
-                        await build_ohlcv(self.mongo, self.ex.exname, market, src_tf, tf,
-                                        start=target_start_dt, end=src_end_dt)
-
-        await build_recent_ohlcv()
-
         # Get newest ohlcvs
         td = timedelta(days=self.config['strategy']['data_days'])
         end = roundup_dt(utc_now(), timedelta(minutes=1))
@@ -317,12 +298,12 @@ class SingleEXTrader():
         res = None
 
         if not self.enable_trading:
-            return True
+            return {}
 
         res = await self._do_long_short(
             'long', symbol, confidence, type, scale_order=scale_order)
 
-        return True if res else False
+        return res
 
     async def short(self, symbol, confidence, type='limit', scale_order=True):
         """ Cancel all orders, close buy positions
@@ -331,7 +312,7 @@ class SingleEXTrader():
         res = None
 
         if not self.enable_trading:
-            return True
+            return {}
 
         res = await self._do_long_short(
             'short', symbol, confidence, type, scale_order=scale_order)
@@ -342,10 +323,10 @@ class SingleEXTrader():
         res = None
 
         if not self.enable_trading:
-            return True
+            return {}
 
         res = await self._do_long_short(
-            'close', symbol, 100, type, scale_order=scale_order)
+            'close', symbol, confidence, type, scale_order=scale_order)
 
         return res
 
@@ -842,12 +823,10 @@ class SingleEXTrader():
         pass
 
     async def check_ohlcv_is_updating(self):
-        """ Check if all ohlcvs are older by more than 3 * ohlcv_fetch_interval.
-            If it is true, means ohlcv fetch stream is down.
-        """
+        """ Check if all ohlcvs are older by more than 5 * ohlcv_fetch_interval. """
         await self.ex.update_ohlcv_start_end()
 
-        td = timedelta(seconds=self.ex.config['ohlcv_fetch_interval'] * 3)
+        td = timedelta(seconds=self.ex.config['ohlcv_fetch_interval'] * 5)
 
         for market in self.ex.markets:
             end = self.ex.ohlcv_start_end[market]['1m']['end']
@@ -855,10 +834,6 @@ class SingleEXTrader():
 
             if cur_time - end < td:
                 return True
-
-        # This function didn't return, means ohlcv stream is down,
-        # send notification to clients
-        await self.notifier.notify_msg("Ohlcv stream is down")
 
         return False
 
@@ -874,7 +849,6 @@ class SingleEXTrader():
             positions = await self.ex.fetch_positions()
             pos_ids = [p['id'] for p in positions]
 
-            # Debug
             for pos in positions:
                 base_value = pos['base_price'] * abs(pos['amount'])
                 pl_perc = pos['pl'] * margin_rate / base_value * 100

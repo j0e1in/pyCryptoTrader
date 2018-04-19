@@ -99,8 +99,6 @@ for (i = 0; i < coll.length; i++) {
 
 use api
 
-coll = db.getCollectionNames()
-
 // Create unique id index and timestamp index for trades
 
 collection = db.getCollection('authy_account')
@@ -128,3 +126,12 @@ collection.aggregate(
 
 // Create unique index
 collection.createIndex({ "uid": 1 }, { unique: true })
+
+
+use analysis
+
+collection = db.getCollection('param_set_meta')
+collection.createIndex({ "name": 1 }, { unique: true })
+
+collection = db.getCollection('param_optimization')
+collection.createIndex({ "PL(%)": 1 }, { unique: false })

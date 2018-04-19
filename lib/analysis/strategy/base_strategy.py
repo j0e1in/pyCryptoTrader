@@ -3,6 +3,7 @@ from datetime import timedelta
 import copy
 import logging
 
+from analysis import Indicator
 from utils import config
 
 logger = logging.getLogger('pyct')
@@ -22,26 +23,26 @@ class SingleExchangeStrategy():
     """
 
     def __init__(self, ex, custom_config=None):
-        self._config = custom_config if custom_config else config
-        self.p = self._config['analysis']['params']['common']
+        self._config = custom_config or config
+        self.ind = Indicator(custom_config=custom_config)
+        self.params = {}
 
         self.ex = ex
         self.fast_mode = False
         self.prefeed_days = 1 # time period for pre-feed data,
         # default is 1, child class can set to different ones in `init_vars()`
 
-    def set_config(self, cfg):
-        self._config = cfg
-        self.p = cfg['analysis']['params']['common']
+    def set_params(self, params):
+        self.params = params
         self.init_vars()
 
     def init(self, trader):
         self.ops = []
         self.trader = trader
-        self.markets = self.trader.markets[self.ex]
-        self.timeframes = self.trader.timeframes[self.ex]
-        self.ohlcvs = self.trader.ohlcvs[self.ex]
-        self.trades = self.trader.trades[self.ex]
+        self.markets = trader.markets[self.ex]
+        self.timeframes = trader.timeframes[self.ex]
+        self.ohlcvs = trader.ohlcvs[self.ex]
+        self.trades = trader.trades[self.ex]
         self.init_vars()
         return self
 

@@ -10,6 +10,7 @@ from utils import \
     ms_dt,\
     dt_ms,\
     MIN_DT, \
+    MAX_DT, \
     timeframe_to_freq,\
     handle_ccxt_request, \
     ohlcv_to_interval
@@ -206,7 +207,7 @@ async def fill_missing_ohlcv(mongo, exchange, symbol, start, end, timeframe):
 async def build_ohlcv(mongo, exchange, symbol, src_tf, target_tf, *,
                       start=None, end=None, coll_prefix='', upsert=True):
     start = start or MIN_DT
-    end = end or datetime(9999, 1, 1)
+    end = end or MAX_DT
 
     src_df = await mongo.get_ohlcv(exchange, symbol, src_tf, start, end)
     target_td = tf_td(target_tf)
@@ -218,7 +219,7 @@ async def build_ohlcv(mongo, exchange, symbol, src_tf, target_tf, *,
 
 async def compare_ohlcvs(mongo, exchange, symbol, tf, prefix_1, prefix_2):
     start = MIN_DT
-    end = datetime(9999, 1, 1)
+    end = MAX_DT
 
     ohlcv_1 = await mongo.get_ohlcv(
         exchange, symbol, tf, start, end, coll_prefix=prefix_1)

@@ -1,6 +1,7 @@
 #!/bin/bash
 
 PROJ_DIR=pyCryptoTrader
+DOCKER_DIR=docker
 CUR_DIR=$(pwd)
 
 if [[ "$CUR_DIR" != */$PROJ_DIR ]]; then
@@ -19,27 +20,78 @@ fi
 build_args=""
 
 while :; do
-    case $3 in
+    case $2 in
       --no-cache) build_args="$build_args --no-cache";;
+      --pull) pull="true";;
+      --mongo-ssl) export MONGO_SSL=--mongo-ssl;;
+      --cmd=*) IFS='=' read -r _ CMD <<< $2;; # split by first '='
       *) break
     esac
     shift
 done
 
-echo "Deploy $TYPE docker stack"
+# If --pull argument is specified,
+# pull from docker registry instead of build from source
+if [ "$pull" == "true" ]; then
+  IMG_ACTION=pulling
+  GET_IMAGE="docker pull gcr.io/docker-reghub/pyct"
+else
+  IMG_ACTION=building
+  GET_IMAGE="docker-compose build $build_args"
+fi
 
+
+echo -e "\n>>>  Deploy $TYPE docker stack by $IMG_ACTION image  <<<\n"
 read -p "Press [Enter] to continue..."
 
-docker-compose build
 
-docker stack rm crypto
-docker stack rm data
-echo \"wait for 20 seconds...\"
+DEPLOY_CMD=":"
+TAIL_LOG=":"
+STACK_FILE=docker-stack-$TYPE.yml
+
+# deploy any python app.py command
+if [ "$TYPE" == 'uni' ]; then
+  export PYCT_CMD="$CMD"
+  STACK_NAME=pyct
+  SERVICE_NAME=$STACK_NAME"_main"
+  TAIL_LOG="docker service logs -f $SERVICE_NAME"
+
+# deploy parameter optimization
+elif [ "$TYPE" == 'optimize' ]; then
+  STACK_NAME=optimize
+  SERVICE_NAME=$STACK_NAME"_optimize"
+  TAIL_LOG="docker service logs -f $SERVICE_NAME"
+
+elif [ "$TYPE" == 'db' ]; then
+  STACK_NAME=db
+
+elif [ "$TYPE" == 'data' ]; then
+  STACK_NAME=data
+  SERVICE_NAME=$STACK_NAME"_ohlcv"
+  TAIL_LOG="docker service logs -f $SERVICE_NAME"
+
+else # deploy trader
+  STACK_NAME=crypto
+  SERVICE_NAME=$STACK_NAME"_trade"
+  TAIL_LOG="docker service logs -f $SERVICE_NAME"
+fi
+
+# Actually executing commands
+# Authorize access permission to gcr container registry
+REGHUB_KEYFILE=private/docker-reghub-0065a93a0ed4.json
+gcloud auth activate-service-account --key-file $REGHUB_KEYFILE
+gcloud auth configure-docker
+
+source .env
+
+$GET_IMAGE
+
+docker stack rm $STACK_NAME
+echo "wait for 20 seconds..."
 sleep 20
 
-docker stack deploy -c docker-stack-data-stream.yml data
-docker stack deploy -c docker-stack-$TYPE.yml crypto
-echo \"wait for 10 seconds...\"
+docker stack deploy -c $DOCKER_DIR/$STACK_FILE $STACK_NAME
+echo "wait for 10 seconds..."
 sleep 10
 
-docker service logs -f crypto_trade
+$TAIL_LOG

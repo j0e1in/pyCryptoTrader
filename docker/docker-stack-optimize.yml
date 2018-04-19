@@ -1,0 +1,39 @@
+version: '3.5'
+services:
+  optimize:
+    image: gcr.io/docker-reghub/pyct
+    command: >
+              --optimize-params optimize
+              --name="$${INDICATOR_NAME}"
+              --mongo-host="$${REMOTE_MONGO_IP}"
+              --symbols="$${OPTIMIZE_SYMBOLS}"
+              --mongo-ssl
+    env_file:
+      - ../.env
+    volumes:
+      - ../log:/app/log
+      - ../settings:/app/settings:ro
+    ports:
+      - "8000:8000"
+    secrets:
+      - source: keys.json
+        target: /app/private/keys.json
+      - source: fullchain.pem
+        target: /app/private/ssl/fullchain.pem
+      - source: mongod.pem
+        target: /app/private/ssl/mongod.pem
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 5
+
+
+secrets:
+  keys.json:
+    file: ../private/keys.json
+  fullchain.pem:
+    file: ../private/ssl/fullchain.pem
+  mongod.pem:
+    file: ../private/ssl/mongod.pem

@@ -1,0 +1,57 @@
+# mongod.conf
+
+# for documentation of all options, see:
+#   http://docs.mongodb.org/manual/reference/configuration-options/
+
+# Where to write logging data.
+
+systemLog:
+  verbosity: 0
+  quiet: true
+  traceAllExceptions: false
+  path: /app/log/mongodb/mongod.log
+  logAppend: true
+  logRotate: rename # 'rename' or 'reopen', if use 'repoen', logAppend must be true
+  destination: file # 'file' or 'syslog'
+  timeStampFormat: iso8601-utc # 'ctime', 'iso8601-utc', 'iso8601-local'(default)
+
+security:
+   authorization: enabled
+
+# Where and how to store data.
+storage:
+  dbPath: /data/db
+  journal:
+    enabled: true
+
+  # if set to true, need to start a new instance and rebuild data
+  directoryPerDB: false
+
+  wiredTiger:
+    engineConfig:
+      # 0.256-10,000, default is (total memory * 0.5 - 1)
+      cacheSizeGB: 0.5
+
+# How the process runs
+processManagement:
+  fork: false  # if true, fork and run in background
+
+# Network interfaces
+net:
+  port: 27017
+  bindIp: 0.0.0.0
+  wireObjectCheck: true
+  ssl:
+    mode: preferSSL # 'disabled', 'allowSSL', 'preferSSL', 'requireSSL'
+    PEMKeyFile: /app/private/ssl/mongod.pem
+    # CAFile: /app/private/ssl/ca.pem
+    allowConnectionsWithoutCertificates: true
+
+# replication:
+#   oplogSizeMB: <int>
+#   replSetName: <string>
+#   secondaryIndexPrefetch: <string>
+
+# sharding:
+#   clusterRole: <string>
+#   archiveMovedChunks: <boolean>

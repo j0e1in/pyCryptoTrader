@@ -1,7 +1,8 @@
+from dotenv import load_dotenv
 from pprint import pprint
 from collections import OrderedDict
 from datetime import datetime, timedelta
-from pymongo.errors import BulkWriteError
+from pymongo.errors import BulkWriteError, ServerSelectionTimeoutError
 from threading import Thread
 
 import asyncio
@@ -22,6 +23,7 @@ logger = logging.getLogger('pyct')
 
 INF = 9999999
 MIN_DT = datetime(1970, 1, 1)
+MAX_DT = datetime(9999, 1, 1)
 
 
 def get_project_root():
@@ -63,10 +65,6 @@ def load_env(path=None):
         path = '../.env'
 
     load_dotenv(dotenv_path=path)
-
-    return { k.split('PYCT_')[1]: v \
-        for k, v in os.environ.items() \
-            if k.startswith('PYCT_') }
 
 
 def combine(a, b):
@@ -364,6 +362,9 @@ def format_value(n, digits=5):
 
 
 def check_periods(periods):
+    if not isinstance(periods, list):
+        periods = [periods]
+
     for p in periods:
         if p[0] >= p[1]:
             return False
@@ -376,12 +377,14 @@ async def execute_mongo_ops(ops):
     elif len(ops) == 0:
         return True
 
-    if not isinstance(ops[0], asyncio.Future):
-        raise ValueError("ops must be asyncio.Future(s)")
+    for i, op in enumerate(ops):
+        if not isinstance(ops[0], asyncio.Future):
+            ops[i] = asyncio.ensure_future(op)
 
     try:
-        await asyncio.gather(*ops)
-    except BulkWriteError as err:
+        res = await asyncio.gather(*ops)
+    except (BulkWriteError) as err:
+
         for msg in err.details['writeErrors']:
             if 'duplicate' in msg['errmsg']:
                 continue
@@ -389,7 +392,7 @@ async def execute_mongo_ops(ops):
                 pprint(err.details)
                 raise BulkWriteError(err)
     else:
-        return True
+        return res
 
 
 async def handle_ccxt_request(func, *args, **kwargs):
@@ -425,11 +428,7 @@ async def handle_ccxt_request(func, *args, **kwargs):
                 break
 
             # server or server-side connection error
-            elif isinstance(err, ccxt.ExchangeError) \
-            and not (str(err).find("Web server is returning an unknown error") >= 0
-            or       str(err).find("Ratelimit") >= 0
-            or       str(err).find("Cannot connect to host") >= 0
-            or       str(err).find("unavailable") >= 0):
+            elif isinstance(err, ccxt.ExchangeError):
                 logger.warning(f"ExchangeError, {type(err)} {str(err)}")
 
             elif isinstance(err, ccxt.ExchangeNotAvailable)\

@@ -7,7 +7,7 @@ import ccxt.async as ccxt
 import inspect
 import logging
 
-from analysis.hist_data import fetch_ohlcv
+from analysis.hist_data import fetch_ohlcv, build_ohlcv
 from utils import \
     config, \
     utc_now, \
@@ -69,7 +69,7 @@ class EXBase():
         self.disable_ohlcv_stream = disable_ohlcv_stream
         self.notifier = notifier
 
-        self._config = custom_config if custom_config else config
+        self._config = custom_config or config
         self.config = self._config['ccxt']
 
         self.ex = init_ccxt_exchange(ex_id, apikey, secret,
@@ -94,6 +94,7 @@ class EXBase():
           'withdraw_fees': False,
         }
 
+        self.markets.sort()
         self.ohlcv_start_end = {}
         self.markets_start_dt = {}
 
@@ -146,7 +147,7 @@ class EXBase():
 
         return tasks
 
-    async def _start_ohlcv_stream(self):
+    async def _start_ohlcv_stream(self, build_ohlcv=False):
 
         async def fetch_ohlcv_to_mongo(symbol, start, end, timeframe):
             ops = []
@@ -179,14 +180,18 @@ class EXBase():
 
                 await execute_mongo_ops(ops)
 
+        def all_recently_updated(last_update, interval):
+            for _, dt in last_update.items():
+                if not is_within(dt, interval):
+                    return False
+
+            return True
+
         logger.info("Start ohlcv data stream")
-        last_update = MIN_DT
+        last_update = {}
 
         while True:
             await self.update_ohlcv_start_end()
-
-            if is_within(last_update, timedelta(seconds=10)):
-                await asyncio.sleep(5)
 
             tf = '1m'
             td = timedelta(seconds=self.config['ohlcv_fetch_interval'])
@@ -199,16 +204,21 @@ class EXBase():
                     cur_time = rounddown_dt(utc_now(), td)
                     cur_time = cur_time - timedelta(seconds=60)
 
-                    if end < cur_time:
+
+                    if end < cur_time: #and not is_within(last_update[market], td):
                         # Fetching one-by-one is faster and safer(from blocking)
                         # than gathering all tasks at once
                         await fetch_ohlcv_to_mongo(market, end, cur_time, tf)
+                        last_update[market] = cur_time
 
-            last_update = utc_now()
+            # Check if is up to date and wait for next round
+            if await self.is_ohlcv_uptodate() \
+            or all_recently_updated(last_update, td):
+                if build_ohlcv:
+                    await self.build_recent_ohlcvs()
 
-            if await self.is_ohlcv_uptodate():
                 self.ready['ohlcv'] = True
-                fetch_interval = timedelta(seconds=self.config['ohlcv_fetch_interval'])
+                fetch_interval = td
                 countdown = roundup_dt(utc_now(), fetch_interval) - utc_now()
 
                 # 1. Sleep will be slighly shorter than expected
@@ -449,8 +459,8 @@ class EXBase():
             self.ohlcv_start_end[market] = {}
             self.ohlcv_start_end[market][tf] = {}
 
-            start = await self.mongo.get_ohlcv_start(self.exname, market, tf)
-            end = await self.mongo.get_ohlcv_end(self.exname, market, tf)
+            start = await self.mongo.get_ohlcv_start(self.exname, market, tf, exception=False)
+            end = await self.mongo.get_ohlcv_end(self.exname, market, tf, exception=False)
 
             self.ohlcv_start_end[market][tf]['start'] = start
             self.ohlcv_start_end[market][tf]['end'] = end
@@ -519,3 +529,19 @@ class EXBase():
                 return False
 
         return True
+
+    async def build_recent_ohlcvs(self):
+        src_tf = '1m'
+        tfs = self._config['analysis']['exchanges'][self.exname]['timeframes_all']
+
+        # Build ohlcvs from 1m
+        for market in self.markets:
+            for tf in tfs:
+                if tf != src_tf:
+                    src_end_dt = await self.mongo.get_ohlcv_end(self.exname, market, src_tf)
+                    target_end_dt = await self.mongo.get_ohlcv_end(self.exname, market, tf, exception=False)
+                    target_start_dt = target_end_dt - tf_td(tf) * 5
+
+                    # Build ohlcv starting from 5 bars earlier from latest bar
+                    await build_ohlcv(self.mongo, self.exname, market, src_tf, tf,
+                                    start=target_start_dt, end=src_end_dt)
