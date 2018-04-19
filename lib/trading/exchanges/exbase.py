@@ -94,6 +94,7 @@ class EXBase():
           'withdraw_fees': False,
         }
 
+        self.markets.sort()
         self.ohlcv_start_end = {}
         self.markets_start_dt = {}
 
@@ -179,14 +180,18 @@ class EXBase():
 
                 await execute_mongo_ops(ops)
 
+        def all_recently_updated(last_update, interval):
+            for _, dt in last_update.items():
+                if not is_within(dt, interval):
+                    return False
+
+            return True
+
         logger.info("Start ohlcv data stream")
-        last_update = MIN_DT
+        last_update = {}
 
         while True:
             await self.update_ohlcv_start_end()
-
-            if is_within(last_update, timedelta(seconds=10)):
-                await asyncio.sleep(5)
 
             tf = '1m'
             td = timedelta(seconds=self.config['ohlcv_fetch_interval'])
@@ -199,19 +204,21 @@ class EXBase():
                     cur_time = rounddown_dt(utc_now(), td)
                     cur_time = cur_time - timedelta(seconds=60)
 
-                    if end < cur_time:
+
+                    if end < cur_time: #and not is_within(last_update[market], td):
                         # Fetching one-by-one is faster and safer(from blocking)
                         # than gathering all tasks at once
                         await fetch_ohlcv_to_mongo(market, end, cur_time, tf)
+                        last_update[market] = cur_time
 
-            last_update = utc_now()
-
-            if await self.is_ohlcv_uptodate():
+            # Check if is up to date and wait for next round
+            if await self.is_ohlcv_uptodate() \
+            or all_recently_updated(last_update, td):
                 if build_ohlcv:
                     await self.build_recent_ohlcvs()
 
                 self.ready['ohlcv'] = True
-                fetch_interval = timedelta(seconds=self.config['ohlcv_fetch_interval'])
+                fetch_interval = td
                 countdown = roundup_dt(utc_now(), fetch_interval) - utc_now()
 
                 # 1. Sleep will be slighly shorter than expected

@@ -93,7 +93,7 @@ class EXMongo():
                 raise ValueError(f"{collname} does not exist")
             else:
                 # if asked not to raise exception, return MIN_DT instead
-                return MIN_DT
+                return {'timestamp': dt_ms(MIN_DT)}
 
         return res[0]
 
@@ -115,7 +115,7 @@ class EXMongo():
                 raise ValueError(f"{collname} does not exist")
             else:
                 # if asked not to raise exception, return MIN_DT instead
-                return MIN_DT
+                return {'timestamp': dt_ms(MIN_DT)}
 
         return res[0]
 

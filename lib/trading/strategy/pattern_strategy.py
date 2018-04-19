@@ -52,7 +52,7 @@ class PatternStrategy(SingleEXStrategy):
     async def strategy(self):
         signals = {}
         params = self.trader.mongo.get_params()
-        from ipdb import set_trace; set_trace()
+
         for market in self.trader.ex.markets:
             if market not in params:
                 logger.warning(f"No param for market {market}, using common param")
