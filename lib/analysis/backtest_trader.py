@@ -163,7 +163,7 @@ class SimulatedTrader():
 
         return trades
 
-    def feed_ohlcv(self, ex_ohlcvs, end):
+    def feed_ohlcv(self, ex_ohlcvs, start, end):
         """ Append new ohlcvs to data feed.
             Param
                 ex_ohlcvs: contain 3 levels, exchange > symbol > timeframe
@@ -183,7 +183,7 @@ class SimulatedTrader():
                 for tf, ohlcv in tfs.items():
                     if len(ohlcv) > 0:
 
-                        tmp = ohlcv[:end]
+                        tmp = ohlcv[start:end]
                         self.ohlcvs[ex][sym][tf] = tmp
 
                         if len(tmp) > 0 \
@@ -197,7 +197,7 @@ class SimulatedTrader():
 
         return last
 
-    def feed_trade(self, ex_trades, end):
+    def feed_trade(self, ex_trades, start, end):
         """ Append new trades to data feed.
             Param
                 ex_trades: contain 2 levels, exchange > symbol
@@ -214,7 +214,7 @@ class SimulatedTrader():
             for sym, trade in syms.items():
                 if len(trade) > 0:
 
-                    tmp = trade[:end]
+                    tmp = trade[start:end]
                     self.trades[ex][sym] = tmp
 
                     if len(tmp) > 0 \
@@ -228,7 +228,7 @@ class SimulatedTrader():
 
         return last
 
-    def feed_data(self, end, ex_ohlcvs=None, ex_trades=None):
+    def feed_data(self, start, end, ex_ohlcvs=None, ex_trades=None):
         """ Param
                 end: datetime, data feed time end for this test period
                 ex_ohlcvs: same format as required in `feed_ohlcv`
@@ -240,10 +240,10 @@ class SimulatedTrader():
         last_trade = None
 
         if ex_ohlcvs is not None and len(ex_ohlcvs) > 0:
-            last_ohlcv = self.feed_ohlcv(ex_ohlcvs, end)
+            last_ohlcv = self.feed_ohlcv(ex_ohlcvs, start, end)
 
         if ex_trades is not None and len(ex_trades) > 0:
-            last_trade = self.feed_trade(ex_trades, end)
+            last_trade = self.feed_trade(ex_trades, start, end)
 
         dt_ohlcv = last_ohlcv.name if last_ohlcv is not None else None
         dt_trade = last_trade.name if last_trade is not None else None
@@ -536,6 +536,8 @@ class SimulatedTrader():
                     self._calc_order(order)
 
                     if order['margin']:
+
+                        # print('slow:', self.wallet[ex][order['currency']])
 
                         if self.has_enough_balance(ex, order['currency'], order['cost']):
                             self.wallet[ex][order['currency']] -= order['cost']
@@ -981,6 +983,8 @@ class FastTrader(SimulatedTrader):
 
                 self.op_wallet[order['ex']][curr] += earn
                 del self.op_positions[order['ex']][order['op_#']]
+
+                # print('fast:', self.op_wallet[order['ex']][curr])
             else:
                 logger.debug(f"{order['op_#']} is not in op_positions")
 

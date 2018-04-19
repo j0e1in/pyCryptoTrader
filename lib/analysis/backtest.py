@@ -31,8 +31,6 @@ except ImportError:
 
 from db import EXMongo
 
-from pprint import pprint
-
 logger = logging.getLogger('pyct')
 
 # import multiprocessing, logging
@@ -96,14 +94,14 @@ class Backtest():
         return self.report
 
     def fast_run(self):
-        self.trader.feed_data(self.end, self.ohlcvs)
+        self.trader.feed_data(self.start, self.end, self.ohlcvs)
         self.trader.tick()
         self.trader.liquidate()
 
     def slow_run(self):
         # Feed one day data to trader to let strategy has initial data to setup variables
         pre_feed_end = self.start + timedelta(days=self.strategy.prefeed_days)
-        self.trader.feed_data(pre_feed_end, self.ohlcvs)
+        self.trader.feed_data(self.start, pre_feed_end, self.ohlcvs)
         self.strategy.prefeed()
 
         # Feed the rest of data and tell trader to execute orders
@@ -111,7 +109,7 @@ class Backtest():
         while cur_time < self.end:
             cur_time = self.timer.now()
             next_time = self.timer.next()
-            self.trader.feed_data(next_time, self.ohlcvs)
+            self.trader.feed_data(self.start, next_time, self.ohlcvs)
             self.trader.tick()  # execute orders
 
         self.trader.liquidate()
@@ -204,6 +202,7 @@ class Backtest():
 
                 # Plot ohlc
                 ohlc = self.ohlcvs[ex][market][self.trader.config['indicator_tf']]
+                ohlc = ohlc[self.start:self.end]
                 plot.plot_ohlc(ohlc)
 
                 # Plot orders
@@ -465,7 +464,14 @@ class ParamOptimizer():
         tf = _config['analysis']['indicator_tf']
         last_idx = await self.last_checkpoint(name, ex, market, tf, period)
 
-        # Remove other exchanges
+        start, end = period
+        num_tests = len(combs) - last_idx
+        logger.info(f"Running {ex} {market} {start}->{end} "
+                    f"optimization with << {num_tests} >> tests.")
+        logger.info(f"Starting from param set {last_idx+1}")
+
+        # Remove other exchanges by remaining only the exchange
+        # that is going to run backtest
         _config['analysis']['exchanges'] = {
             ex: _config['analysis']['exchanges'][ex]
         }
@@ -473,27 +479,10 @@ class ParamOptimizer():
         # Remove other markets
         _config['analysis']['exchanges'][ex]['markets'] = [market]
 
-        start, end = period
-        num_tests = len(combs) - last_idx
-        logger.info(f"Running {ex} {market} {start}->{end} "
-                    f"optimization with << {num_tests} >> tests.")
+        # Read data feed (ohlcv, trades) from db
+        data_feed = await get_data_feed(self.mongo, _config, start, end)
 
-        logger.info(f"Starting from param set {last_idx+1}")
-
-        # Construct data_feed request
-        req = {}
-        exs = _config['analysis']['exchanges']
-        for ex in exs:
-            symbols = exs[ex]['markets']
-            timeframes = exs[ex]['timeframes']
-            if _config['analysis']['indicator_tf'] not in timeframes:
-                timeframes += [_config['analysis']['indicator_tf']]
-            req[ex] = {
-                'symbols': symbols,
-                'timeframes': timeframes,
-            }
-
-        data_feed = await get_data_feed(self.mongo, req, start, end)
+        # Prepare info for optimization
         info = {
             'name': name,
             'ex': ex,
@@ -512,10 +501,8 @@ class ParamOptimizer():
                 n_reports_left -= 1
                 continue
 
-            params = OrderedDict(row.to_dict())
-            _config['analysis']['params'][market] = params
-
-            self.strategy.set_config(_config)
+            param = OrderedDict(row.to_dict())
+            self.strategy.set_params({market: param})
             backtest = Backtest(self.strategy, data_feed, start, end,
                 enable_plot=False, custom_config=_config)
 
@@ -725,7 +712,7 @@ def get_types(d):
     return dtypes
 
 
-async def get_data_feed(mongo, req, start=None, end=None, trades=False):
+async def get_data_feed(mongo, _config=None, start=None, end=None, trades=False):
     """ Read ohlcv and trades(optional) from mongodb.
         Param
             req: {
@@ -738,14 +725,29 @@ async def get_data_feed(mongo, req, start=None, end=None, trades=False):
             start: datatime
             end: datatime
     """
+    _config = _config or config
     start = start or MIN_DT
     end = end or MAX_DT
 
     if start >= end:
         raise ValueError("Start datatime must < end")
 
+    # Construct data_feed request
+    req = {}
+    exs = _config['analysis']['exchanges']
+    for ex in exs:
+        symbols = exs[ex]['markets']
+        timeframes = exs[ex]['timeframes']
+        if _config['analysis']['indicator_tf'] not in timeframes:
+            timeframes += [_config['analysis']['indicator_tf']]
+        req[ex] = {
+            'symbols': symbols,
+            'timeframes': timeframes,
+        }
+
     data_feed = {'ohlcvs': {}, 'trades': {}}
 
+    # Read data feed
     for ex in req:
         syms = req[ex]['symbols']
         tfs = req[ex]['timeframes']

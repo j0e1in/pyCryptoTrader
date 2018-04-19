@@ -20,18 +20,23 @@ class PatternStrategy(SingleExchangeStrategy):
         stop_profit = False
 
         for market in self.markets:
-            sig = self.calc_signal(market)
+            if market in self.params:
+                param = self.params[market]
+            else:
+                param = self.params['common']
+
+            sig = self.calc_signal(market, param)
             self.execute_signal(sig, market, stop_loss, stop_profit)
 
-        if self._config['analysis']['log_signal']:
-            print(market, 'signal:')
-            print(sig)
+            if self._config['analysis']['log_signal']:
+                print(market, 'signal:')
+                print(sig)
 
-    def calc_signal(self, market):
+    def calc_signal(self, market, param):
         """ Main algorithm which calculates signals.
             Returns {signal, timeframe}
         """
-        self.ind.change_param_set(market)
+        self.ind.p = param
 
         ohlcv = self.ohlcvs[market][self.trader.config['indicator_tf']]
         sig = self.ind.stoch_rsi_sig(ohlcv)

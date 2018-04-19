@@ -51,13 +51,19 @@ class PatternStrategy(SingleEXStrategy):
 
     async def strategy(self):
         signals = {}
+        params = self.trader.mongo.get_params()
+        from ipdb import set_trace; set_trace()
         for market in self.trader.ex.markets:
-            signals[market] = self.calc_signal(market)
+            if market not in params:
+                logger.warning(f"No param for market {market}, using common param")
+                param = params['common']
+            else:
+                param = params[market]
+
+            signals[market] = self.calc_signal(market, param)
 
         self.signals = signals
-
         await self.execute(signals)
-
         return signals
 
     async def execute(self, signals):
@@ -120,12 +126,12 @@ class PatternStrategy(SingleEXStrategy):
 
         return action
 
-    def calc_signal(self, market):
+    def calc_signal(self, market, param):
         """ Main algorithm which calculates signals.
             Returns {signal, timeframe}
         """
-        self.ind.change_param_set(market)
-        self.p = self.ind.p
+        # Change to the param of the market
+        self.ind.p = param
 
         ohlcv = self.trader.ohlcvs[market][self.trader.config['indicator_tf']]
         sig = self.ind.stoch_rsi_sig(ohlcv)

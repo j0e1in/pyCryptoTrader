@@ -32,10 +32,8 @@ class SingleExchangeStrategy():
         self.prefeed_days = 1 # time period for pre-feed data,
         # default is 1, child class can set to different ones in `init_vars()`
 
-    def set_config(self, cfg):
-        self._config = cfg
-        self.params = cfg['analysis']['params']
-        self.ind.config = self.params
+    def set_params(self, params):
+        self.params = params
         self.init_vars()
 
     def init(self, trader):

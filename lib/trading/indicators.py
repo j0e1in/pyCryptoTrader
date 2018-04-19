@@ -25,18 +25,7 @@ class Indicator():
 
     def __init__(self, custom_config=None):
         _config = custom_config or config
-        self.config = _config[category]['params']
-        self.p = _config[category]['params']['common']
-
-    def change_param_set(self, symbol):
-        """ Change param set according to symbol. """
-        if symbol in self.config:
-            param_set = self.config[symbol]
-        else:
-            param_set = self.config['common']
-
-        for k in param_set:
-            self.p[k] = param_set[k]
+        self.p = {}
 
     def rsi_sig(self, ohlcv):
         rsi = self.talib_s(talib.RSI, ohlcv.close, self.p['rsi_period'])
