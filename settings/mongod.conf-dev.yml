@@ -7,7 +7,7 @@
 
 systemLog:
   verbosity: 0
-  quiet: false
+  quiet: true
   traceAllExceptions: false
   # path: /dev/stdout
   path: /app/log/mongodb/mongod.log
