@@ -42,7 +42,7 @@ class EXMongo():
         host = host or self.config['default_host']
         port = port or self.config['default_port']
 
-        if ssl:
+        if ssl and host != '127.0.0.1' and host != 'localhost':
             cert_file = cert_file or self.config['cert']
             ca_file = ca_file or self.config['ca']
             ssl_status = 'enabled'
@@ -342,6 +342,17 @@ class EXMongo():
                           .limit(1) \
                           .to_list(length=INF)
         return order[0]['group_id'] if order else 0
+
+    async def get_params(self):
+        collname = f"param_optimization_meta"
+        coll = self.get_collection(self.config['dbname_analysis'], collname)
+        res =  await coll.find({}, {'_id': 0}).to_list(length=INF)
+        params = {}
+
+        for rec in res:
+            params[rec['symbol']] = rec['best_param']
+
+        return params
 
     @staticmethod
     async def check_columns(collection, columns):
