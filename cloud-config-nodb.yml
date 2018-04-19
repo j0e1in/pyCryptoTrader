@@ -14,7 +14,7 @@ packages:
 
 runcmd:
   # Giving non-root access ( reboot to take effect)
-  - "sudo usermod -aG docker $(whoami)"
+  - "sudo usermod -aG docker j0e1in"
 
   # docker swarm init
   - "ADDR=$(/sbin/ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}')"
