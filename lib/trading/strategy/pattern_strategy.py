@@ -51,7 +51,7 @@ class PatternStrategy(SingleEXStrategy):
 
     async def strategy(self):
         signals = {}
-        params = self.trader.mongo.get_params()
+        params = await self.trader.mongo.get_params()
 
         for market in self.trader.ex.markets:
             if market not in params:
