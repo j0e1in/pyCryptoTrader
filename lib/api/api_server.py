@@ -215,7 +215,7 @@ class APIServer():
                 return res
 
         active_markets = trader.ex.markets
-        all_markets = list(trader.ex.ex.markets.keys())
+        all_markets = trader.config[trader.ex.exname]['markets_all']
         inactive_markets = [m for m in all_markets if m not in active_markets]
 
         active = []
