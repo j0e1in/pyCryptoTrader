@@ -11,6 +11,7 @@ services:
               --ssl
               --manager
               ${MONGO_SSL}
+              ${RESET_STATE}
     env_file:
       - ../.env
     environment:

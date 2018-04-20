@@ -13,6 +13,7 @@ services:
               --disable-trading
               --log-signal
               ${MONGO_SSL}
+              ${RESET_STATE}
     env_file:
       - ../.env
     volumes:

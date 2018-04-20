@@ -58,6 +58,7 @@ class SingleEXTrader():
         self.ds = Datastore.create(f"{self.uid}:trader")
 
         if reset_state:
+            logger.debug(f"Reset state of {self.uid}-{ex_id}")
             self.ds.clear()
 
         self._config = custom_config or config
@@ -981,8 +982,9 @@ class TraderManager():
             # Returns immediately
             await server.run(*self.apiserver_run_args, **self.apiserver_run_kwargs)
 
-        if self.reset_state:
-            self.ds.clear()
+        # Do not erase uid_ex on reset for now
+        # if self.reset_state:
+        #     self.ds.clear()
 
         while True:
             # ue == 'uid-ex', it's how it stored in redis

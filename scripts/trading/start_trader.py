@@ -36,7 +36,7 @@ def parse_args():
                                                        "eg. localhost (host connect to mongo on host)\n"
                                                        "    mongo (container connect to mongo container)\n"
                                                        "    172.18.0.2 (host connect to mongo container)\n")
-    parser.add_argument('--reset', type=str, help='Reset app state, start fresh')
+    parser.add_argument('--reset', action='store_true', help='Reset app state, start fresh')
     parser.add_argument('--manager', action='store_true', help='Start traders with a manager')
     argv = parser.parse_args()
 

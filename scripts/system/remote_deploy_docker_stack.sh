@@ -33,7 +33,8 @@ while :; do
     case $3 in
       --no-cache) build_args="$build_args --no-cache";;
       --pull) pull="true";;
-      --mongo-ssl) mongo_ssl="true";;
+      --disable-mongo-ssl) mongo_ssl="false";;
+      --reset) reset_state="true";;
       --cmd=*) IFS='=' read -r _ CMD <<< $3;; # split by first '='
       *) break
     esac
@@ -50,10 +51,16 @@ else
   GET_IMAGE="docker-compose build $build_args"
 fi
 
-if [ "$mongo_ssl" == "true" ]; then
-  MONGO_SSL="export MONGO_SSL=--mongo-ssl"
-else
+if [ "$mongo_ssl" == "false" ]; then
   MONGO_SSL=":"
+else
+  MONGO_SSL="export MONGO_SSL=--mongo-ssl"
+fi
+
+if [ "$reset_state" == "true" ]; then
+  RESET_STATE="export RESET_STATE=--reset"
+else
+  RESET_STATE=":"
 fi
 
 
@@ -115,6 +122,7 @@ ssh $USERNAME@$HOST \
   \
   $DEPLOY_CMD && \
   $MONGO_SSL && \
+  $RESET_STATE && \
   $GET_IMAGE && \
   \
   docker stack rm $STACK_NAME && \

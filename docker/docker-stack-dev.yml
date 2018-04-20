@@ -13,6 +13,7 @@ services:
               --log
               --log-signal
               ${MONGO_SSL}
+              ${RESET_STATE}
     env_file:
       - ../.env
     volumes:
