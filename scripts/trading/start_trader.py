@@ -4,7 +4,6 @@ from datetime import datetime
 
 import asyncio
 import logging
-import os
 
 from api import APIServer
 from db import EXMongo, Datastore
@@ -56,6 +55,9 @@ async def main():
     Datastore.update_redis(host=redis_host)
 
     if not argv.manager:
+        if argv.enable_api:
+            raise RuntimeError(f"API server requires a trader manager, "
+                               f"add `--manager` when starting trader")
         uid = '1492068960851477'
         ex = 'bitfinex'
         trader = SingleEXTrader(mongo, ex, 'pattern',
@@ -67,24 +69,11 @@ async def main():
             disable_notification=argv.disable_notification,
             reset_state=argv.reset)
 
-        if not argv.enable_api:
-            await trader.start()
-        else:
-            ue = f"{uid}-{ex}"
-            apiserver = APIServer(mongo,
-                                  traders={ue: trader},
-                                  reset_state=argv.reset)
-
-            await asyncio.gather(
-                trader.start(),
-                apiserver.run(access_log=True,
-                              enable_ssl=argv.ssl)
-            )
-
+        await trader.start()
         await trader.ex.ex.close()
 
     else:
-        await TraderManager(mongo).start(
+        await TraderManager(mongo,
             enable_api=argv.enable_api,
 
             trader_args=(mongo,),
@@ -105,7 +94,7 @@ async def main():
             apiserver_run_kwargs=dict(
                 access_log=True,
                 enable_ssl=argv.ssl)
-        )
+        ).start()
 
 
 if __name__ == '__main__':

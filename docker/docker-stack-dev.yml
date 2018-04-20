@@ -4,10 +4,11 @@ services:
     image: gcr.io/docker-reghub/pyct
     command: >
               --start-trader
-              --mongo-host=crypto.csie.io
+              --mongo-host=mongo
               --redis-host=redis
               --enable-api
               --env .env
+              --manager
               --disable-trading
               --log
               --log-signal

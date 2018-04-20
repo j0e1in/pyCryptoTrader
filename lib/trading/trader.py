@@ -42,9 +42,7 @@ class SingleEXTrader():
         'enable_trading', 'max_fund', 'summary', 'margin_order_queue', 'ohlcv_up'
     ]
 
-    def __init__(self, mongo,
-                 ex_id,
-                 strategy,
+    def __init__(self, mongo, ex_id, strategy,
                  uid=None,
                  custom_config=None,
                  ccxt_verbose=False,
@@ -53,21 +51,22 @@ class SingleEXTrader():
                  disable_notification=False,
                  log=False,
                  log_sig=False,
-                 reset_state=False):
+                 reset_state=False,
+                 notify_start=True):
 
-        self.mongo = mongo
-
-        self._config = custom_config or config
         self.uid = uid if uid else self._config['uid']
         self.ds = Datastore.create(f"{self.uid}:trader")
 
         if reset_state:
             self.ds.clear()
 
+        self._config = custom_config or config
         self.config = self._config['trading']
+        self.mongo = mongo
         self.enable_trading = self.ds.get('enable_trading', not disable_trading)
         self.log = log
         self.log_sig = log_sig
+        self.notify_start = notify_start
         self._stop = False
 
         # Requires self attributes above
@@ -76,7 +75,8 @@ class SingleEXTrader():
         self.ex = self.init_exchange(ex_id,
             notifier=self.notifier,
             ccxt_verbose=ccxt_verbose,
-            disable_ohlcv_stream=disable_ohlcv_stream)
+            disable_ohlcv_stream=disable_ohlcv_stream,
+            reset_state=reset_state)
         self.strategy = self.init_strategy(strategy)
         self.ohlcvs = self.create_empty_ohlcv_store()
         self.ohlcv_up = self.ds.get('ohlcv_up', True)
@@ -102,19 +102,22 @@ class SingleEXTrader():
                       ex_id,
                       notifier=None,
                       ccxt_verbose=False,
-                      disable_ohlcv_stream=False):
+                      disable_ohlcv_stream=False,
+                      reset_state=False):
         """ Make an instance of a custom EX class. """
         key = load_keys()[self.uid][ex_id]
         ex_class = getattr(exchanges, str.capitalize(ex_id))
         return ex_class(
             self.mongo,
-            key['apiKey'],
-            key['secret'],
+            uid=self.uid,
+            apikey=key['apiKey'],
+            secret=key['secret'],
             custom_config=self._config,
             ccxt_verbose=ccxt_verbose,
             log=self.log,
             notifier=notifier,
-            disable_ohlcv_stream=disable_ohlcv_stream)
+            disable_ohlcv_stream=disable_ohlcv_stream,
+            reset_state=reset_state)
 
     def init_strategy(self, name):
         if name == 'pattern':
@@ -193,7 +196,8 @@ class SingleEXTrader():
         for market in self.ex.markets:
             self.ex.set_market_start_dt(market, self.summary['start'])
 
-        await self.notifier.notify_start()
+        if self.notify_start:
+            await self.notifier.notify_start()
 
         logger.info("Start trading")
         await self.start_trading()
@@ -817,10 +821,20 @@ class SingleEXTrader():
         return orders
 
     def add_market(self, market):
-        pass
+        if market in self.ex.markets:
+            return False
+
+        self.ex.markets.append(market)
+        self.ex.ds.markets = self.ex.markets # save to redis immediately
+        return True
 
     def remove_market(self, market):
-        pass
+        if not market in self.ex.markets:
+            return False
+
+        self.ex.markets.remove(market)
+        self.ex.ds.markets = self.ex.markets # save to redis immediately
+        return True
 
     async def check_ohlcv_is_updating(self):
         """ Check if all ohlcvs are older by more than 5 * ohlcv_fetch_interval. """
@@ -929,82 +943,114 @@ class SingleEXTrader():
 
 
 class TraderManager():
-    def __init__(self, mongo):
+
+    def __init__(self,
+                 mongo,
+                 reset_state=False,
+                 enable_api=False,
+                 trader_args=None,
+                 trader_kwargs=None,
+                 apiserver_args=None,
+                 apiserver_kwargs=None,
+                 apiserver_run_args=None,
+                 apiserver_run_kwargs=None):
+
         self.ds = Datastore.create("trader_manager")
         self.mongo = mongo
         self.apiserver = {}
         self.traders = {}
+        self.futures = {}
 
-    async def start(self,
-              reset_state=False,
-              enable_api=False,
-              trader_args=None,
-              trader_kwargs=None,
-              apiserver_args=None,
-              apiserver_kwargs=None,
-              apiserver_run_args=None,
-              apiserver_run_kwargs=None):
+        self.reset_state = reset_state
+        self.enable_api = enable_api
+        self.trader_args = trader_args
+        self.trader_kwargs = trader_kwargs
+        self.apiserver_args = apiserver_args
+        self.apiserver_kwargs = apiserver_kwargs
+        self.apiserver_run_args = apiserver_run_args
+        self.apiserver_run_kwargs = apiserver_run_kwargs
 
-        futures = {}
-        loop = asyncio.get_event_loop()
+    async def start(self):
 
-        def start_trader(ue):
-            uid, ex = ue.split('-')
-            try:
-                trader = SingleEXTrader(ex_id=ex, uid=uid, *trader_args, **trader_kwargs)
-            except KeyError:
-                logger.warning(f"Trader [{ue}] has no exchange API key")
-            else:
-                name = 'trader:' + str(ue)
-                futures[name] = asyncio.run_coroutine_threadsafe(trader.start(), loop)
-                self.traders[ue] = trader
-
-        if enable_api:
-            server = APIServer(self.mongo, self.traders,
-                               *apiserver_args,
-                               **apiserver_kwargs)
+        if self.enable_api:
+            server = APIServer(self.mongo,
+                               traders=self.traders,
+                               trader_manager=self,
+                               *self.apiserver_args,
+                               **self.apiserver_kwargs)
             # Returns immediately
-            await server.run(*apiserver_run_args, **apiserver_run_kwargs)
+            await server.run(*self.apiserver_run_args, **self.apiserver_run_kwargs)
 
-        if reset_state:
-            self.de.clear()
+        if self.reset_state:
+            self.ds.clear()
 
         while True:
+            # ue == 'uid-ex', it's how it stored in redis
+
             uid_ex = self.ds.get('uid_ex', [])
             to_remove = []
 
+            # Remove trader
             for ue in self.traders:
-
-                # Remove trader
                 if ue not in uid_ex and not self.traders[ue]._stop:
                     logger.info(f"Removing [{ue}]")
-                    name = 'trader:' + str(ue)
                     self.traders[ue].stop()
 
+            # Add trader
             for ue in uid_ex:
                 if ue not in self.traders:
                     logger.info(f"Adding [{ue}]")
-                    start_trader(ue)
+                    self.start_trader(ue)
                     await asyncio.sleep(30)
 
             await asyncio.sleep(5)
 
-            for name in futures:
+            # Try to receive exception or result,
+            # if a trader stopped normally, just remove it from the entry,
+            # otherwise restart the trader.
+            for ue in self.futures:
                 try:
-                    exp = futures[name].exception(timeout=1)
+                    exp = self.futures[ue].exception(timeout=1)
                 except concurrent.futures.TimeoutError:
                     pass
                 else:
-                    ue = name.split(':')[1]
-
                     if self.traders[ue]._stop:
                         to_remove.append(ue)
                     else:
                         logger.warning(f"Trader [{ue}] got exception: {exp.__class__.__name__} {str(exp)}")
                         logger.info(f"Restaring trader [{ue}]")
-                        start_trader(ue)
+                        self.start_trader(ue)
 
             for ue in to_remove:
                 logger.debug(f'{ue} removed')
                 del self.traders[ue]
-                del futures[name]
+                del self.futures[ue]
+
+    def start_trader(self, ue, notify_start=True):
+        uid, ex = ue.split('-')
+        try:
+            trader = SingleEXTrader(
+                ex_id=ex,
+                uid=uid,
+                notify_start=notify_start ,
+                *self.trader_args,
+                **self.trader_kwargs)
+        except KeyError:
+            logger.warning(f"Trader [{ue}] has no exchange API key")
+        else:
+            loop = asyncio.get_event_loop()
+            self.futures[ue] = asyncio.run_coroutine_threadsafe(trader.start(), loop)
+            self.traders[ue] = trader
+
+    async def restart_trader(self, uid, ex):
+        """ Stop a trader and restart it. """
+        ue = f"{uid}-{ex}"
+
+        if not ue in self.traders:
+            raise ValueError(f"{ue} is not active")
+
+        logger.info(f"Restarting trader [{ue}] (on demand)")
+        self.traders[ue].stop()
+        await asyncio.sleep(5) # wait for trader to stop
+        self.start_trader(ue, notify_start=False)
+        await asyncio.sleep(10) # wait for trader to start
