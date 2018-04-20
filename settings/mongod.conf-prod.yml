@@ -7,13 +7,22 @@
 
 systemLog:
   verbosity: 0
-  quiet: true
+  quiet: false
   traceAllExceptions: false
+  # path: /dev/stdout
   path: /app/log/mongodb/mongod.log
   logAppend: true
   logRotate: rename # 'rename' or 'reopen', if use 'repoen', logAppend must be true
   destination: file # 'file' or 'syslog'
   timeStampFormat: iso8601-utc # 'ctime', 'iso8601-utc', 'iso8601-local'(default)
+  component:
+    command:
+      verbosity: 0
+
+operationProfiling:
+   mode: slowOp # off, slowOp, all
+   slowOpThresholdMs: 300
+   slowOpSampleRate: 0.5
 
 security:
    authorization: enabled
