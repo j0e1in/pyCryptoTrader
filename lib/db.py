@@ -25,6 +25,7 @@ pd.options.mode.chained_assignment = None
 
 logger = logging.getLogger('pyct')
 
+no_ssl_hosts = ['127.0.0.1', 'localhost', 'mongo']
 
 class EXMongo():
 
@@ -42,7 +43,7 @@ class EXMongo():
         host = host or self.config['default_host']
         port = port or self.config['default_port']
 
-        if ssl and host != '127.0.0.1' and host != 'localhost':
+        if ssl and host not in no_ssl_hosts:
             cert_file = cert_file or self.config['cert']
             ca_file = ca_file or self.config['ca']
             ssl_status = 'enabled'
@@ -63,7 +64,7 @@ class EXMongo():
         self.host = host
         self.port = port
 
-        logger.info(f"Connecting mongo client to {host}:{port} with ssl {ssl_status}")
+        logger.info(f"Connecting mongo client to {host}:{port} with SSL {ssl_status}")
         self.client = motor_asyncio.AsyncIOMotorClient(
             uri, ssl_certfile=cert_file, ssl_ca_certs=ca_file)
 
