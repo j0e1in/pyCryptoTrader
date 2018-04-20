@@ -49,7 +49,12 @@ class APIServer():
 
     app = sanic.Sanic(__name__, log_config=customized_sanic_log_config())
 
-    def __init__(self, mongo, traders, custom_config=None, reset_state=False):
+    def __init__(self,
+                 mongo,
+                 traders,
+                 trader_manager,
+                 custom_config=None,
+                 reset_state=False):
         self.ds = Datastore.create('apiserver')
 
         if reset_state:
@@ -64,6 +69,7 @@ class APIServer():
         self.config = self._config['apiserver']
 
         self.app.traders = traders
+        self.app.trader_manager = trader_manager
         self.app.server = self
         self.app.config.KEEP_ALIVE = config['apiserver']['keep_alive']
         self.app.config.KEEP_ALIVE_TIMEOUT = config['apiserver']['keep_alive_timeout']
@@ -563,6 +569,9 @@ class APIServer():
                 else:
                     not_supported.append(market)
 
+        # Restart trader
+        await req.app.trader_manager.restart_trader(uid, ex)
+
         if len(not_supported) > 0:
             return response.json({
                 'error': 'Some markets are not supported',
@@ -603,6 +612,9 @@ class APIServer():
 
             if market not in trader.config[trader.ex.exname]['markets_all']:
                 not_supported.append(market)
+
+        # Restart trader
+        await req.app.trader_manager.restart_trader(uid, ex)
 
         if len(not_supported) > 0:
             return response.json({

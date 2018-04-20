@@ -1,5 +1,5 @@
 from asyncio import ensure_future
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pprint import pprint
 
 import asyncio
@@ -8,6 +8,7 @@ import inspect
 import logging
 
 from analysis.hist_data import fetch_ohlcv, build_ohlcv
+from db import Datastore
 from utils import \
     config, \
     utc_now, \
@@ -58,9 +59,26 @@ class EXBase():
         ** Note: ohlcv and trades can be retreived from db
     """
 
-    def __init__(self, mongo, ex_id, apikey=None, secret=None,
-                 custom_config=None, ccxt_verbose=False, log=False,
-                 disable_ohlcv_stream=False, notifier=None):
+    # store enabled markets/timeframes in redis
+    ds_list = ['markets', 'timeframes']
+
+    def __init__(self, mongo, ex_id,
+                 uid=None,
+                 apikey=None,
+                 secret=None,
+                 custom_config=None,
+                 ccxt_verbose=False,
+                 log=False,
+                 disable_ohlcv_stream=False,
+                 notifier=None,
+                 reset_state=False):
+
+        self.uid = uid  # required if this class is user-dependent
+        self.ds = Datastore.create(f"{self.uid}:ex")
+
+        if reset_state:
+            self.ds.clear()
+
         self.mongo = mongo
         self.exname = ex_name(ex_id)
         self.apikey = apikey
@@ -76,8 +94,12 @@ class EXBase():
                                      verbose=ccxt_verbose,
                                      timeout=self._config['request_timeout'])
 
-        self.markets = self._config['trading'][self.exname]['markets']
-        self.timeframes = self._config['trading'][self.exname]['timeframes']
+        markets = self._config['trading'][self.exname]['markets']
+        timeframes = self._config['trading'][self.exname]['timeframes']
+
+        self.markets = self.ds.get('markets', markets)
+        self.timeframes = self.ds.get('timeframes', timeframes)
+        logger.debug(f"markets: {self.markets}")
         self.trade_fees = {}
         self.withdraw_fees = {}
         self.markets_info = {}

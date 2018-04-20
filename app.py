@@ -27,7 +27,7 @@ def parse_args():
     parser.add_argument('--start-trader', action='store_true', help="Execute start_trader.py")
     parser.add_argument('--restart-trader', action='store_true', help="Execute restart_trader.py")
     parser.add_argument('--add-trader', type=str, help="Execute manage_trader.py --add")
-    parser.add_argument('--rm-trader', type=str, help="Execute manage_trader.py --rm")
+    parser.add_argument('--remove-trader', type=str, help="Execute manage_trader.py --rm")
 
     parser.add_argument('--none', action='store_true', help="Do not execute anything, this is for docker-compose")
 
