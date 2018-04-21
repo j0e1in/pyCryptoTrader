@@ -1,3 +1,4 @@
+import asyncio
 import copy
 import logging
 import numpy as np
@@ -57,21 +58,17 @@ class PatternStrategy(SingleEXStrategy):
         pass
 
     async def strategy(self):
-        signals = {}
-        params = await self.trader.mongo.get_params()
+        self.signals = await calculate_signals(
+            mongo=self.trader.mongo,
+            ex=self.trader.ex.exname,
+            markets=self.trader.ex.markets,
+            tf=self.trader.config['indicator_tf'],
+            indicator=self.ind,
+            ind_name=self.trader.config['indicator'],
+            ohlcvs=self.trader.ohlcvs)
 
-        for market in self.trader.ex.markets:
-            if market not in params:
-                logger.warning(f"No param for market {market}, using common param")
-                param = params['common']
-            else:
-                param = params[market]
-
-            signals[market] = self.calc_signal(market, param)
-
-        self.signals = signals
-        await self.execute(signals)
-        return signals
+        await self.execute(self.signals)
+        return self.signals
 
     async def execute(self, signals):
         async def exec_sig(sig, market, use_prev_sig):
@@ -132,18 +129,6 @@ class PatternStrategy(SingleEXStrategy):
             await self.trader.notifier.notify_open_orders_succ(orders)
 
         return action
-
-    def calc_signal(self, market, param):
-        """ Main algorithm which calculates signals.
-            Returns {signal, timeframe}
-        """
-        # Change to the param of the market
-        self.ind.p = param
-
-        ohlcv = self.trader.ohlcvs[market][self.trader.config['indicator_tf']]
-        sig = self.ind.stoch_rsi_sig(ohlcv)
-
-        return sig
 
     def rank_markets(self):
         """ Rank markets' profitability.
@@ -240,3 +225,68 @@ def to_action(conf):
         return BUY
     elif conf < 0:
         return SELL
+
+
+async def calculate_signals(mongo, ex, markets, tf, indicator, ind_name, ohlcvs):
+    """ Calculate signals of markets.
+        Param
+            mongo: EXMongo instance
+            ex: str, exchange name
+            markets: list, list of symbols
+            tf: str, indicator tf
+            indicator: Indicator instance
+            ind_name: str, indicator name used to calclate signal
+            ohlcvs: dict, in the format of `ohlcvs[market][tf]`
+    """
+    signals = {}
+    params = await mongo.get_params(ex)
+
+    for market in markets:
+        if market not in params:
+            logger.warning(f"No param for market {market}, using common param")
+            param = params['common']
+        else:
+            param = params[market]
+
+        indicator.p = param
+        ohlcv = ohlcvs[market][tf]
+        sig = getattr(indicator, ind_name)(ohlcv)
+        signals[market] = sig
+
+    return signals
+
+
+class Signals():
+    """ Calculate signals of all markets periodically for query. """
+
+    def __init__(self, mongo, ex, indicator, custom_config=None):
+        self._config = custom_config or config
+
+        self.mongo = mongo
+        self.ex = ex
+        self.indicator = indicator
+        self.markets = self._config['trading'][self.ex]['markets_all']
+        self.tf = self._config['trading']['indicator_tf']
+        self.ind = Indicator(custom_config=self._config)
+        self.signals = {}
+
+    async def start(self):
+        while True:
+            ohlcvs = await self.mongo.get_latest_ohlcvs(
+                ex=self.ex,
+                markets=self.markets,
+                timeframes=['1m', self.tf])
+
+            self.signals = await calculate_signals(
+                mongo=self.mongo,
+                ex=self.ex,
+                markets=self.markets,
+                tf=self.tf,
+                indicator=self.ind,
+                ind_name=self._config['trading']['indicator'],
+                ohlcvs=ohlcvs)
+
+            del ohlcvs
+
+            # wait for 10 min on 8h timeframe
+            await asyncio.sleep((tf_td(self.tf) / 48).seconds)

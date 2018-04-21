@@ -1,3 +1,4 @@
+from datetime import timedelta
 from collections import MutableMapping
 from motor import motor_asyncio
 from redis import StrictRedis
@@ -19,7 +20,12 @@ from utils import \
     config, \
     rsym, \
     load_keys, \
-    execute_mongo_ops
+    execute_mongo_ops, \
+    smallest_tf, \
+    roundup_dt, \
+    utc_now, \
+    tf_td
+
 
 pd.options.mode.chained_assignment = None
 
@@ -344,16 +350,36 @@ class EXMongo():
                           .to_list(length=INF)
         return order[0]['group_id'] if order else 0
 
-    async def get_params(self):
+    async def get_params(self, ex):
         collname = f"param_optimization_meta"
         coll = self.get_collection(self.config['dbname_analysis'], collname)
-        res =  await coll.find({}, {'_id': 0}).to_list(length=INF)
+        res =  await coll.find({'ex': ex}, {'_id': 0}).to_list(length=INF)
         params = {}
 
         for rec in res:
             params[rec['symbol']] = rec['best_param']
 
         return params
+
+    async def get_latest_ohlcvs(self, ex, markets, timeframes):
+        if not isinstance(timeframes, list):
+            timeframes = [timeframes]
+
+        # Get newest ohlcvs
+        td = timedelta(days=config['trading']['strategy']['data_days'])
+        end = roundup_dt(utc_now(), timedelta(minutes=1))
+        start = end - td
+        ohlcvs = await self.get_ohlcvs_of_symbols(ex, markets, timeframes, start, end)
+
+        for symbol, tfs in ohlcvs.items():
+            sm_tf = smallest_tf(list(ohlcvs[symbol].keys()))
+
+            for tf in tfs:
+                if tf != sm_tf:
+                    ohlcvs[symbol][tf] = ohlcvs[symbol][tf][:-1] # drop the last row
+            fill_ohlcv_with_small_tf(ohlcvs[symbol])
+
+        return ohlcvs
 
     @staticmethod
     async def check_columns(collection, columns):
@@ -553,3 +579,31 @@ class DataStoreContainer(MutableMapping):
 
 
 Datastore = DataStoreFactory()
+
+
+def fill_ohlcv_with_small_tf(ohlcvs):
+    """ Fill larger timeframe ohlcv with smaller ones
+        to make larger timeframe real-time.
+    """
+    sm_tf = smallest_tf(list(ohlcvs.keys()))
+
+    for tf in ohlcvs.keys():
+        if tf != sm_tf:
+            start_dt = ohlcvs[tf].index[-1] + tf_td(tf)
+            end_dt = ohlcvs[sm_tf].index[-1]
+
+            # All timeframes are at the same timestamp, no need to fill
+            if len(ohlcvs[sm_tf][start_dt:]) == 0:
+                continue
+
+            new_ohlcv = ohlcvs[tf].iloc[0].copy()
+            new_ohlcv.name = end_dt
+            new_ohlcv.open = ohlcvs[sm_tf][start_dt:].iloc[0].open
+            new_ohlcv.close = ohlcvs[sm_tf][start_dt:].iloc[-1].close
+            new_ohlcv.high = ohlcvs[sm_tf][start_dt:].high.max()
+            new_ohlcv.low = ohlcvs[sm_tf][start_dt:].low.min()
+            new_ohlcv.volume = ohlcvs[sm_tf][start_dt:].volume.sum()
+
+            ohlcvs[tf] = ohlcvs[tf].append(new_ohlcv)
+
+    return ohlcvs

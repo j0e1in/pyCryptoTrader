@@ -1,9 +1,7 @@
 from asyncio import ensure_future
 from collections import OrderedDict
 from concurrent.futures import FIRST_COMPLETED
-from datetime import timedelta, datetime
-from threading import Thread
-from time import sleep
+from datetime import timedelta
 
 import asyncio
 import copy
@@ -14,12 +12,11 @@ import numpy as np
 import pandas as pd
 import random
 
-from analysis.hist_data import build_ohlcv
 from api import APIServer
 from api.notifier import Messenger
 from db import Datastore
-from trading.strategy import near_end
-from trading import strategy
+from trading.indicators import Indicator
+from trading.strategy import PatternStrategy, Signals
 from trading import exchanges
 from utils import \
     config, \
@@ -31,7 +28,7 @@ from utils import \
     tf_td, \
     MIN_DT, \
     execute_mongo_ops, \
-    run_async_in_thread
+    async_catch_traceback
 
 logger = logging.getLogger('pyct')
 
@@ -122,7 +119,7 @@ class SingleEXTrader():
 
     def init_strategy(self, name):
         if name == 'pattern':
-            strgy = strategy.PatternStrategy(self, self._config)
+            strgy = PatternStrategy(self, self._config)
         else:
             raise ValueError(f"{name} strategy is not supported.")
 
@@ -216,12 +213,19 @@ class SingleEXTrader():
 
         last_log_time = MIN_DT
         last_sig = {market: np.nan for market in self.ex.markets}
-        await self.update_ohlcv()
+        self.ohlcvs = await self.mongo.get_latest_ohlcvs(
+            self.ex.exname,
+            self.ex.markets,
+            self.ex.timeframes)
 
         while not self._stop:
             if await self.ex.is_ohlcv_uptodate():
                 # Read latest ohlcv from db
-                await self.update_ohlcv()
+                self.ohlcvs = await self.mongo.get_latest_ohlcvs(
+                    self.ex.exname,
+                    self.ex.markets,
+                    self.ex.timeframes)
+
                 await self.execute_margin_order_queue()
                 sig = await self.strategy.run()
 
@@ -281,22 +285,6 @@ class SingleEXTrader():
             logger.info(f"{remaining_time} left to start trading")
 
         return last_log_time, last_sig
-
-    async def update_ohlcv(self):
-        # Get newest ohlcvs
-        td = timedelta(days=self.config['strategy']['data_days'])
-        end = roundup_dt(utc_now(), timedelta(minutes=1))
-        start = end - td
-        self.ohlcvs = await self.mongo.get_ohlcvs_of_symbols(
-            self.ex.exname, self.ex.markets, self.ex.timeframes, start, end)
-
-        for symbol, tfs in self.ohlcvs.items():
-            sm_tf = smallest_tf(list(self.ohlcvs[symbol].keys()))
-
-            for tf in tfs:
-                if tf != sm_tf:
-                    self.ohlcvs[symbol][tf] = self.ohlcvs[symbol][tf][:-1] # drop the last row
-            self.fill_ohlcv_with_small_tf(self.ohlcvs[symbol])
 
     async def long(self, symbol, confidence, type='limit', scale_order=True):
         """ Cancel all orders, close sell positions
@@ -692,34 +680,6 @@ class SingleEXTrader():
 
         return ohlcv
 
-    @staticmethod
-    def fill_ohlcv_with_small_tf(ohlcvs):
-        """ Fill larger timeframe ohlcv with smaller ones
-            to make larger timeframe real-time.
-        """
-        sm_tf = smallest_tf(list(ohlcvs.keys()))
-
-        for tf in ohlcvs.keys():
-            if tf != sm_tf:
-                start_dt = ohlcvs[tf].index[-1] + tf_td(tf)
-                end_dt = ohlcvs[sm_tf].index[-1]
-
-                # All timeframes are at the same timestamp, no need to fill
-                if len(ohlcvs[sm_tf][start_dt:]) == 0:
-                    continue
-
-                new_ohlcv = ohlcvs[tf].iloc[0].copy()
-                new_ohlcv.name = end_dt
-                new_ohlcv.open = ohlcvs[sm_tf][start_dt:].iloc[0].open
-                new_ohlcv.close = ohlcvs[sm_tf][start_dt:].iloc[-1].close
-                new_ohlcv.high = ohlcvs[sm_tf][start_dt:].high.max()
-                new_ohlcv.low = ohlcvs[sm_tf][start_dt:].low.min()
-                new_ohlcv.volume = ohlcvs[sm_tf][start_dt:].volume.sum()
-
-                ohlcvs[tf] = ohlcvs[tf].append(new_ohlcv)
-
-        return ohlcvs
-
     async def get_summary(self):
         td = timedelta(seconds=self.config['summary_delay'])
         if (utc_now() - self.summary['now']) < td:
@@ -964,6 +924,7 @@ class TraderManager():
         self.apiserver = {}
         self.traders = {}
         self.futures = {}
+        self.sigs = {}
 
         self.reset_state = reset_state
         self.enable_api = enable_api
@@ -974,9 +935,12 @@ class TraderManager():
         self.apiserver_run_args = apiserver_run_args
         self.apiserver_run_kwargs = apiserver_run_kwargs
 
-    async def start(self):
+    async def start(self, exs=[]):
 
         if self.enable_api:
+            if not exs:
+                raise ValueError(f"`exs` is required if api server is enabled")
+
             server = APIServer(self.mongo,
                                traders=self.traders,
                                trader_manager=self,
@@ -984,6 +948,16 @@ class TraderManager():
                                **self.apiserver_kwargs)
             # Returns immediately
             await server.run(*self.apiserver_run_args, **self.apiserver_run_kwargs)
+
+            if not isinstance(exs, list):
+                exs = [exs]
+
+            loop = asyncio.get_event_loop()
+            sigs_futures = {}
+            for ex in exs:
+                self.sigs[ex] = Signals(self.mongo, ex, Indicator())
+                sigs_futures[ex] = asyncio.run_coroutine_threadsafe(
+                    self.sigs[ex].start(), loop)
 
         # Do not erase uid_ex on reset for now
         # if self.reset_state:
@@ -1044,7 +1018,8 @@ class TraderManager():
             logger.warning(f"Trader [{ue}] has no exchange API key")
         else:
             loop = asyncio.get_event_loop()
-            self.futures[ue] = asyncio.run_coroutine_threadsafe(trader.start(), loop)
+            self.futures[ue] = asyncio.run_coroutine_threadsafe(
+                async_catch_traceback(trader.start), loop)
             self.traders[ue] = trader
 
     async def restart_trader(self, uid, ex):

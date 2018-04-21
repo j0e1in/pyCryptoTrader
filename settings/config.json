@@ -38,6 +38,7 @@
   },
 
   "trading": {
+    "indicator": "stoch_rsi_sig",
     "indicator_tf": "8h",
     "trade_portion": 0.6,
     "max_fund": 200,

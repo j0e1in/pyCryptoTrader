@@ -17,6 +17,7 @@ import math
 import os
 import pandas as pd
 import sys
+import traceback
 import uuid
 
 logger = logging.getLogger('pyct')
@@ -771,3 +772,22 @@ def run_async_in_thread(func, *args, **kwargs):
     th.start()
 
     return th
+
+def catch_traceback(fn, *args, **kwargs):
+    """ Wraps `fn` in order to preserve the
+        traceback of any kind of exception.
+    """
+    try:
+        return fn(*args, **kwargs)
+    except Exception:
+        raise sys.exc_info()[0](traceback.format_exc())
+
+
+async def async_catch_traceback(fn, *args, **kwargs):
+    """ Wraps `fn`(coroutine) in order to preserve the
+        traceback of any kind of exception.
+    """
+    try:
+        return await fn(*args, **kwargs)
+    except Exception:
+        raise sys.exc_info()[0](traceback.format_exc())

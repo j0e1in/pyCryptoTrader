@@ -73,6 +73,8 @@ async def main():
         await trader.ex.ex.close()
 
     else:
+        exs = ['bitfinex'] if argv.enable_api else []
+
         await TraderManager(mongo,
             enable_api=argv.enable_api,
 
@@ -94,7 +96,7 @@ async def main():
             apiserver_run_kwargs=dict(
                 access_log=True,
                 enable_ssl=argv.ssl)
-        ).start()
+        ).start(exs)
 
 
 if __name__ == '__main__':

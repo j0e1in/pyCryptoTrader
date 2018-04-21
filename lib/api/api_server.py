@@ -346,7 +346,7 @@ class APIServer():
 
     @app.route('/account/active/positions/<uid:string>/<ex:string>', methods=['GET'])
     async def active_positions(req, uid, ex):
-        """ Query active orders of an exchange.
+        """ Query active positions of an exchange.
             {
                 "positions": [
                     {
@@ -389,7 +389,7 @@ class APIServer():
 
     @app.route('/trading/signals/<uid:string>/<ex:string>', methods=['GET'])
     async def trading_signals(req, uid, ex):
-        """ Query active orders of an exchange.
+        """ Query signals of active markets of an exchange.
             {
                 "signals": {
                     "BTC/USD": [ // Contain recent N signals
@@ -409,26 +409,74 @@ class APIServer():
         if not req.app.server.trader_active(req.app.traders, uid, ex):
             return response.json({'error': f'Trader [{uid}-{ex}] has not been activated'})
 
-        trader = req.app.traders[f"{uid}-{ex}"]
+        # Get active market of the trader
+        markets = req.app.traders[f"{uid}-{ex}"].ex.markets
 
-        if not trader.ex.is_ready():
-            return response.json({'error': 'Trader is not ready'})
-
-        sigs = trader.strategy.signals
+        # Get all signals
+        sigs = req.app.trader_manager.sigs[ex].signals
         if not sigs:
-            return response.json({'error': 'Trader is not ready'})
+            return response.json({'error': 'Signal is not ready'})
 
-        if uid == "1492068960851477":
-            msg = f"Query signals"
-            accept, res = await req.app.server.send_2fa_request(uid, msg)
+        signals = {'signals': {}}
 
-            if not accept:
-                return res
+        for market in markets:
+            if not market in sigs:
+                logger.warning(f"Missing signals for market {market}")
+                continue
+
+            signals['signals'][market] = []
+
+            for dt, sig in sigs[market][-12:].items():
+                action = ''
+
+                if np.isnan(sig):
+                    action = 'none'
+                elif sig > 0:
+                    action = 'buy'
+                elif sig < 0:
+                    action = 'sell'
+                elif sig == 0:
+                    action = 'close'
+
+                signals['signals'][market].append({
+                    'timestamp': dt_ms(dt),
+                    'signal': action
+                })
+
+        return response.json(signals)
+
+    @app.route('/trading/signals_all/<uid:string>/<ex:string>', methods=['GET'])
+    async def trading_signals(req, uid, ex):
+        """ Query signals of all markets of an exchange.
+            {
+                "signals": {
+                    "BTC/USD": [ // Contain recent N signals
+                        {
+                            "timestamp": string
+                            "signal": "buy", "sell", "close", "none"
+                        },
+                        ...
+                    ],
+                    "ETH/USD": [...]
+                }
+            }
+        """
+        if not await req.app.server.verified_access(uid, ex, inspect.stack()[0][3]):
+            return response.json({'error': 'Unauthorized'}, status=401)
+
+        if not req.app.server.trader_active(req.app.traders, uid, ex):
+            return response.json({'error': f'Trader [{uid}-{ex}] has not been activated'})
+
+        # Get all signals
+        sigs = req.app.trader_manager.sigs[ex].signals
+        if not sigs:
+            return response.json({'error': 'Signal is not ready'})
 
         signals = {'signals': {}}
 
         for market in sigs:
             signals['signals'][market] = []
+
             for dt, sig in sigs[market][-12:].items():
                 action = ''
 
