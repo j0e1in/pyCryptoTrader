@@ -422,8 +422,9 @@ class SingleEXTrader():
                 total_value = available_balance + self_base_value
 
             maintain_portion = total_value * self.config['maintain_portion']
+            trade_portion = 1 / max(len(self.ex.markets), 1)
             spendable = max(available_balance - maintain_portion, 0)
-            spendable = min(spendable, (total_value - maintain_portion) * self.config['trade_portion'])
+            spendable = min(spendable, (total_value - maintain_portion) * trade_portion)
 
             if spendable > 0:
                 spend = spendable * abs(confidence) / 100
