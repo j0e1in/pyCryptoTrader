@@ -530,7 +530,7 @@ class DataStoreContainer(MutableMapping):
 
     async def sync_routine(self, ds_list, obj):
         while True:
-            await asyncio.sleep(2)
+            await asyncio.sleep(1) # save every 1 sec
             self.sync(ds_list, obj)
 
     def clear(self):

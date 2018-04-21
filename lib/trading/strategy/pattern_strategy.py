@@ -36,8 +36,15 @@ class PatternStrategy(SingleEXStrategy):
         self.last_sig_exec = self.ds.get('last_sig_exec', {})
         self.signals = None
 
-        if not self.last_sig_exec:
-            for market in trader.ex.markets:
+        # Remove old entries
+        cpy = copy.deepcopy(self.last_sig_exec)
+        for market in cpy:
+            if not market in trader.ex.markets:
+                del self.last_sig_exec[market]
+
+        # Add new entries
+        for market in trader.ex.markets:
+            if not market in self.last_sig_exec:
                 self.last_sig_exec[market] = {
                     'action': NONE,
                     'time': MIN_DT,
