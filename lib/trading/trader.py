@@ -146,7 +146,7 @@ class SingleEXTrader():
                 self._start(),
                 self.check_position_status(),
                 self.ds.sync_routine(self.ds_list, self),
-                self.ex.ds.sync_routine(self.ex.ds_list, self)
+                self.ex.ds.sync_routine(self.ex.ds_list, self.ex)
             ],
             return_when=FIRST_COMPLETED)
 
