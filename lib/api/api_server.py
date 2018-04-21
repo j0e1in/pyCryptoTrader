@@ -211,7 +211,7 @@ class APIServer():
         trader = req.app.traders[f"{uid}-{ex}"]
 
         if not trader.ex.is_ready():
-            return response.json({'error': 'Not ready'})
+            return response.json({'error': 'Trader is not ready'})
 
         if uid == "1492068960851477":
             msg = f"Query account info"
@@ -286,7 +286,7 @@ class APIServer():
         trader = req.app.traders[f"{uid}-{ex}"]
 
         if not trader.ex.is_ready():
-            return response.json({'error': 'Not ready'})
+            return response.json({'error': 'Trader is not ready'})
 
         if uid == "1492068960851477":
             msg = f"Query account summary"
@@ -412,11 +412,11 @@ class APIServer():
         trader = req.app.traders[f"{uid}-{ex}"]
 
         if not trader.ex.is_ready():
-            return response.json({'error': 'Not ready'})
+            return response.json({'error': 'Trader is not ready'})
 
         sigs = trader.strategy.signals
         if not sigs:
-            return response.json({'error': 'Not ready'})
+            return response.json({'error': 'Trader is not ready'})
 
         if uid == "1492068960851477":
             msg = f"Query signals"
