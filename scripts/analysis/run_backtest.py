@@ -17,13 +17,14 @@ from utils import config, print_to_file
 async def test_single_period(mongo, market, plot, log_signal):
     # dt = (datetime(2017, 8, 1), datetime(2018, 3, 5))
     dt = (datetime(2018, 3, 1), datetime(2018, 4, 5))
+    ex = 'bitfinex'
 
     _config = copy.deepcopy(config)
-    _config['analysis']['exchanges']['bitfinex']['markets'] = [market]
+    _config['analysis']['exchanges'][ex]['markets'] = [market]
     _config['analysis']['log_signal'] = log_signal
 
-    strategy = PatternStrategy('bitfinex', custom_config=_config)
-    params = await mongo.get_params()
+    strategy = PatternStrategy(ex, custom_config=_config)
+    params = await mongo.get_params(ex)
     strategy.set_params(params)
 
     start = dt[0]
@@ -38,9 +39,9 @@ async def test_single_period(mongo, market, plot, log_signal):
                         enable_plot=plot,
                         custom_config=_config)
 
-    market = backtest.trader.markets['bitfinex'][0]
-    sp = backtest.ohlcvs['bitfinex'][market]['1m'].iloc[0].open
-    ep = backtest.ohlcvs['bitfinex'][market]['1m'].iloc[-1].close
+    market = backtest.trader.markets[ex][0]
+    sp = backtest.ohlcvs[ex][market]['1m'].iloc[0].open
+    ep = backtest.ohlcvs[ex][market]['1m'].iloc[-1].close
     ch = ep / sp if ep >= sp else ((ep / sp) - 1)
     print(f"# {market}\n"
           f"# Starting price: {sp}\n"
@@ -55,7 +56,7 @@ async def test_single_period(mongo, market, plot, log_signal):
 
     print_to_file(backtest.margin_PLs, '../log/margin_pl.out')
     print_to_file(backtest.trader.wallet_history, '../log/wallet_history.out')
-    print_to_file(backtest.trader.order_history['bitfinex'], '../log/order_history.out')
+    print_to_file(backtest.trader.order_history[ex], '../log/order_history.out')
 
     # Print orders with PL < -30
     # for _, order in hist.items():

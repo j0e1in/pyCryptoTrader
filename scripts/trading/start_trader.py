@@ -36,7 +36,7 @@ def parse_args():
                                                        "eg. localhost (host connect to mongo on host)\n"
                                                        "    mongo (container connect to mongo container)\n"
                                                        "    172.18.0.2 (host connect to mongo container)\n")
-    parser.add_argument('--reset', type=str, help='Reset app state, start fresh')
+    parser.add_argument('--reset', action='store_true', help='Reset app state, start fresh')
     parser.add_argument('--manager', action='store_true', help='Start traders with a manager')
     argv = parser.parse_args()
 
@@ -73,6 +73,8 @@ async def main():
         await trader.ex.ex.close()
 
     else:
+        exs = ['bitfinex'] if argv.enable_api else []
+
         await TraderManager(mongo,
             enable_api=argv.enable_api,
 
@@ -94,7 +96,7 @@ async def main():
             apiserver_run_kwargs=dict(
                 access_log=True,
                 enable_ssl=argv.ssl)
-        ).start()
+        ).start(exs)
 
 
 if __name__ == '__main__':

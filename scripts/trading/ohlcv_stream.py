@@ -6,7 +6,7 @@ from pprint import pformat
 import argparse
 import logging
 
-from db import EXMongo
+from db import EXMongo, Datastore
 from trading.trader import SingleEXTrader
 from trading.exchanges import EXBase
 from utils import config
@@ -21,6 +21,7 @@ def parse_args():
     parser.add_argument('--symbols', type=str, help="Symbols to fetch, eg. --symbols=BTC/USD,ETH/USD")
     parser.add_argument('--rate-limit', type=int, help="Fetch ohlcv request rate (in ms)")
     parser.add_argument('--mongo-ssl', action='store_true', help='Add SSL files to mongo client')
+    parser.add_argument('--redis-host', type=str, help='Specify redis host')
     parser.add_argument('--mongo-host', type=str, help="Specify mongodb host,\n"
                                                        "eg. localhost (host connect to mongo on host)\n"
                                                        "    mongo (container connect to mongo container)\n"
@@ -32,6 +33,12 @@ def parse_args():
 
 async def main():
     argv = parse_args()
+
+    mongo_host = argv.mongo_host or None
+    redis_host = argv.redis_host or None
+
+    mongo = EXMongo(host=mongo_host, ssl=argv.mongo_ssl)
+    Datastore.update_redis(host=redis_host)
 
     config['ccxt']['rate_limit'] = \
         argv.rate_limit if argv.rate_limit else 4000
@@ -46,9 +53,6 @@ async def main():
 
     logger.info(f"Start fetching markets:\n" \
                 f"{pformat(config['trading']['bitfinex']['markets'])}")
-
-    mongo_host = argv.mongo_host if argv.mongo_host else None
-    mongo = EXMongo(host=mongo_host, ssl=argv.mongo_ssl)
 
     ex = EXBase(mongo, 'bitfinex', log=True)
 

@@ -5,6 +5,7 @@ services:
     command: >
               --ohlcv-stream
               --mongo-host=mongo
+              --redis-host=redis
               ${MONGO_SSL}
     volumes:
       - ../data:/app/data
@@ -12,6 +13,7 @@ services:
       - ../settings:/app/settings:ro
     networks:
       - mongo_net_swarm
+      - redis_net_swarm
     secrets:
       - source: keys.json
         target: /app/private/keys.json
@@ -24,13 +26,16 @@ services:
         delay: 5s
         max_attempts: 5
 
-
 networks:
   mongo_net_swarm:
+    external: true
+  redis_net_swarm:
     external: true
 
 volumes:
   mongo_data:
+    external: true
+  redis_data:
     external: true
 
 secrets:
