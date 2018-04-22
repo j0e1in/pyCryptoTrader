@@ -51,6 +51,7 @@ class SingleEXTrader():
                  reset_state=False,
                  notify_start=True):
 
+        self._config = custom_config or config
         self.uid = uid if uid else self._config['uid']
         self.ds = Datastore.create(f"{self.uid}:trader")
 
@@ -58,7 +59,6 @@ class SingleEXTrader():
             logger.debug(f"Reset state of {self.uid}-{ex_id}")
             self.ds.clear()
 
-        self._config = custom_config or config
         self.config = self._config['trading']
         self.mongo = mongo
         self.enable_trading = self.ds.get('enable_trading', not disable_trading)
