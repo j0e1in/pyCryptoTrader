@@ -5,8 +5,10 @@ from concurrent.futures import FIRST_COMPLETED
 from pprint import pprint
 import asyncio
 
+
 from db import EXMongo
 from trading.trader import SingleEXTrader
+from utils import config
 
 
 async def test_trader_start(trader):
@@ -25,35 +27,38 @@ async def test_cancel_all_orders(trader):
 
 async def test_long(trader):
     print('-- Long --')
+    symbol = config['trading']['bitfinex']['markets'][0]
 
     done, pending = await asyncio.wait(
         [
             trader.ex.update_markets(),
             trader.ex.update_trade_fees(),
-            trader.long('XRP/USD', confidence=100, type='limit'),
+            trader.long(symbol, confidence=100, type='limit'),
         ],
         return_when=FIRST_COMPLETED)
 
 
 async def test_short(trader):
     print('-- Short --')
+    symbol = config['trading']['bitfinex']['markets'][0]
 
     done, pending = await asyncio.wait(
         [
             trader.ex.update_markets(),
             trader.ex.update_trade_fees(),
-            trader.short('BTC/USD', confidence=100, type='limit'),
+            trader.short(symbol, confidence=100, type='limit'),
         ],
         return_when=FIRST_COMPLETED)
 
 
 async def test_close(trader):
     print('-- Close --')
+    symbol = config['trading']['bitfinex']['markets'][0]
 
     done, pending = await asyncio.wait(
         [
             trader.ex.update_markets(),
-            trader.close_position('XRP/USD', confidence=100, type='limit'),
+            trader.close_position(symbol, confidence=100, type='limit'),
             trader.ex.update_trade_fees(),
         ],
         return_when=FIRST_COMPLETED)
@@ -133,7 +138,8 @@ async def test_check_position_status(trader):
 
 async def main():
     mongo = EXMongo()
-    trader = SingleEXTrader(mongo, 'bitfinex', 'pattern', log=True)
+    trader = SingleEXTrader(
+        mongo, 'bitfinex', 'pattern', log=True, reset_state=True)
 
     # await test_trader_start(trader)
     # await test_start_trading(trader)

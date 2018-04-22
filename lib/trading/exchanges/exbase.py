@@ -311,7 +311,11 @@ class EXBase():
             logger.info(f"Fetching {symbol} orderbook")
 
         orderbook = await handle_ccxt_request(self.ex.fetch_order_book, symbol, params=params)
-        orderbook['datetime'] = ms_dt(orderbook['timestamp'])
+
+        # 'timestamp' may be None
+        if isinstance(orderbook['timestamp'], int):
+            orderbook['datetime'] = ms_dt(orderbook['timestamp'])
+
         return orderbook
 
     async def update_ticker(self):
@@ -440,6 +444,9 @@ class EXBase():
         not_implemented()
 
     async def cancel_order(self):
+        not_implemented()
+
+    async def close_position(self):
         not_implemented()
 
     async def cancel_order_multi(self):

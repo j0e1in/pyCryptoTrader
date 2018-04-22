@@ -653,6 +653,72 @@ class Bitfinex(EXBase):
         res = await handle_ccxt_request(self.ex.private_post_order_cancel_all)
         return res
 
+    async def close_position(self, symbol):
+        """ Close positions of a symbol immediately.
+
+            ccxt response:
+            [{'message': 'Submitting a market order to liquidate this position.',
+            'order':   {'active': 2,
+                        'amount': '22.0',
+                        'avg_price': '0.0',
+                        'cid': None,
+                        'cid_date': None,
+                        'created_at': '2018-04-22T20:49:46.575830+08:00',
+                        'fiat_currency': None,
+                        'flags': 0,
+                        'gid': None,
+                        'hidden': False,
+                        'id': 11141572299,
+                        'lockedperiod': None,
+                        'maxrate': '0.0',
+                        'meta': None,
+                        'mseq': 0,
+                        'nopayback': None,
+                        'originalamount': '22.0',
+                        'pair': 'XRPUSD',
+                        'placed_id': None,
+                        'placed_trades': None,
+                        'price': None,
+                        'price_aux_limit': '0.0',
+                        'routing': '',
+                        'status': 'ACTIVE (note:POSCLOSE)',
+                        'tif': None,
+                        'trailingprice': '0.0',
+                        'type': 'MARKET',
+                        'type_prev': None,
+                        'updated_at': '2018-04-22T20:49:46.575830+08:00',
+                        'user_id': 398450,
+                        'v_pair': 'XRPUSD',
+                        'vir': 1},
+            'position': {'active': 1,
+                        'amount': '-22.0',
+                        'base': '0.87855',
+                        'created_at': '2018-04-22T20:49:13.000000+08:00',
+                        'id': 136543843,
+                        'maxrate': '0.0075',
+                        'noliquidation': None,
+                        'pair': 'XRPUSD',
+                        'period': None,
+                        'status': 'ACTIVE',
+                        'swap': '0.0',
+                        'swap_type': 0,
+                        'updated_at': '2018-04-22T20:49:13.000000+08:00',
+                        'user_id': 398450,
+                        'vir': 1}}]
+
+        """
+        positions = await self.fetch_positions(symbol)
+        res = []
+
+        for pos in positions:
+            params = {
+                'position_id': pos['id'],
+                'amount': str(abs(pos['amount']))
+            }
+            res.append(await handle_ccxt_request(self.ex.private_post_position_close, params=params))
+
+        return res
+
     async def _start_my_trade_stream(self, symbol):
         """ Fetch all trades to mongodb. """
         # TODO
