@@ -147,6 +147,12 @@ async def test_cancel_order_all(ex):
     pprint(res)
 
 
+async def test_close_position(ex):
+    print('-- Close position --')
+    res = await ex.close_position('XRP/USD')
+    pprint(res)
+
+
 async def test_get_market_price(ex):
     print('-- Get market price --')
     res = await ex.get_market_price('BTC/USD')
@@ -189,8 +195,10 @@ async def test_calc_all_position_value(ex):
 async def main():
     mongo = EXMongo()
 
-    key = load_keys()[config['uid']]['bitfinex']
-    ex = Bitfinex(mongo, key['apiKey'], key['secret'], ccxt_verbose=False, log=True)
+    ex_id = 'bitfinex'
+    uid = config['uid']
+    key = load_keys()[uid][ex_id]
+    ex = Bitfinex(mongo, uid=uid, apikey=key['apiKey'], secret=key['secret'], ccxt_verbose=False, log=True)
     await ex.ex.load_markets()
 
     # await test_ex_start(ex)
@@ -209,6 +217,7 @@ async def main():
     # await test_cancel_order(ex)
     # await test_cancel_order_multi(ex)
     # await test_cancel_order_all(ex)
+    # await test_close_position(ex)
 
     # await test_fetch_open_orders(ex)
     # await test_fetch_order(ex)

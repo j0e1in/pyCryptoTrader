@@ -446,6 +446,9 @@ class EXBase():
     async def cancel_order(self):
         not_implemented()
 
+    async def close_position(self):
+        not_implemented()
+
     async def cancel_order_multi(self):
         not_implemented()
 

@@ -15,6 +15,7 @@ from utils import config, print_to_file
 
 
 async def test_single_period(mongo, market, plot, log_signal):
+
     # dt = (datetime(2017, 8, 1), datetime(2018, 3, 5))
     dt = (datetime(2018, 3, 1), datetime(2018, 4, 5))
     ex = 'bitfinex'
@@ -25,6 +26,29 @@ async def test_single_period(mongo, market, plot, log_signal):
 
     strategy = PatternStrategy(ex, custom_config=_config)
     params = await mongo.get_params(ex)
+
+    params[market] = {
+        "trade_portion": 0.5,
+        "stop_loss_percent": 0.06,
+        "stop_profit_percent": 0.02,
+        "ind_conf": 100,
+
+        "stochrsi_length": 18,
+        "stoch_length": 10,
+        "stochrsi_slowk_length": 2,
+        "stochrsi_slowd_length": 2,
+        "stochrsi_upper": 70,
+        "stochrsi_lower": 40,
+        "stochrsi_adx_length": 30,
+        "stochrsi_di_length": 12,
+        "stochrsi_rsi_length": 14,
+        "stochrsi_rsi_upper": 80,
+        "stochrsi_rsi_lower": 25,
+        "stochrsi_rsi_mom_thresh": 20,
+        "stochrsi_mom_length": 20,
+        "stochrsi_mom_ma_length": 10
+    }
+
     strategy.set_params(params)
 
     start = dt[0]
