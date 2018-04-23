@@ -10,7 +10,6 @@ services:
               --env .env
               --ssl
               --manager
-              --log-signal
               ${MONGO_SSL}
               ${RESET_STATE}
     env_file:
