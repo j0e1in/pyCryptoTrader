@@ -648,7 +648,7 @@ class SingleEXTrader():
                 order = self.margin_order_queue[symbol]
                 self.dequeue_margin_order(symbol)
                 act = self.long if order['action'] == 'long' else self.short
-                act(order['symbol'], order['confidence'], order['type'], order['scale_order'])
+                await act(order['symbol'], order['confidence'], order['type'], order['scale_order'])
 
     async def cancel_all_orders(self, symbol):
         if not self.enable_trading:
