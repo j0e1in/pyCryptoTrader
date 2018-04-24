@@ -90,12 +90,8 @@ class PatternStrategy(SingleEXStrategy):
 
             # Ensure ohlcv is up-to-date
             if is_within(sig.index[-1], tftd):
-
                 if near_start(sig.index[-1], tftd):
-                    logger.debug("near_start")
-
                     if not executed(sig, self.last_sig_exec, market, tftd):
-                        logger.debug(f"executing signal")
                         actions[market] = await exec_sig(sig, market, use_prev_sig=True)
 
         return actions
@@ -179,11 +175,9 @@ def executed(sig, last_sig_exec, market, tftd):
         and time < roundup_dt(sig.index[-1], tftd) \
         and time >= rounddown_dt(sig.index[-1], tftd) \
         and action == to_action(sig.iloc[-2]):
-            logger.debug(f'Executed, time: {time}')
             return True
 
         else:
-            logger.debug(f'Not Executed, time: {time}')
             return False
 
     raise RuntimeError("Should only call this function if near_start or near_end")

@@ -49,7 +49,7 @@
     // price difference (buffer) to the top price in orderbook
     "scale_order_near_percent": 0.002,
     "scale_order_close_far_percent": 0.005,
-    "scale_order_far_percent": 0.03,
+    "scale_order_far_percent": 0.02,
     "scale_order_count": 20,
 
     "summary_delay": 120,
