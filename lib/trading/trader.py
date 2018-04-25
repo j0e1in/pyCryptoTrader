@@ -999,7 +999,7 @@ class SingleEXTrader():
                 base_value = pos['base_price'] * abs(pos['amount'])
                 pl_perc = pos['pl'] * margin_rate / base_value * 100
                 side = 'buy' if pos['amount'] > 0 else 'sell'
-                logger.debug(f"Active position {self.uid} -- {pos['symbol']}, ID: {pos['id']}, side: {side}, PL: {pl_perc:0.2f} %")
+                logger.debug(f"Active position {self.uid} -- {pos['symbol']}, ID: {pos['id']}, side: {side}, PL: {pos['pl']:0.2f} PL(%): {pl_perc:0.2f} %")
 
             # Remove closed positions
             to_del = []
