@@ -9,7 +9,7 @@ services:
               ${MONGO_SSL}
     volumes:
       - ../data:/app/data
-      - ../log:/app/log
+      - ../../log:/log
       - ../settings:/app/settings:ro
     networks:
       - mongo_net_swarm

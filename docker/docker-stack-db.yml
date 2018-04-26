@@ -6,7 +6,7 @@ services:
       - ../.env
     volumes:
       - mongo_data:/data/db
-      - ../log:/app/log
+      - ../../log:/log
       - ../settings:/app/settings:ro
     networks:
       - mongo_net_swarm
@@ -28,7 +28,7 @@ services:
               --requirepass \"$$(cat /run/secrets/redis-passwd)\""
     volumes:
       - redis_data:/data
-      - ../log:/app/log
+      - ../../log:/log
       - ../settings/redis.conf:/etc/redis/redis.conf
     networks:
       - redis_net_swarm
