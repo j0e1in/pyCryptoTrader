@@ -33,7 +33,6 @@ while :; do
     case $3 in
       --no-cache) build_args="$build_args --no-cache";;
       --pull) pull="true";;
-      --disable-mongo-ssl) mongo_ssl="false";;
       --reset) reset_state="true";;
       --cmd=*) IFS='=' read -r _ CMD <<< $3;; # split by first '='
       *) break
@@ -49,12 +48,6 @@ if [ "$pull" == "true" ]; then
 else
   IMG_ACTION=building
   GET_IMAGE="docker-compose build $build_args"
-fi
-
-if [ "$mongo_ssl" == "false" ]; then
-  MONGO_SSL=":"
-else
-  MONGO_SSL="export MONGO_SSL=--mongo-ssl"
 fi
 
 if [ "$reset_state" == "true" ]; then
@@ -121,7 +114,6 @@ ssh $USERNAME@$HOST \
   gcloud auth configure-docker
   \
   $DEPLOY_CMD && \
-  $MONGO_SSL && \
   $RESET_STATE && \
   $GET_IMAGE && \
   \

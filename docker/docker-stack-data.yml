@@ -6,7 +6,6 @@ services:
               --ohlcv-stream
               --mongo-host=mongo
               --redis-host=redis
-              ${MONGO_SSL}
     volumes:
       - ../data:/app/data
       - ../../log:/log

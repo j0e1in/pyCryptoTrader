@@ -292,12 +292,13 @@
     "ssl": true,
     "ca": null,
     "cert": "../private/ssl/mongod.pem",
+    "cert_host": "crypto.csie.io",
     "username": "ex",
     "auth_db": "admin",
     "dbname_exchange": "exchange",
     "dbname_trade": "trading",
     "dbname_api": "api",
-    "dbname_analysis": "analysis"
+    "dbname_analysis": "analysis",
   },
 
   "datastore": {

@@ -31,7 +31,6 @@ pd.options.mode.chained_assignment = None
 
 logger = logging.getLogger('pyct')
 
-no_ssl_hosts = ['127.0.0.1', 'localhost', 'mongo']
 
 class EXMongo():
 
@@ -39,7 +38,7 @@ class EXMongo():
                  host=None,
                  port=None,
                  uri=None,
-                 ssl=False,
+                 ssl=True,
                  cert_file=None,
                  ca_file=None,
                  custom_config=None):
@@ -49,7 +48,11 @@ class EXMongo():
         host = host or self.config['default_host']
         port = port or self.config['default_port']
 
-        if ssl and host not in no_ssl_hosts:
+        if ssl and host != self.config['cert_host']:
+            ssl = False
+            logger.warning(f"SSL is not enabled because host is not {self.config['cert_host']}")
+
+        if ssl:
             cert_file = cert_file or self.config['cert']
             ca_file = ca_file or self.config['ca']
             ssl_status = 'enabled'
