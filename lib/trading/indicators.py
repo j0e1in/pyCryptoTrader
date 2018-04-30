@@ -749,6 +749,11 @@ def na(ss):
         ss = np.nan if ss == 0 else ss
     return ss
 
+
+def roc(ss, len):
+    """ Rate of Change """
+    return (ss - ss[len]) / ss[len] * 100
+
 ###################################
 # END END END END END END END END #
 ###################################

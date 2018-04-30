@@ -23,7 +23,6 @@ while :; do
     case $2 in
       --no-cache) build_args="$build_args --no-cache";;
       --pull) pull="true";;
-      --mongo-ssl) export MONGO_SSL=--mongo-ssl;;
       --reset) export RESET_STATE=--reset;;
       --cmd=*) IFS='=' read -r _ CMD <<< $2;; # split by first '='
       *) break

@@ -20,7 +20,6 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--symbols', type=str, help="Symbols to fetch, eg. --symbols=BTC/USD,ETH/USD")
     parser.add_argument('--rate-limit', type=int, help="Fetch ohlcv request rate (in ms)")
-    parser.add_argument('--mongo-ssl', action='store_true', help='Add SSL files to mongo client')
     parser.add_argument('--redis-host', type=str, help='Specify redis host')
     parser.add_argument('--mongo-host', type=str, help="Specify mongodb host,\n"
                                                        "eg. localhost (host connect to mongo on host)\n"
@@ -37,7 +36,7 @@ async def main():
     mongo_host = argv.mongo_host or None
     redis_host = argv.redis_host or None
 
-    mongo = EXMongo(host=mongo_host, ssl=argv.mongo_ssl)
+    mongo = EXMongo(host=mongo_host)
     Datastore.update_redis(host=redis_host)
 
     config['ccxt']['rate_limit'] = \

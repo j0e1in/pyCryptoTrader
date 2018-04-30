@@ -10,7 +10,7 @@ systemLog:
   quiet: false
   traceAllExceptions: false
   # path: /dev/stdout
-  path: /app/log/mongodb/mongod.log
+  path: /log/mongodb/mongod.log
   logAppend: true
   logRotate: rename # 'rename' or 'reopen', if use 'repoen', logAppend must be true
   destination: file # 'file' or 'syslog'

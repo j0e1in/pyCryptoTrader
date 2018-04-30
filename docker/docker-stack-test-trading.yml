@@ -10,14 +10,12 @@ services:
               --env .env
               --ssl
               --manager
-              --log-signal
-              ${MONGO_SSL}
               ${RESET_STATE}
     env_file:
       - ../.env
     volumes:
       - ../data:/app/data
-      - ../log:/app/log
+      - ../../log:/log
       - ../settings:/app/settings:ro
     networks:
       - mongo_net_swarm

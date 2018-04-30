@@ -426,7 +426,7 @@ class APIServer():
 
             signals['signals'][market] = []
 
-            for dt, sig in sigs[market][-12:].items():
+            for dt, sig in sigs[market][-18:].items():
                 action = ''
 
                 if np.isnan(sig):

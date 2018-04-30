@@ -78,9 +78,9 @@ async def test_single_period(mongo, market, plot, log_signal):
     print(market, ':', report['PL(%)'])
     print('\n-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n')
 
-    print_to_file(backtest.margin_PLs, '../log/margin_pl.out')
-    print_to_file(backtest.trader.wallet_history, '../log/wallet_history.out')
-    print_to_file(backtest.trader.order_history[ex], '../log/order_history.out')
+    print_to_file(backtest.margin_PLs, '../../log/backtest/margin_pl.log')
+    print_to_file(backtest.trader.wallet_history, '../../log/backtest/wallet_history.log')
+    print_to_file(backtest.trader.order_history[ex], '../../log/backtest/order_history.log')
 
     # Print orders with PL < -30
     # for _, order in hist.items():

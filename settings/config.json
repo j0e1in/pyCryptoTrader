@@ -83,12 +83,11 @@
         "SAN/USD",
       ],
       "timeframes": [
-          "1m",
-          "8h"
+          "1m"
       ]
     },
     "strategy": {
-      "data_days": 20,
+      "data_days": 90,
       "near_start_ratio": 0.05,
       "near_end_ratio": 0.03
     },
@@ -292,12 +291,13 @@
     "ssl": true,
     "ca": null,
     "cert": "../private/ssl/mongod.pem",
+    "cert_host": "crypto.csie.io",
     "username": "ex",
     "auth_db": "admin",
     "dbname_exchange": "exchange",
     "dbname_trade": "trading",
     "dbname_api": "api",
-    "dbname_analysis": "analysis"
+    "dbname_analysis": "analysis",
   },
 
   "datastore": {
@@ -345,5 +345,3 @@
     "seconds_to_expire": 120
   }
 }
-
-
