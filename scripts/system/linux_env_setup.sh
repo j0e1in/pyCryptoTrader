@@ -1,10 +1,7 @@
 #!/bin/bash
 
-export NEW_MONGO_DATA_LOC=/new/location/mongodb/
-
 mkdir -p Tmp/
 cd Tmp
-
 
 # Downlaod ta-lib source
 wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz
@@ -34,11 +31,3 @@ echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu xenial/mongod
 
 sudo apt-get update
 sudo apt-get install -y mongodb-org
-sudo service mongod start
-
-# Link default mongo data path to a new location
-# sudo service mongod stop
-# sudo mv /var/lib/mongodb $NEW_MONGO_DATA_LOC
-# sudo ln -s /new/disk/mongodb/ /var/lib/mongodb
-# sudo chown mongodb:mongodb $NEW_MONGO_DATA_LOC
-# sudo service mongod start
