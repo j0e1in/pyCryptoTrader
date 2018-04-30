@@ -7,11 +7,10 @@ services:
               --name="$${INDICATOR_NAME}"
               --mongo-host="$${REMOTE_MONGO_IP}"
               --symbols="$${OPTIMIZE_SYMBOLS}"
-              --mongo-ssl
     env_file:
       - ../.env
     volumes:
-      - ../log:/app/log
+      - ../../log:/log
       - ../settings:/app/settings:ro
     ports:
       - "8000:8000"

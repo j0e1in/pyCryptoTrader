@@ -2,7 +2,7 @@
 $ nohup python restart.py start_trader.py &
 
 # Stream a log file from remote server
-ssh -t j0e1in@35.201.224.121 "tail -f ~/pyCryptoTrader/log/start_trader.log"
+ssh -t j0e1in@35.201.224.121 "tail -f ~/log/start_trader.log"
 
 # Check python programs is running
 ps -A | grep python

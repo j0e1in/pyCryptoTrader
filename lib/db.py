@@ -24,14 +24,14 @@ from utils import \
     smallest_tf, \
     roundup_dt, \
     utc_now, \
-    tf_td
+    tf_td, \
+    is_within
 
 
 pd.options.mode.chained_assignment = None
 
 logger = logging.getLogger('pyct')
 
-no_ssl_hosts = ['127.0.0.1', 'localhost', 'mongo']
 
 class EXMongo():
 
@@ -39,7 +39,7 @@ class EXMongo():
                  host=None,
                  port=None,
                  uri=None,
-                 ssl=False,
+                 ssl=True,
                  cert_file=None,
                  ca_file=None,
                  custom_config=None):
@@ -49,7 +49,11 @@ class EXMongo():
         host = host or self.config['default_host']
         port = port or self.config['default_port']
 
-        if ssl and host not in no_ssl_hosts:
+        if ssl and host != self.config['cert_host']:
+            ssl = False
+            logger.warning(f"SSL is not enabled because host is not {self.config['cert_host']}")
+
+        if ssl:
             cert_file = cert_file or self.config['cert']
             ca_file = ca_file or self.config['ca']
             ssl_status = 'enabled'
@@ -362,6 +366,7 @@ class EXMongo():
         return params
 
     async def get_latest_ohlcvs(self, ex, markets, timeframes):
+        """ Get latest ohlcvs for trading. """
         if not isinstance(timeframes, list):
             timeframes = [timeframes]
 
@@ -373,9 +378,10 @@ class EXMongo():
 
         for symbol, tfs in ohlcvs.items():
             sm_tf = smallest_tf(list(ohlcvs[symbol].keys()))
+            tftd = tf_td(self._config['trading']['indicator_tf']) - timedelta(minutes=1)
 
             for tf in tfs:
-                if tf != sm_tf:
+                if tf != sm_tf and is_within(ohlcvs[symbol][tf].index[-1], tftd):
                     ohlcvs[symbol][tf] = ohlcvs[symbol][tf][:-1] # drop the last row
             fill_ohlcv_with_small_tf(ohlcvs[symbol])
 

@@ -45,7 +45,7 @@ def main():
 
         logger.info(msg)
 
-        with open('log/restart.log', 'a') as f:
+        with open('../log/restart.log', 'a') as f:
             f.write(msg)
 
         time.sleep(3)

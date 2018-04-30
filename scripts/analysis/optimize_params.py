@@ -57,6 +57,8 @@ async def generate_params(mongo, ex, argv):
     optimizer.optimize_range('stochrsi_di_length', 10, 14, 1)
     optimizer.optimize_range('stochrsi_rsi_length', 10, 20, 2)
     optimizer.optimize_range('stochrsi_rsi_mom_thresh', 10, 30, 10)
+    optimizer.optimize_range('stochrsi_rsi_upper', 80, 85, 5)
+    optimizer.optimize_range('stochrsi_rsi_lower', 20, 25, 5)
 
     combs = optimizer.count()
     print(f"Generating {combs} parameter sets of {name}")
@@ -141,7 +143,6 @@ def parse_args():
 
     # Options for all tasks
     parser.add_argument('--name', type=str, help="Name for the param set")
-    parser.add_argument('--mongo-ssl', action='store_true', help='Add SSL files to mongo client')
     parser.add_argument('--mongo-host', type=str,
         help="Specify mongodb host,\n"
              "eg. localhost (host connect to mongo on host)\n"
@@ -159,7 +160,7 @@ def parse_args():
 async def main():
     argv = parse_args()
 
-    mongo = EXMongo(host=argv.mongo_host or None, ssl=argv.mongo_ssl)
+    mongo = EXMongo(host=argv.mongo_host or None)
     ex = 'bitfinex'
 
     if argv.task == 'generate':
