@@ -24,7 +24,8 @@ from utils import \
     smallest_tf, \
     roundup_dt, \
     utc_now, \
-    tf_td
+    tf_td, \
+    is_within
 
 
 pd.options.mode.chained_assignment = None
@@ -365,6 +366,7 @@ class EXMongo():
         return params
 
     async def get_latest_ohlcvs(self, ex, markets, timeframes):
+        """ Get latest ohlcvs for trading. """
         if not isinstance(timeframes, list):
             timeframes = [timeframes]
 
@@ -376,9 +378,10 @@ class EXMongo():
 
         for symbol, tfs in ohlcvs.items():
             sm_tf = smallest_tf(list(ohlcvs[symbol].keys()))
+            tftd = tf_td(self._config['trading']['indicator_tf']) - timedelta(minutes=1)
 
             for tf in tfs:
-                if tf != sm_tf:
+                if tf != sm_tf and is_within(ohlcvs[symbol][tf].index[-1], tftd):
                     ohlcvs[symbol][tf] = ohlcvs[symbol][tf][:-1] # drop the last row
             fill_ohlcv_with_small_tf(ohlcvs[symbol])
 
