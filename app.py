@@ -28,6 +28,7 @@ def parse_args():
     parser.add_argument('--restart-trader', action='store_true', help="Execute restart_trader.py")
     parser.add_argument('--add-trader', type=str, help="Execute manage_trader.py --add")
     parser.add_argument('--remove-trader', type=str, help="Execute manage_trader.py --rm")
+    parser.add_argument('--close-position', action='store_true', help="Execute close_position.py")
 
     parser.add_argument('--none', action='store_true', help="Do not execute anything, this is for docker-compose")
 
@@ -105,8 +106,11 @@ def main():
     elif argv.add_trader:
         os.system(f"python scripts/trading/manage_trader.py --add=\"{argv.add_trader}\"")
 
-    elif argv.rm_trader:
-        os.system(f"python scripts/trading/manage_trader.py --rm=\"{argv.rm_trader}\"")
+    elif argv.remove_trader:
+        os.system(f"python scripts/trading/manage_trader.py --rm=\"{argv.remove_trader}\"")
+
+    elif argv.close_position:
+        os.system(f"python scripts/trading/close_position.py {argv_remain}")
 
     else:
         parser.print_help(sys.stderr)
