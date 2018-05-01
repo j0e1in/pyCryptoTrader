@@ -196,7 +196,8 @@ class SingleEXTrader():
         for market in self.ex.markets:
             self.ex.set_market_start_dt(market, self.summary['start'])
 
-        if self.notify_start:
+        if self.notify_start \
+        and self.uid in self._config['notify_start_uid']:
             await self.notifier.notify_start()
 
         logger.info("Start trading")
@@ -320,7 +321,7 @@ class SingleEXTrader():
         if not self.enable_trading:
             return {}
 
-        res = await self._do_long_short_close_immediately(
+        res = await self._do_long_short(
             'close', symbol, confidence, type, scale_order=scale_order)
 
         return res
@@ -375,15 +376,17 @@ class SingleEXTrader():
         for pos in symbol_positions: # a symbol normally has only one position
             symbol_amount += pos['amount'] # negative amount means 'sell'
 
-        _action = None
+        orig_action = None
         if action == 'close':
             # there's no position to close
             if symbol_amount == 0:
                 return None
 
-            _action = 'close'
+            orig_action = 'close'
             side = 'buy' if symbol_amount < 0 else 'sell'
             action = 'long' if side == 'buy' else 'short'
+        else:
+            orig_action = action
 
         # Calcualte position base value of all markets
         base_value, pl = self.calc_position_value(positions)
@@ -391,14 +394,12 @@ class SingleEXTrader():
 
         curr = symbol.split('/')[1]
         wallet_type = 'margin'
-
         prices = self.calc_three_point_prices(orderbook, action)
-
         amount = 0
 
         # Calculate order amount
         has_opposite_open_position = (symbol_amount < 0) if action == 'long' else (symbol_amount > 0)
-        if has_opposite_open_position:
+        if has_opposite_open_position or orig_action == 'close':
             # calculate amount to close position
             amount = abs(symbol_amount)
         else:
@@ -449,7 +450,7 @@ class SingleEXTrader():
         order_count = self.config['scale_order_count']
 
         if type == 'limit' and scale_order:
-            if has_opposite_open_position:
+            if has_opposite_open_position or orig_action == 'close':
                 end_price = prices['close_end_price']
                 exact_amount = True
             else:
@@ -497,7 +498,8 @@ class SingleEXTrader():
                             f"price: {price} amount: {amount} value: {price * amount:0.2f}")
 
             # Queue open position if current action is to close position
-            if has_opposite_open_position and not _action == 'close':
+            if has_opposite_open_position and not orig_action == 'close':
+                logger.debug(f"Queue margin order: {action} {symbol}")
                 self.queue_margin_order(action, symbol, confidence,
                                         type=type,
                                         scale_order=True)
@@ -550,15 +552,17 @@ class SingleEXTrader():
         for pos in symbol_positions:  # a symbol normally has only one position
             symbol_amount += pos['amount']  # negative amount means 'sell'
 
-        _action = None
+        orig_action = None
         if action == 'close':
             # there's no position to close
             if symbol_amount == 0:
                 return None
 
-            _action = 'close'
+            orig_action = 'close'
             side = 'buy' if symbol_amount < 0 else 'sell'
             action = 'long' if side == 'buy' else 'short'
+        else:
+            orig_action = action
 
         # Calcualte position base value of all markets
         base_value, pl = self.calc_position_value(positions)
@@ -566,17 +570,20 @@ class SingleEXTrader():
 
         curr = symbol.split('/')[1]
         wallet_type = 'margin'
-
-
         amount = 0
 
         # Close symbol's active opposite position
         has_opposite_open_position = (symbol_amount < 0) if action == 'long' else (symbol_amount > 0)
-        if has_opposite_open_position:
+        if has_opposite_open_position or orig_action == 'close':
             res = await self.ex.close_position(symbol)
-            await asyncio.sleep(10) # wait for exchange to update wallet
-            await self.ex.update_wallet()
             logger.debug(f"Closed {symbol} position")
+
+            if orig_action == 'close':
+                return res
+
+            # wait for exchange to update wallet
+            await asyncio.sleep(10)
+            await self.ex.update_wallet()
 
             # Re-fetch positions because some positions are closed
             positions = await self.ex.fetch_positions()
