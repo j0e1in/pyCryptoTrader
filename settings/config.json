@@ -336,9 +336,10 @@
   "apiclient": {
     "messenger_host": "trader.csie.io",
     "large_pl_threshold": 20, // in percentage
-    "danger_pl_threshold": 30, // in percentage
-    "large_pl_diff": 3, // in percentage
-    "danger_pl_diff": 3 // in percentage
+    "danger_pl_threshold": 10, // in percentage
+    "large_pl_diff": 5, // in percentage
+    "danger_pl_diff": 3, // in percentage
+    "notify_start_uid": [ "1492068960851477" ]
   },
 
   "authy": {
