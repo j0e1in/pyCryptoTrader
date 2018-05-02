@@ -182,7 +182,7 @@ class SingleEXTrader():
             self.summary['initial_balance'] = copy.deepcopy(self.ex.wallet)
             self.summary['initial_value'] = await self.ex.calc_account_value()
 
-        logger.info(f"Start trader as user: {self.uid}")
+        logger.info(f"Start trader: {self.uid}")
 
         if not self.enable_trading:
             logger.info("Trading disabled")
@@ -197,7 +197,7 @@ class SingleEXTrader():
             self.ex.set_market_start_dt(market, self.summary['start'])
 
         if self.notify_start \
-        and self.uid in self._config['notify_start_uid']:
+        and self.uid in self._config['apiclient']['notify_start_uid']:
             await self.notifier.notify_start()
 
         logger.info("Start trading")
@@ -287,7 +287,12 @@ class SingleEXTrader():
 
         return last_log_time, last_sig
 
-    async def long(self, symbol, confidence, type='limit', scale_order=True):
+    async def long(self, symbol, confidence,
+                   type='limit',
+                   scale_order=True,
+                   start_price=None,
+                   end_price=None,
+                   spend=None):
         """ Cancel all orders, close sell positions
             and open a buy margin order (if has enough balance).
         """
@@ -297,11 +302,20 @@ class SingleEXTrader():
             return {}
 
         res = await self._do_long_short_close_immediately(
-            'long', symbol, confidence, type, scale_order=scale_order)
+            'long', symbol, confidence, type,
+            scale_order=scale_order,
+            start_price=start_price,
+            end_price=end_price,
+            to_spend=spend)
 
         return res
 
-    async def short(self, symbol, confidence, type='limit', scale_order=True):
+    async def short(self, symbol, confidence,
+                   type='limit',
+                   scale_order=True,
+                   start_price=None,
+                   end_price=None,
+                   spend=None):
         """ Cancel all orders, close buy positions
             and open a sell margin order (if has enough balance).
         """
@@ -311,24 +325,40 @@ class SingleEXTrader():
             return {}
 
         res = await self._do_long_short_close_immediately(
-            'short', symbol, confidence, type, scale_order=scale_order)
+            'short', symbol, confidence, type,
+            scale_order=scale_order,
+            start_price=start_price,
+            end_price=end_price,
+            to_spend=spend)
 
         return res
 
-    async def close_position(self, symbol, confidence, type='limit', scale_order=True):
+    async def close_position(self, symbol,
+                            type='limit',
+                            scale_order=True,
+                            start_price=None,
+                            end_price=None,
+                            spend=None):
         res = None
 
         if not self.enable_trading:
             return {}
 
         res = await self._do_long_short(
-            'close', symbol, confidence, type, scale_order=scale_order)
+            'close', symbol, 0, type,
+            scale_order=scale_order,
+            start_price=start_price,
+            end_price=end_price,
+            to_spend=spend)
 
         return res
 
     async def _do_long_short(self, action, symbol, confidence,
                              type='limit',
-                             scale_order=True):
+                             scale_order=True,
+                             start_price=None,
+                             end_price=None,
+                             to_spend=None):
 
         async def save_to_db(orders):
             if not isinstance(orders, list):
@@ -355,26 +385,20 @@ class SingleEXTrader():
 
             await execute_mongo_ops(ops)
 
-        side = 'buy' if action == 'long' else 'sell'
-
-        await self.cancel_all_orders(symbol)
-        await self.ex.update_wallet()
-
-        orders_value = await self.ex.calc_order_value()
-        positions = await self.ex.fetch_positions()
-        orderbook = await self.ex.get_orderbook(symbol)
-
-        # Remove queued margin order
+        # Remove queued margin order because a new action is produced
         if symbol in self.margin_order_queue:
             order = self.margin_order_queue[symbol]
             logger.debug(f"{symbol} {order['action']} margin order is removed from queue")
             self.dequeue_margin_order(symbol)
 
+        positions = await self.ex.fetch_positions()
         symbol_positions = filter_by(positions, ('symbol', symbol))
 
         symbol_amount = 0
         for pos in symbol_positions: # a symbol normally has only one position
             symbol_amount += pos['amount'] # negative amount means 'sell'
+
+        side = 'buy' if action == 'long' else 'sell'
 
         orig_action = None
         if action == 'close':
@@ -388,6 +412,15 @@ class SingleEXTrader():
         else:
             orig_action = action
 
+        if not is_price_valid(start_price, end_price, side):
+            logger.warning(f"prices are invalid: {start_price}, {end_price}, {side}")
+            return None
+
+        await self.cancel_all_orders(symbol)
+        await self.ex.update_wallet()
+        orders_value = await self.ex.calc_order_value()
+        orderbook = await self.ex.get_orderbook(symbol)
+
         # Calcualte position base value of all markets
         base_value, pl = self.calc_position_value(positions)
         self_base_value = base_value / self.config[self.ex.exname]['margin_rate']
@@ -399,6 +432,16 @@ class SingleEXTrader():
 
         # Calculate order amount
         has_opposite_open_position = (symbol_amount < 0) if action == 'long' else (symbol_amount > 0)
+
+        # vairables for scale orders
+        start_price = start_price or prices['start_price']
+        if has_opposite_open_position or orig_action == 'close':
+            end_price = end_price or prices['close_end_price']
+            exact_amount = True
+        else:
+            end_price = end_price or prices['end_price']
+            exact_amount = False
+
         if has_opposite_open_position or orig_action == 'close':
             # calculate amount to close position
             amount = abs(symbol_amount)
@@ -418,7 +461,11 @@ class SingleEXTrader():
             spendable = min(spendable, (total_value - maintain_portion) * trade_portion)
 
             if spendable > 0:
-                spend = spendable * abs(confidence) / 100
+                if to_spend and to_spend < available_balance - maintain_portion:
+                    spend = to_spend
+                else:
+                    spend = spendable * abs(confidence) / 100
+
                 trade_value = spend * self.config[self.ex.exname]['margin_rate']
 
                 if trade_value < self.config[self.ex.exname]['min_trade_value']:
@@ -440,25 +487,17 @@ class SingleEXTrader():
 
             # Calculate amount to open, not including close amount (close amount == symbol_amount)
             amount = self.calc_order_amount(symbol, type, side, spend, orderbook,
-                                            start_price=prices['start_price'],
-                                            end_price=prices['end_price'],
+                                            start_price=start_price,
+                                            end_price=end_price,
                                             margin=True,
                                             scale_order=scale_order)
-
         res = None
         orders = []
         order_count = self.config['scale_order_count']
 
         if type == 'limit' and scale_order:
-            if has_opposite_open_position or orig_action == 'close':
-                end_price = prices['close_end_price']
-                exact_amount = True
-            else:
-                end_price = prices['end_price']
-                exact_amount = False
-
             orders = self.gen_scale_orders(symbol, type, side, amount,
-                                            start_price=prices['start_price'],
+                                            start_price=start_price,
                                             end_price=end_price,
                                             max_order_count=order_count,
                                             exact_amount=exact_amount)
@@ -466,7 +505,7 @@ class SingleEXTrader():
             res = await self.ex.create_order_multi(orders)
 
         else:
-            res = await self.ex.create_order(symbol, type, side, amount, price=prices['start_price'])
+            res = await self.ex.create_order(symbol, type, side, amount, price=start_price)
 
         if res:
             await save_to_db(res)
@@ -510,8 +549,13 @@ class SingleEXTrader():
 
     async def _do_long_short_close_immediately(self, action, symbol, confidence,
                                                type='limit',
-                                               scale_order=True):
-        """ Same as _do_long_short except this close existing positions with market orders. """
+                                               scale_order=True,
+                                               start_price=None,
+                                               end_price=None,
+                                               to_spend=None):
+        """ Same as _do_long_short except this function closes
+            existing positions with market orders.
+        """
 
         async def save_to_db(orders):
             if not isinstance(orders, list):
@@ -538,19 +582,14 @@ class SingleEXTrader():
 
             await execute_mongo_ops(ops)
 
-        side = 'buy' if action == 'long' else 'sell'
-
-        await self.cancel_all_orders(symbol)
-        await self.ex.update_wallet()
-
-        orders_value = await self.ex.calc_order_value()
         positions = await self.ex.fetch_positions()
-
         symbol_positions = filter_by(positions, ('symbol', symbol))
 
         symbol_amount = 0
         for pos in symbol_positions:  # a symbol normally has only one position
             symbol_amount += pos['amount']  # negative amount means 'sell'
+
+        side = 'buy' if action == 'long' else 'sell'
 
         orig_action = None
         if action == 'close':
@@ -564,6 +603,14 @@ class SingleEXTrader():
         else:
             orig_action = action
 
+        if not is_price_valid(start_price, end_price, side):
+            logger.warning(f"prices are invalid: {start_price}, {end_price}, {side}")
+            return None
+
+        await self.cancel_all_orders(symbol)
+        await self.ex.update_wallet()
+        orders_value = await self.ex.calc_order_value()
+
         # Calcualte position base value of all markets
         base_value, pl = self.calc_position_value(positions)
         self_base_value = base_value / self.config[self.ex.exname]['margin_rate']
@@ -574,6 +621,12 @@ class SingleEXTrader():
 
         # Close symbol's active opposite position
         has_opposite_open_position = (symbol_amount < 0) if action == 'long' else (symbol_amount > 0)
+
+        # vairables for scale orders
+        start_price = start_price or prices['start_price']
+        end_price = end_price or prices['end_price']
+        exact_amount = False
+
         if has_opposite_open_position or orig_action == 'close':
             res = await self.ex.close_position(symbol)
             logger.debug(f"Closed {symbol} position")
@@ -605,7 +658,11 @@ class SingleEXTrader():
         spendable = min(spendable, (total_value - maintain_portion) * trade_portion)
 
         if spendable > 0:
-            spend = spendable * abs(confidence) / 100
+            if to_spend and to_spend < available_balance - maintain_portion:
+                spend = to_spend
+            else:
+                spend = spendable * abs(confidence) / 100
+
             trade_value = spend * self.config[self.ex.exname]['margin_rate']
 
             if trade_value < self.config[self.ex.exname]['min_trade_value']:
@@ -624,8 +681,8 @@ class SingleEXTrader():
 
         # Calculate amount to open, not including close amount (close amount == symbol_amount)
         amount = self.calc_order_amount(symbol, type, side, spend, orderbook,
-                                        start_price=prices['start_price'],
-                                        end_price=prices['end_price'],
+                                        start_price=start_price,
+                                        end_price=end_price,
                                         margin=True,
                                         scale_order=scale_order)
 
@@ -634,11 +691,8 @@ class SingleEXTrader():
         order_count = self.config['scale_order_count']
 
         if type == 'limit' and scale_order:
-            end_price = prices['end_price']
-            exact_amount = False
-
             orders = self.gen_scale_orders(symbol, type, side, amount,
-                                           start_price=prices['start_price'],
+                                           start_price=start_price,
                                            end_price=end_price,
                                            max_order_count=order_count,
                                            exact_amount=exact_amount)
@@ -647,7 +701,7 @@ class SingleEXTrader():
 
         else:
             res = await self.ex.create_order(
-                symbol, type, side, amount, price=prices['start_price'])
+                symbol, type, side, amount, price=start_price)
         if res:
             await save_to_db(res)
 
@@ -1209,3 +1263,13 @@ class TraderManager():
         await asyncio.sleep(5) # wait for trader to stop
         self.start_trader(ue, notify_start=False)
         await asyncio.sleep(10) # wait for trader to start
+
+
+def is_price_valid(start_price, end_price, side):
+    invalid =  (end_price and not start_price) \
+            or (start_price is 0 or end_price is 0) \
+            or (not start_price and not end_price) \
+            or (start_price < end_price and side == 'buy') \
+            or (start_price > end_price and side == 'sell')
+
+    return not invalid

@@ -716,6 +716,118 @@ class APIServer():
 
         return response.json({'ok': True })
 
+    @app.route('/trading/position/open/<uid:string>/<ex:string>', methods=['POST'])
+    async def open_position(req, uid, ex):
+        if not await req.app.server.verified_access(uid, '', inspect.stack()[0][3]):
+            return response.json({'error': 'Unauthorized'}, status=401)
+
+        payload = req.json
+        if not payload or 'orders' not in payload or not isinstance(payload['orders'], list):
+            return response.json({
+                    'error': "Payload should contain field `orders` with a list of dicts"
+                })
+
+        # validate fields
+        for ord in payload['orders']:
+            if not 'symbol' in ord \
+            or not 'side' in ord \
+            or not 'start_price' in ord \
+            or not 'end_price' in ord \
+            or not 'spend' in ord:
+                return response.json({'error': "Miss field(s) in order(s)"})
+
+        if not req.app.server.trader_active(req.app.traders, uid):
+            return response.json({'error': f'Trader [{uid}] has not been activated'})
+
+        trader = req.app.traders[f"{uid}-{ex}"]
+
+        order_strs = []
+        for ord in payload['orders']:
+            ss = ' '
+            ss += 'symbol: ' + str(ord['symbol']) + ' '
+            ss += 'side: ' + str(ord['side']) + ' '
+            ss += 'start_price: ' + str(ord['start_price']) + ' '
+            ss += 'end_price: ' + str(ord['end_price']) + ' '
+            ss += 'spend: ' + str(ord['spend']) + ' '
+            order_strs.append(ss)
+
+        msg = f"Open poistion(s): {','.join(order_strs)}"
+        accept, res = await req.app.server.send_2fa_request(uid, msg)
+
+        if not accept:
+            return res
+
+        not_active_markets = []
+
+        for ord in payload['orders']:
+            if ord['symbol'] not in trader.ex.markets:
+                not_active_markets.append(ord['symbol'])
+            else:
+                if ord['side'] == 'buy':
+                    await trader.long(ord['symbol'], 100,
+                    start_price=ord['start_price'],
+                    end_price=ord['end_price'],
+                    spend=ord['spend'])
+                elif ord['side'] == 'sell':
+                    await trader.short(ord['symbol'], 100,
+                    start_price=ord['start_price'],
+                    end_price=ord['end_price'],
+                    spend=ord['spend'])
+
+        if len(not_active_markets) == 1:
+            return  response.json(
+                {'error': f"This market is not active: {','.join(not_active_markets)}"}
+            )
+        elif len(not_active_markets) >= 2:
+            return  response.json(
+                {'error': f"These markets are not active: {','.join(not_active_markets)}"}
+            )
+        else:
+            return response.json({'ok': True })
+
+
+    @app.route('/trading/position/close/<uid:string>/<ex:string>', methods=['POST'])
+    async def close_position(req, uid, ex):
+        if not await req.app.server.verified_access(uid, '', inspect.stack()[0][3]):
+            return response.json({'error': 'Unauthorized'}, status=401)
+
+        payload = req.json
+        if not payload or 'markets' not in payload or not isinstance(payload['markets'], list):
+            return response.json({
+                'error': "Payload should contain field `markets` with a list of strings"
+            })
+
+        if not req.app.server.trader_active(req.app.traders, uid):
+            return response.json({'error': f'Trader [{uid}] has not been activated'})
+
+        trader = req.app.traders[f"{uid}-{ex}"]
+
+        msg = f"Close poistion(s): {','.join(payload['markets'])}"
+        accept, res = await req.app.server.send_2fa_request(uid, msg)
+
+        if not accept:
+            return res
+
+        not_active_markets = []
+
+        for market in payload['markets']:
+            if market not in trader.ex.markets:
+                not_active_markets.append(market)
+            else:
+                await trader.close_position(market)
+
+        if len(not_active_markets) == 1:
+            return  response.json(
+                {'error': f"This market is not active: {','.join(not_active_markets)}"}
+            )
+        elif len(not_active_markets) >= 2:
+            return  response.json(
+                {'error': f"These markets are not active: {','.join(not_active_markets)}"}
+            )
+        else:
+            return response.json({'ok': True })
+
+
     ###########################
     ##         2FA End       ##
     ###########################

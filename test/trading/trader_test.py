@@ -58,7 +58,7 @@ async def test_close(trader):
     done, pending = await asyncio.wait(
         [
             trader.ex.update_markets(),
-            trader.close_position(symbol, confidence=100, type='limit'),
+            trader.close_position(symbol, type='limit'),
             trader.ex.update_trade_fees(),
         ],
         return_when=FIRST_COMPLETED)

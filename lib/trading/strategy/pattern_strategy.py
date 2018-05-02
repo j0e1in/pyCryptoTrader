@@ -119,7 +119,7 @@ class PatternStrategy(SingleEXStrategy):
             logger.debug(f"Close {market} positions")
             logger.debug(f"{market} indicator signal @ {utc_now()}\n{sig[-5:]}")
             action = CLOSE
-            orders = await self.trader.close_position(market, conf, type='limit')
+            orders = await self.trader.close_position(market, type='limit')
 
         if orders:
             await self.trader.notifier.notify_open_orders_succ(orders)
@@ -237,7 +237,6 @@ async def calculate_signals(mongo, ex, markets, tf, indicator, ind_name, ohlcvs)
 
     for market in markets:
         if market not in params:
-            logger.warning(f"No param for market {market}, using common param")
             param = params['common']
         else:
             param = params[market]

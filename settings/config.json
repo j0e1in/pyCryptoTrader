@@ -317,7 +317,9 @@
         "enable_markets",
         "disable_markets",
         "enable_trading",
-        "disable_trading"
+        "disable_trading",
+        "open_position",
+        "close_position"
       ],
       "3": [
         "change_log_level",
@@ -326,7 +328,9 @@
         "enable_markets",
         "disable_markets",
         "enable_trading",
-        "disable_trading"
+        "disable_trading",
+        "open_position",
+        "close_position"
       ]
     },
     "cert": "../private/ssl/fullchain.pem",
