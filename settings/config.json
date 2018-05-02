@@ -117,7 +117,7 @@
 
   "analysis": {
     "fee": 0.002,
-    "margin_fee": 0.001,
+    "margin_fee": 0.002,
     "margin_rate": 3.0,
     "force_liquidate_percent": 0.15,
     "indicator_tf": "8h",
