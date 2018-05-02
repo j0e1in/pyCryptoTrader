@@ -17,7 +17,7 @@ async def close_position(trader, symbol):
         [
             trader.ex.update_markets(),
             trader.ex.update_trade_fees(),
-            trader.close_position(symbol, confidence=100, type='limit'),
+            trader.close_position(symbol, type='limit'),
         ],
         return_when=FIRST_COMPLETED)
 
