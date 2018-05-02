@@ -28,7 +28,8 @@ from utils import \
     tf_td, \
     MIN_DT, \
     execute_mongo_ops, \
-    async_catch_traceback
+    async_catch_traceback, \
+    is_price_valid
 
 logger = logging.getLogger('pyct')
 
@@ -1263,13 +1264,3 @@ class TraderManager():
         await asyncio.sleep(5) # wait for trader to stop
         self.start_trader(ue, notify_start=False)
         await asyncio.sleep(10) # wait for trader to start
-
-
-def is_price_valid(start_price, end_price, side):
-    invalid =  (end_price and not start_price) \
-            or (start_price is 0 or end_price is 0) \
-            or (not start_price and not end_price) \
-            or (start_price < end_price and side == 'buy') \
-            or (start_price > end_price and side == 'sell')
-
-    return not invalid
