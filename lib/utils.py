@@ -794,9 +794,11 @@ async def async_catch_traceback(fn, *args, **kwargs):
 
 
 def is_price_valid(start_price, end_price, side):
+    if start_price is None and end_price is None:
+        return True
+
     invalid =  (end_price and not start_price) \
             or (start_price is 0 or end_price is 0) \
-            or (not start_price and not end_price) \
             or (start_price < end_price and side == 'buy') \
             or (start_price > end_price and side == 'sell')
 
