@@ -264,7 +264,11 @@ class Signals():
         self.signals = {}
 
     async def start(self):
+        prev_ohlcvs = {}
+        prev_signals = {}
+
         while True:
+
             ohlcvs = await self.mongo.get_latest_ohlcvs(
                 ex=self.ex,
                 markets=self.markets,
@@ -279,7 +283,49 @@ class Signals():
                 ind_name=self._config['trading']['indicator'],
                 ohlcvs=ohlcvs)
 
-            del ohlcvs
+            if prev_ohlcvs and prev_signals:
+                for market in ohlcvs:
+                    for tf in ohlcvs[market]:
+                        oh = ohlcvs[market][tf][:-1]
+                        prev_oh = prev_ohlcvs[market][tf][:-1]
+                        tt = oh.loc[oh.index.intersection(prev_oh.index)]
+                        ss = prev_oh.loc[prev_oh.index.intersection(tt.index)]
+
+                        sig = self.signals[market]
+                        prev_sig = prev_signals[market]
+                        yy = sig.loc[sig.index.intersection(prev_sig.index)]
+                        xx = prev_sig.loc[prev_sig.index.intersection(yy.index)]
+
+                        ss = ss[-30:]
+                        tt = tt[-30:]
+                        xx = xx[-30:]
+                        yy = yy[-30:]
+
+                        if not series_equal(ss.open, tt.open):
+                            logger.warning(f"{market} ohlcv.open is not consistent")
+                        if not series_equal(ss.close, tt.close):
+                            logger.warning(f"{market} ohlcv.close is not consistent")
+                        if not series_equal(ss.high, tt.high):
+                            logger.warning(f"{market} ohlcv.high is not consistent")
+                        if not series_equal(ss.low, tt.low):
+                            logger.warning(f"{market} ohlcv.low is not consistent")
+                        if not series_equal(xx, yy):
+                            logger.warning(f"{market} signal is not consistent")
+                            print(xx)
+                            print(yy)
+
+            prev_ohlcvs = ohlcvs
+            prev_signals = self.signals
+            await asyncio.sleep(4 * 60)
+
+            # del ohlcvs
 
             # wait for 10 min on 8h timeframe
-            await asyncio.sleep((tf_td(self.tf) / 48).seconds)
+            # await asyncio.sleep((tf_td(self.tf) / 48).seconds)
+
+
+def series_equal(ss, tt):
+    if (ss.isna() != tt.isna()).any() \
+    or (ss.dropna() != tt.dropna()).any():
+        return False
+    return True
