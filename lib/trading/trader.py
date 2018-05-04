@@ -635,11 +635,6 @@ class SingleEXTrader():
         # Close symbol's active opposite position
         has_opposite_open_position = (symbol_amount < 0) if action == 'long' else (symbol_amount > 0)
 
-        # vairables for scale orders
-        start_price = start_price or prices['start_price']
-        end_price = end_price or prices['end_price']
-        exact_amount = False
-
         if has_opposite_open_position or orig_action == 'close':
             res = await self.ex.close_position(symbol)
             logger.debug(f"Closed {symbol} position")
@@ -691,6 +686,9 @@ class SingleEXTrader():
 
         orderbook = await self.ex.get_orderbook(symbol)
         prices = self.calc_three_point_prices(orderbook, action)
+        start_price = start_price or prices['start_price']
+        end_price = end_price or prices['end_price']
+        exact_amount = False
 
         # Calculate amount to open, not including close amount (close amount == symbol_amount)
         amount = self.calc_order_amount(symbol, type, side, spend, orderbook,
