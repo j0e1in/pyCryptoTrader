@@ -345,12 +345,24 @@ class SingleEXTrader():
         if not self.enable_trading:
             return {}
 
-        res = await self._do_long_short(
-            'close', symbol, 0, type,
-            scale_order=scale_order,
-            start_price=start_price,
-            end_price=end_price,
-            to_spend=spend)
+        if type == 'limit':
+            res = await self._do_long_short(
+                'close', symbol, 0, type,
+                scale_order=scale_order,
+                start_price=start_price,
+                end_price=end_price,
+                to_spend=spend)
+
+        elif type == 'market':
+            res = await self._do_long_short_close_immediately(
+                'close', symbol, 0, type,
+                scale_order=scale_order,
+                start_price=start_price,
+                end_price=end_price,
+                to_spend=spend)
+
+        else:
+            raise ValueError(f"Unsupported type: {type}")
 
         return res
 
@@ -1052,16 +1064,23 @@ class SingleEXTrader():
         pos_danger_pl = self.ds.get('pos_danger_pl', {})
 
         while True:
-            await asyncio.sleep(self.ex.config['position_check_interval'])
-
             positions = await self.ex.fetch_positions()
             pos_ids = [p['id'] for p in positions]
 
+            # Log
             for pos in positions:
                 base_value = pos['base_price'] * abs(pos['amount'])
                 pl_perc = pos['pl'] * margin_rate / base_value * 100
                 side = 'buy' if pos['amount'] > 0 else 'sell'
-                logger.debug(f"Active position {self.uid} -- {pos['symbol']}, ID: {pos['id']}, side: {side}, PL: {pos['pl']:0.2f} PL(%): {pl_perc:0.2f} %")
+                logger.debug(f"Active position {self.uid} -- {pos['symbol']}, "
+                             f"ID: {pos['id']}, side: {side}, PL: {pos['pl']:0.2f} "
+                             f"PL(%): {pl_perc:0.2f} %")
+
+                # Force to close partially filled positions
+                # which remains a very small amount
+                if pl_perc > 100 or pl_perc < -100:
+                    logger.debug(f"Closing leftover position: {pos['symbol']}")
+                    await self.close_position(pos['symbol'], type='market')
 
             # Remove closed positions
             to_del = []
@@ -1133,6 +1152,8 @@ class SingleEXTrader():
             # Sync state to datastore
             self.ds.pos_large_pl = pos_large_pl
             self.ds.pos_danger_pl = pos_danger_pl
+
+            await asyncio.sleep(self.ex.config['position_check_interval'])
 
 
 
