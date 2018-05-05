@@ -30,19 +30,18 @@ def parse_args():
     parser.add_argument('-s', '--symbol', type=str, help='Symbol of positions to close')
     argv = parser.parse_args()
 
-    return argv
+    return argv, parser
 
 
 async def main():
-    argv = parse_args()
-
-    mongo = EXMongo()
-    trader = SingleEXTrader(
-        mongo, 'bitfinex', 'pattern', uid=argv.uid, log=True, reset_state=True)
+    argv, parser = parse_args()
 
     if not argv.uid or not argv.symbol:
-        argv.print_help()
+        parser.print_help()
     else:
+        mongo = EXMongo()
+        trader = SingleEXTrader(
+            mongo, 'bitfinex', 'pattern', uid=argv.uid, log=True, reset_state=True)
         await close_position(trader, argv.symbol)
 
 

@@ -89,7 +89,7 @@
     "strategy": {
       "data_days": 90,
       "near_start_ratio": 0.05,
-      "near_end_ratio": 0.03
+      "near_end_ratio": 0.02
     },
     "params": {
       "common": {
