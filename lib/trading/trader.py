@@ -28,7 +28,8 @@ from utils import \
     tf_td, \
     MIN_DT, \
     execute_mongo_ops, \
-    async_catch_traceback
+    async_catch_traceback, \
+    is_price_valid
 
 logger = logging.getLogger('pyct')
 
@@ -344,12 +345,24 @@ class SingleEXTrader():
         if not self.enable_trading:
             return {}
 
-        res = await self._do_long_short(
-            'close', symbol, 0, type,
-            scale_order=scale_order,
-            start_price=start_price,
-            end_price=end_price,
-            to_spend=spend)
+        if type == 'limit':
+            res = await self._do_long_short(
+                'close', symbol, 0, type,
+                scale_order=scale_order,
+                start_price=start_price,
+                end_price=end_price,
+                to_spend=spend)
+
+        elif type == 'market':
+            res = await self._do_long_short_close_immediately(
+                'close', symbol, 0, type,
+                scale_order=scale_order,
+                start_price=start_price,
+                end_price=end_price,
+                to_spend=spend)
+
+        else:
+            raise ValueError(f"Unsupported type: {type}")
 
         return res
 
@@ -622,11 +635,6 @@ class SingleEXTrader():
         # Close symbol's active opposite position
         has_opposite_open_position = (symbol_amount < 0) if action == 'long' else (symbol_amount > 0)
 
-        # vairables for scale orders
-        start_price = start_price or prices['start_price']
-        end_price = end_price or prices['end_price']
-        exact_amount = False
-
         if has_opposite_open_position or orig_action == 'close':
             res = await self.ex.close_position(symbol)
             logger.debug(f"Closed {symbol} position")
@@ -678,6 +686,9 @@ class SingleEXTrader():
 
         orderbook = await self.ex.get_orderbook(symbol)
         prices = self.calc_three_point_prices(orderbook, action)
+        start_price = start_price or prices['start_price']
+        end_price = end_price or prices['end_price']
+        exact_amount = False
 
         # Calculate amount to open, not including close amount (close amount == symbol_amount)
         amount = self.calc_order_amount(symbol, type, side, spend, orderbook,
@@ -1051,16 +1062,23 @@ class SingleEXTrader():
         pos_danger_pl = self.ds.get('pos_danger_pl', {})
 
         while True:
-            await asyncio.sleep(self.ex.config['position_check_interval'])
-
             positions = await self.ex.fetch_positions()
             pos_ids = [p['id'] for p in positions]
 
+            # Log
             for pos in positions:
                 base_value = pos['base_price'] * abs(pos['amount'])
                 pl_perc = pos['pl'] * margin_rate / base_value * 100
                 side = 'buy' if pos['amount'] > 0 else 'sell'
-                logger.debug(f"Active position {self.uid} -- {pos['symbol']}, ID: {pos['id']}, side: {side}, PL: {pos['pl']:0.2f} PL(%): {pl_perc:0.2f} %")
+                logger.debug(f"Active position {self.uid} -- {pos['symbol']}, "
+                             f"ID: {pos['id']}, side: {side}, PL: {pos['pl']:0.2f} "
+                             f"PL(%): {pl_perc:0.2f} %")
+
+                # Force to close partially filled positions
+                # which remains a very small amount
+                if pl_perc > 100 or pl_perc < -100:
+                    logger.debug(f"Closing leftover position: {pos['symbol']}")
+                    await self.close_position(pos['symbol'], type='market')
 
             # Remove closed positions
             to_del = []
@@ -1132,6 +1150,8 @@ class SingleEXTrader():
             # Sync state to datastore
             self.ds.pos_large_pl = pos_large_pl
             self.ds.pos_danger_pl = pos_danger_pl
+
+            await asyncio.sleep(self.ex.config['position_check_interval'])
 
 
 
@@ -1263,13 +1283,3 @@ class TraderManager():
         await asyncio.sleep(5) # wait for trader to stop
         self.start_trader(ue, notify_start=False)
         await asyncio.sleep(10) # wait for trader to start
-
-
-def is_price_valid(start_price, end_price, side):
-    invalid =  (end_price and not start_price) \
-            or (start_price is 0 or end_price is 0) \
-            or (not start_price and not end_price) \
-            or (start_price < end_price and side == 'buy') \
-            or (start_price > end_price and side == 'sell')
-
-    return not invalid

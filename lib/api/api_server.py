@@ -14,7 +14,8 @@ from utils import \
     dt_ms, \
     config, \
     load_json, \
-    log_config
+    log_config, \
+    is_price_valid
 
 logger = logging.getLogger('pyct')
 
@@ -601,7 +602,7 @@ class APIServer():
         trader = req.app.traders[f"{uid}-{ex}"]
 
         markets = [str(market) for market in payload['markets']]
-        msg = "Enable markets " + ', '.join(markets)
+        msg = "Enable markets: " + ', '.join(markets)
         accept, res = await req.app.server.send_2fa_request(uid, msg)
 
         if not accept:
@@ -743,6 +744,9 @@ class APIServer():
 
         order_strs = []
         for ord in payload['orders']:
+            if not is_price_valid(ord['start_price'], ord['end_price'], ord['side']):
+                return response.json({'error': f'invalid order: {ord}'})
+
             ss = ' '
             ss += 'symbol: ' + str(ord['symbol']) + ' '
             ss += 'side: ' + str(ord['side']) + ' '
@@ -765,14 +769,14 @@ class APIServer():
             else:
                 if ord['side'] == 'buy':
                     await trader.long(ord['symbol'], 100,
-                    start_price=ord['start_price'],
-                    end_price=ord['end_price'],
-                    spend=ord['spend'])
+                                    start_price=ord['start_price'],
+                                    end_price=ord['end_price'],
+                                    spend=ord['spend'])
                 elif ord['side'] == 'sell':
                     await trader.short(ord['symbol'], 100,
-                    start_price=ord['start_price'],
-                    end_price=ord['end_price'],
-                    spend=ord['spend'])
+                                    start_price=ord['start_price'],
+                                    end_price=ord['end_price'],
+                                    spend=ord['spend'])
 
         if len(not_active_markets) == 1:
             return  response.json(
