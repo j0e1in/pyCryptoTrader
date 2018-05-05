@@ -90,7 +90,7 @@ class PatternStrategy(SingleEXStrategy):
 
             # Ensure ohlcv is up-to-date
             if is_within(sig.index[-1], tftd):
-                if near_start(sig.index[-1], tftd):
+                if near_start(utc_now(), tftd) and near_start(sig.index[-1], tftd):
                     if not executed(sig, self.last_sig_exec, market, tftd):
                         actions[market] = await exec_sig(sig, market, use_prev_sig=True)
 
