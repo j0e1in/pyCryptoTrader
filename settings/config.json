@@ -299,7 +299,7 @@
     "username": "ex",
     "auth_db": "admin",
     "dbname_exchange": "exchange",
-    "dbname_trade": "trading",
+    "dbname_history": "history",
     "dbname_api": "api",
     "dbname_analysis": "analysis",
   },
