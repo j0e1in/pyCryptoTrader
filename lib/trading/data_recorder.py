@@ -16,7 +16,7 @@ async def record_account_value(trader):
     last_value = last_value[0]['value'] if last_value else 0
     cur_value = await trader.ex.calc_account_value(include_pl=False)
 
-    if cur_value != last_value:
+    if round(cur_value, 3) != round(last_value, 3):
         await coll.insert_one({
             'uid': trader.uid,
             'ex': trader.ex.exname,
