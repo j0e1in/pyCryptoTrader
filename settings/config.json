@@ -128,6 +128,7 @@
     "optimization_days": 60,  // days of data used in an optimization
     "optimization_delay": 7, // how many days to run optimization once
     "param_optmization_save_threshold": 300, // margin 300% ~= normal 100%
+    "ohlcv_buffer_bars": 50, // to remove effect of signals affected by previous bars
 
     // minimal USD value is allwed to open an order
     "min_order_value": 10,
