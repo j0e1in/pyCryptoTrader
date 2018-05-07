@@ -1060,27 +1060,83 @@ class SingleEXTrader():
         margin_rate = self.config[self.ex.exname]['margin_rate']
         pos_large_pl = self.ds.get('pos_large_pl', {})
         pos_danger_pl = self.ds.get('pos_danger_pl', {})
+        pos_stop_profit = self.ds.get('pos_stop_profit', {})
 
         while True:
             positions = await self.ex.fetch_positions()
-            pos_ids = [p['id'] for p in positions]
 
-            # Log
             for pos in positions:
+                pid = pos['id']
                 base_value = pos['base_price'] * abs(pos['amount'])
                 pl_perc = pos['pl'] * margin_rate / base_value * 100
+
+                # Log active positions
                 side = 'buy' if pos['amount'] > 0 else 'sell'
                 logger.debug(f"Active position {self.uid} -- {pos['symbol']}, "
-                             f"ID: {pos['id']}, side: {side}, PL: {pos['pl']:0.2f} "
+                             f"ID: {pid}, side: {side}, PL: {pos['pl']:0.2f} "
                              f"PL(%): {pl_perc:0.2f} %")
 
-                # Force to close partially filled positions
+                # Force to close partially filled positions (leftover)
                 # which remains a very small amount
                 if pl_perc > 100 or pl_perc < -100:
                     logger.debug(f"Closing leftover position: {pos['symbol']}")
                     await self.close_position(pos['symbol'], type='market')
 
-            # Remove closed positions
+                # Monitor position profit PL and close early if PL decreases
+                stop_profit_diff = self.config['stop_profit_max_diff']
+
+                if pid not in pos_stop_profit:
+                    pos_stop_profit[pid] = {
+                        'highest_pl_perc': pl_perc,
+                        'has_close_order': False,
+                        'close_order_pl_perc': 0
+                    }
+                else:
+                    # Update highest_pl_perc
+                    if pl_perc > pos_stop_profit[pid]['highest_pl_perc']:
+                        pos_stop_profit[pid]['highest_pl_perc'] = pl_perc
+
+                    high_pl = pos_stop_profit[pid]['highest_pl_perc']
+                    logger.debug(f"{self.uid} -- {pos['symbol']} high_pl={high_pl}")
+                    if high_pl > self.config['stop_profit_threshold']:
+
+                        # case 1: no close order has been opened
+                        # and PL% falls below threshold
+                        # => open an order
+                        should_close_position_c1 = \
+                            (not pos_stop_profit[pid]['has_close_order'] \
+                            and pl_perc < high_pl - stop_profit_diff)
+
+                        logger.debug(f"should_close_position_c1: "
+                                     f"{should_close_position_c1}")
+
+                        # case 2: an close order has been opened
+                        # but current PL% > close order PL%
+                        # => update existing order
+                        should_close_position_c2 = \
+                            (pos_stop_profit[pid]['has_close_order'] \
+                            and pl_perc > pos_stop_profit[pid]['close_order_pl_perc'])
+
+                        logger.debug(f"should_close_position_c2: "
+                                     f"{should_close_position_c2}")
+
+                        if should_close_position_c1 or should_close_position_c2:
+                            await self.close_position(pos['symbol'], type='limit')
+                            pos_stop_profit[pid]['has_close_order'] = True
+                            pos_stop_profit[pid]['close_order_pl_perc'] = pl_perc
+
+            pos_ids = [p['id'] for p in positions]
+
+            # Remove closed positions from pos_stop_profit
+            to_del = []
+            for id in pos_stop_profit:
+                if id not in pos_ids:
+                    to_del.append(id)
+
+            for id in to_del:
+                del pos_stop_profit[id]
+
+            # Remove closed positions from pos_large_pl
             to_del = []
             for id in pos_large_pl:
                 if id not in pos_ids:
@@ -1089,7 +1145,7 @@ class SingleEXTrader():
             for id in to_del:
                 del pos_large_pl[id]
 
-            # Remove closed positions
+            # Remove closed positions from pos_danger_pl
             to_del = []
             for id in pos_danger_pl:
                 if id not in pos_ids:
@@ -1150,6 +1206,7 @@ class SingleEXTrader():
             # Sync state to datastore
             self.ds.pos_large_pl = pos_large_pl
             self.ds.pos_danger_pl = pos_danger_pl
+            self.ds.pos_stop_profit = pos_stop_profit
 
             await asyncio.sleep(self.ex.config['position_check_interval'])
 
