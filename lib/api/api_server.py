@@ -723,70 +723,58 @@ class APIServer():
             return response.json({'error': 'Unauthorized'}, status=401)
 
         payload = req.json
-        if not payload or 'orders' not in payload or not isinstance(payload['orders'], list):
+        if not payload or 'order' not in payload or not isinstance(payload['order'], dict):
             return response.json({
-                    'error': "Payload should contain field `orders` with a list of dicts"
+                    'error': "Payload should contain field `order` with a dict"
                 })
 
+        ord = payload['order']
+
         # validate fields
-        for ord in payload['orders']:
-            if not 'symbol' in ord \
-            or not 'side' in ord \
-            or not 'start_price' in ord \
-            or not 'end_price' in ord \
-            or not 'spend' in ord:
-                return response.json({'error': "Miss field(s) in order(s)"})
+        if not 'symbol' in ord \
+        or not 'side' in ord \
+        or not 'start_price' in ord \
+        or not 'end_price' in ord \
+        or not 'spend' in ord:
+            return response.json({'error': "Miss field(s) in order"})
 
         if not req.app.server.trader_active(req.app.traders, uid):
             return response.json({'error': f'Trader [{uid}] has not been activated'})
 
         trader = req.app.traders[f"{uid}-{ex}"]
 
-        order_strs = []
-        for ord in payload['orders']:
-            if not is_price_valid(ord['start_price'], ord['end_price'], ord['side']):
-                return response.json({'error': f'invalid order: {ord}'})
+        if not is_price_valid(ord['start_price'], ord['end_price'], ord['side']):
+            return response.json({'error': f'invalid order: {ord}'})
 
-            ss = ' '
-            ss += 'symbol: ' + str(ord['symbol']) + ' '
-            ss += 'side: ' + str(ord['side']) + ' '
-            ss += 'start_price: ' + str(ord['start_price']) + ' '
-            ss += 'end_price: ' + str(ord['end_price']) + ' '
-            ss += 'spend: ' + str(ord['spend']) + ' '
-            order_strs.append(ss)
+        ss = ' '
+        ss += 'symbol: ' + str(ord['symbol']) + ' '
+        ss += 'side: ' + str(ord['side']) + ' '
+        ss += 'start_price: ' + str(ord['start_price']) + ' '
+        ss += 'end_price: ' + str(ord['end_price']) + ' '
+        ss += 'spend: ' + str(ord['spend']) + ' '
 
-        msg = f"Open poistion(s): {','.join(order_strs)}"
+        msg = f"Open poistion(s): {ss}"
         accept, res = await req.app.server.send_2fa_request(uid, msg)
 
         if not accept:
             return res
 
-        not_active_markets = []
-
-        for ord in payload['orders']:
-            if ord['symbol'] not in trader.ex.markets:
-                not_active_markets.append(ord['symbol'])
-            else:
-                if ord['side'] == 'buy':
-                    await trader.long(ord['symbol'], 100,
-                                    start_price=ord['start_price'],
-                                    end_price=ord['end_price'],
-                                    spend=ord['spend'])
-                elif ord['side'] == 'sell':
-                    await trader.short(ord['symbol'], 100,
-                                    start_price=ord['start_price'],
-                                    end_price=ord['end_price'],
-                                    spend=ord['spend'])
-
-        if len(not_active_markets) == 1:
+        if ord['symbol'] not in trader.ex.markets:
             return  response.json(
-                {'error': f"This market is not active: {','.join(not_active_markets)}"}
-            )
-        elif len(not_active_markets) >= 2:
-            return  response.json(
-                {'error': f"These markets are not active: {','.join(not_active_markets)}"}
+                {'error': f"Market is not active: {ord['symbol']}"}
             )
         else:
+            if ord['side'] == 'buy':
+                await trader.long(ord['symbol'], 100,
+                                start_price=ord['start_price'],
+                                end_price=ord['end_price'],
+                                spend=ord['spend'])
+            elif ord['side'] == 'sell':
+                await trader.short(ord['symbol'], 100,
+                                start_price=ord['start_price'],
+                                end_price=ord['end_price'],
+                                spend=ord['spend'])
+
             return response.json({'ok': True })
 
 

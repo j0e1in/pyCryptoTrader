@@ -22,7 +22,7 @@
     "orderbook_size": 400,
     "markets_info_delay": 5400,
     "ohlcv_fetch_interval": 180,
-    "position_check_interval": 300
+    "position_check_interval": 180
   },
 
   "backtest": {
@@ -51,6 +51,9 @@
     "scale_order_close_far_percent": 0.005,
     "scale_order_far_percent": 0.03,
     "scale_order_count": 20,
+
+    "stop_profit_threshold": 8,
+    "stop_profit_max_diff": 6,
 
     "summary_delay": 120,
 
@@ -87,7 +90,7 @@
       ]
     },
     "strategy": {
-      "data_days": 90,
+      "data_days": 120,
       "near_start_ratio": 0.05,
       "near_end_ratio": 0.02
     },
