@@ -1,4 +1,3 @@
-from pprint import pprint
 from asyncio import ensure_future
 import asyncio
 import ccxt.async as ccxt
@@ -338,7 +337,7 @@ class Bitfinex(EXBase):
         async def save_to_db(trades):
             collname = f"{self.exname}_trades"
             coll = self.mongo.get_collection(
-                self._config['database']['dbname_trade'], collname)
+                self._config['database']['dbname_history'], collname)
 
             ops = []
             for tr in trades:
@@ -915,7 +914,7 @@ class Bitfinex(EXBase):
 
         return value
 
-    async def calc_all_position_value(self):
+    async def calc_all_position_value(self, include_pl=True):
         """ Calculate total value of all open positions. """
         MR = self._config['trading'][self.exname]['margin_rate']
 
@@ -924,6 +923,10 @@ class Bitfinex(EXBase):
 
         for pos in positions:
             base_cost = pos['base_price'] * abs(pos['amount']) / MR
-            value += base_cost + pos['pl']
+
+            if include_pl:
+                value += base_cost + pos['pl']
+            else:
+                value += base_cost
 
         return value

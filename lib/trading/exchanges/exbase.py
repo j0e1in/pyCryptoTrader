@@ -99,7 +99,6 @@ class EXBase():
 
         self.markets = self.ds.get('markets', markets)
         self.timeframes = self.ds.get('timeframes', timeframes)
-        logger.debug(f"markets: {self.markets}")
         self.trade_fees = {}
         self.withdraw_fees = {}
         self.markets_info = {}
@@ -122,6 +121,8 @@ class EXBase():
 
         if self._config['trading']['indicator_tf'] not in self.timeframes:
             self.timeframes.append(self._config['trading']['indicator_tf'])
+
+        logger.debug(f"markets: {self.markets}")
 
     def init_wallet(self):
         wallet = {}
@@ -505,7 +506,7 @@ class EXBase():
     async def calc_order_value(self):
         not_implemented()
 
-    async def calc_all_position_value(self):
+    async def calc_all_position_value(self, include_pl=True):
         not_implemented()
 
     async def calc_trade_fee(self, start, end):
@@ -523,10 +524,10 @@ class EXBase():
         # TODO: Find a way to get margin fee
         return 0
 
-    async def calc_account_value(self):
+    async def calc_account_value(self, include_pl=True):
         wallet_value = await self.calc_wallet_value()
         order_value = await self.calc_order_value()
-        position_value = await self.calc_all_position_value()
+        position_value = await self.calc_all_position_value(include_pl=include_pl)
         return wallet_value + order_value + position_value
 
     async def calc_value_of(self, curr, amount):

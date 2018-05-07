@@ -326,7 +326,7 @@ class EXMongo():
         return coll
 
     async def get_my_trades(self, ex, start, end):
-        db = self.config['dbname_trade']
+        db = self.config['dbname_history']
         coll = f"{ex}_trades"
         coll = self.get_collection(db, coll)
         trades = await coll.find(self.cond_timestamp_range(start, end), {'_id': 0}) \
@@ -335,7 +335,7 @@ class EXMongo():
         return trades
 
     async def get_my_last_trade(self, ex, symbol):
-        db = self.config['dbname_trade']
+        db = self.config['dbname_history']
         coll = f"{ex}_trades"
         coll = self.get_collection(db, coll)
         trade = await coll.find({'symbol': symbol}, {'_id': 0}) \
@@ -345,7 +345,7 @@ class EXMongo():
         return trade[0] if trade else {}
 
     async def get_last_order_group_id(self, ex):
-        db = self.config['dbname_trade']
+        db = self.config['dbname_history']
         coll = f"{ex}_created_orders"
         coll = self.get_collection(db, coll)
         order = await coll.find({}, {'_id': 0}) \
