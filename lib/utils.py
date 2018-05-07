@@ -803,3 +803,18 @@ def is_price_valid(start_price, end_price, side):
             or (start_price > end_price and side == 'sell')
 
     return not invalid
+
+def periodic_routine(fn, interval, *args, **kwargs):
+    """ Convert a function into a endless while loop
+        that is executed every `interval` seconds.
+    """
+    async def routinized(fn, interval, *args, **kwargs):
+        while True:
+            if asyncio.iscoroutinefunction(fn):
+                await fn(*args, **kwargs)
+            else:
+                fn(*args, **kwargs)
+
+            await asyncio.sleep(interval)
+
+    return routinized(fn, interval, *args, **kwargs)

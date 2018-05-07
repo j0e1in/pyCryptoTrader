@@ -18,6 +18,7 @@ from db import Datastore
 from trading.indicators import Indicator
 from trading.strategy import PatternStrategy, Signals
 from trading import exchanges
+from trading.data_recorder import record_account_value
 from utils import \
     config, \
     load_keys, \
@@ -29,7 +30,8 @@ from utils import \
     MIN_DT, \
     execute_mongo_ops, \
     async_catch_traceback, \
-    is_price_valid
+    is_price_valid, \
+    periodic_routine
 
 logger = logging.getLogger('pyct')
 
@@ -143,6 +145,7 @@ class SingleEXTrader():
                 *ex_start_tasks,
                 self._start(),
                 self.check_position_status(),
+                self.record_data_routine(),
                 self.ds.sync_routine(self.ds_list, self),
                 self.ex.ds.sync_routine(self.ex.ds_list, self.ex),
                 self.strategy.ds.sync_routine(self.strategy.ds_list, self.strategy)
@@ -383,7 +386,7 @@ class SingleEXTrader():
 
             collname = f"{self.ex.exname}_created_orders"
             coll = self.mongo.get_collection(
-                self._config['database']['dbname_trade'], collname)
+                self._config['database']['dbname_history'], collname)
 
             ops = []
             for ord in orders:
@@ -580,7 +583,7 @@ class SingleEXTrader():
 
             collname = f"{self.ex.exname}_created_orders"
             coll = self.mongo.get_collection(
-                self._config['database']['dbname_trade'], collname)
+                self._config['database']['dbname_history'], collname)
 
             ops = []
             for ord in orders:
@@ -921,7 +924,7 @@ class SingleEXTrader():
         return ohlcv
 
     async def get_summary(self):
-        td = timedelta(seconds=self.config['summary_delay'])
+        td = timedelta(seconds=self.config['summary_interval'])
         if (utc_now() - self.summary['now']) < td:
             return self.summary
 
@@ -1078,7 +1081,7 @@ class SingleEXTrader():
 
                 # Force to close partially filled positions (leftover)
                 # which remains a very small amount
-                if pl_perc > 100 or pl_perc < -100:
+                if pl_perc > 200 or pl_perc < -100:
                     logger.debug(f"Closing leftover position: {pos['symbol']}")
                     await self.close_position(pos['symbol'], type='market')
 
@@ -1208,8 +1211,16 @@ class SingleEXTrader():
             self.ds.pos_danger_pl = pos_danger_pl
             self.ds.pos_stop_profit = pos_stop_profit
 
-            await asyncio.sleep(self.ex.config['position_check_interval'])
+            await asyncio.sleep(self.config['position_check_interval'])
 
+    async def record_data_routine(self):
+
+        routines = [
+            periodic_routine(record_account_value,
+                self.config['record_account_value_interval'], self)
+        ]
+
+        await asyncio.gather(*routines)
 
 
 class TraderManager():

@@ -22,7 +22,6 @@
     "orderbook_size": 400,
     "markets_info_delay": 5400,
     "ohlcv_fetch_interval": 180,
-    "position_check_interval": 180
   },
 
   "backtest": {
@@ -55,7 +54,9 @@
     "stop_profit_threshold": 8,
     "stop_profit_max_diff": 6,
 
-    "summary_delay": 120,
+    "summary_interval": 120,
+    "position_check_interval": 180,
+    "record_account_value_interval": 60,
 
     "bitfinex": {
       "margin_rate": 3.33,
