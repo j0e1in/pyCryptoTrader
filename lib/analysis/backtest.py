@@ -12,6 +12,7 @@ import pandas as pd
 import numpy as np
 
 from analysis.backtest_trader import SimulatedTrader, FastTrader
+from db import EXMongo
 from utils import \
     INF, \
     MIN_DT, \
@@ -24,18 +25,14 @@ from utils import \
     rounddown_dt, \
     check_periods
 
-try:
-    from analysis.plot import Plot
-except ImportError:
-    pass
-
-from db import EXMongo
-
 logger = logging.getLogger('pyct')
 
-# import multiprocessing, logging
-# logger = multiprocessing.log_to_stderr()
-# logger.setLevel(multiprocessing.SUBDEBUG)
+try:
+    from analysis.plot import Plot
+except ImportError as err:
+    logger.warning(err)
+    pass
+
 
 class Backtest():
 
@@ -56,6 +53,11 @@ class Backtest():
         self.start = start
         self.end = end
         self.timer = Timer(self.start, self.config['base_timeframe'])
+        self.buff_days = int(self._config['analysis']['ohlcv_buffer_bars'] \
+            / (timedelta(hours=24) / tf_td(self._config['analysis']['indicator_tf'])))
+
+        if (self.end - self.start).days <= self.buff_days:
+            raise RuntimeError(f"ohlcv days < buffer days")
 
         if self.config['fast_mode']:
             self.trader = FastTrader(self.timer, self.strategy, custom_config=_config)
@@ -121,7 +123,7 @@ class Backtest():
             "initial_value": self._calc_total_value(self.timer.now()),
             "final_fund": None,
             "final_value": 0,
-            "days": (self.end - self.start).days,
+            "days": (self.end - self.start).days - self.buff_days,
             "PL": 0,
             "PL(%)": 0,
             "PL_Eff": 0,
@@ -138,7 +140,7 @@ class Backtest():
         self.report['Fee'] = 0
 
         # PL_Eff = 1 means 100% return in 30 days
-        self.report['PL_Eff'] = self.report['PL(%)'] / (self.end - self.start).days * 0.3
+        self.report['PL_Eff'] = self.report['PL(%)'] / self.report['days'] * 0.3
 
         for ex, orders in self.trader.order_history.items():
             for _, order in orders.items():
@@ -203,6 +205,7 @@ class Backtest():
                 # Plot ohlc
                 ohlc = self.ohlcvs[ex][market][self.trader.config['indicator_tf']]
                 ohlc = ohlc[self.start:self.end]
+                ohlc = ohlc[self.start + timedelta(days=self.buff_days):]
                 plot.plot_ohlc(ohlc)
 
                 # Plot orders

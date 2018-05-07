@@ -1,6 +1,7 @@
 from pprint import pprint
 
 import logging
+import numpy as np
 
 from analysis.strategy import SingleExchangeStrategy
 
@@ -41,6 +42,11 @@ class PatternStrategy(SingleExchangeStrategy):
         ohlcv = self.ohlcvs[market][self.trader.config['indicator_tf']]
         sig = self.ind.stoch_rsi_sig(ohlcv)
 
+        buff_len = self._config['analysis']['ohlcv_buffer_bars']
+        if buff_len >= len(sig):
+            raise RuntimeError("ohlcv_buffer_bars > signal length")
+
+        sig[:buff_len] = np.nan
         return sig
 
     def execute_signal(self, sig, market, stop_loss=False, stop_profit=False):
