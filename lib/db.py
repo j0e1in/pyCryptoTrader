@@ -334,7 +334,7 @@ class EXMongo():
                                  .to_list(length=INF)
         return trades
 
-    async def get_my_last_trade(self, uid, ex, symbol):
+    async def get_my_last_trade(self, ex, symbol):
         db = self.config['dbname_history']
         coll = f"{ex}_trades"
         coll = self.get_collection(db, coll)
