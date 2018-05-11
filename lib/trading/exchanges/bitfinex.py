@@ -1,4 +1,3 @@
-from pprint import pprint
 from asyncio import ensure_future
 import asyncio
 import ccxt.async as ccxt
@@ -335,22 +334,6 @@ class Bitfinex(EXBase):
              'timestamp': 1512044991000,
              'type': None}]
         """
-        async def save_to_db(trades):
-            collname = f"{self.exname}_trades"
-            coll = self.mongo.get_collection(
-                self._config['database']['dbname_trade'], collname)
-
-            ops = []
-            for tr in trades:
-                ops.append(
-                    ensure_future(
-                        coll.update_one(
-                            {'id': tr['id']},
-                            {'$set': tr},
-                            upsert=True)))
-
-            await execute_mongo_ops(ops)
-
         if not hasattr(self.ex, 'fetch_my_trades'):
             logger.warning(f"{self.exname} doesn't have fetch_my_trades method.")
             return []
@@ -374,7 +357,6 @@ class Bitfinex(EXBase):
             trades.append(trade)
 
         trades = trades[::-1] # reverse the order to oldest first
-        await save_to_db(trades)
         return trades
 
     @staticmethod
@@ -915,7 +897,7 @@ class Bitfinex(EXBase):
 
         return value
 
-    async def calc_all_position_value(self):
+    async def calc_all_position_value(self, include_pl=True):
         """ Calculate total value of all open positions. """
         MR = self._config['trading'][self.exname]['margin_rate']
 
@@ -924,6 +906,10 @@ class Bitfinex(EXBase):
 
         for pos in positions:
             base_cost = pos['base_price'] * abs(pos['amount']) / MR
-            value += base_cost + pos['pl']
+
+            if include_pl:
+                value += base_cost + pos['pl']
+            else:
+                value += base_cost
 
         return value
