@@ -325,16 +325,19 @@ class EXMongo():
         coll = getattr(db, collname)
         return coll
 
-    async def get_my_trades(self, ex, start, end):
+    async def get_my_trades(self, uid, ex, start, end):
         db = self.config['dbname_history']
         coll = f"{ex}_trades"
         coll = self.get_collection(db, coll)
-        trades = await coll.find(self.cond_timestamp_range(start, end), {'_id': 0}) \
-                                 .sort([('timestamp', 1)]) \
-                                 .to_list(length=INF)
+        trades = await coll.find({
+                    **{'uid': uid},
+                    **self.cond_timestamp_range(start, end)}
+                    , {'_id': 0}) \
+                    .sort([('timestamp', 1)]) \
+                    .to_list(length=INF)
         return trades
 
-    async def get_my_last_trade(self, ex, symbol):
+    async def get_my_last_trade(self, uid, ex, symbol):
         db = self.config['dbname_history']
         coll = f"{ex}_trades"
         coll = self.get_collection(db, coll)

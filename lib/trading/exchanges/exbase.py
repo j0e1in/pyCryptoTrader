@@ -527,7 +527,7 @@ class EXBase():
 
     async def calc_trade_fee(self, start, end):
         """ Calcullate total trade fee in a period using history trades. """
-        trades = await self.mongo.get_my_trades(self.exname, start, end)
+        trades = await self.mongo.get_my_trades(self.uid, self.exname, start, end)
         fee = 0
 
         for tr in trades:
