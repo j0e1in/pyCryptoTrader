@@ -99,7 +99,6 @@ class EXBase():
 
         self.markets = self.ds.get('markets', markets)
         self.timeframes = self.ds.get('timeframes', timeframes)
-        logger.debug(f"markets: {self.markets}")
         self.trade_fees = {}
         self.withdraw_fees = {}
         self.markets_info = {}
@@ -122,6 +121,8 @@ class EXBase():
 
         if self._config['trading']['indicator_tf'] not in self.timeframes:
             self.timeframes.append(self._config['trading']['indicator_tf'])
+
+        logger.debug(f"markets: {self.markets}")
 
     def init_wallet(self):
         wallet = {}
@@ -265,7 +266,7 @@ class EXBase():
         """ Keep history trades in mongodb up-to-date. """
 
         for market in self.markets:
-            last_trade = await self.mongo.get_my_last_trade(self.exname, market)
+            last_trade = await self.mongo.get_my_last_trade(self.uid, self.exname, market)
 
             if last_trade:
                 start = last_trade['datetime'] - timedelta(days=3)
@@ -275,7 +276,23 @@ class EXBase():
             end = utc_now()
 
             # Fetch recent trades to mongo
-            await self.fetch_my_recent_trades(market, start, end)
+            trades = await self.fetch_my_recent_trades(market, start, end)
+
+            collname = f"{self.exname}_trades"
+            coll = self.mongo.get_collection(
+                self._config['database']['dbname_history'], collname)
+
+            ops = []
+            for tr in trades:
+                tr['uid'] = self.uid
+                ops.append(
+                    ensure_future(
+                        coll.update_one(
+                            {'id': tr['id']},
+                            {'$set': tr},
+                            upsert=True)))
+
+            await execute_mongo_ops(ops)
 
     async def get_orderbook(self, symbol, params={}):
         """ Fetch orderbook of a specific symbol on-demand.
@@ -505,7 +522,7 @@ class EXBase():
     async def calc_order_value(self):
         not_implemented()
 
-    async def calc_all_position_value(self):
+    async def calc_all_position_value(self, include_pl=True):
         not_implemented()
 
     async def calc_trade_fee(self, start, end):
@@ -523,10 +540,10 @@ class EXBase():
         # TODO: Find a way to get margin fee
         return 0
 
-    async def calc_account_value(self):
+    async def calc_account_value(self, include_pl=True):
         wallet_value = await self.calc_wallet_value()
         order_value = await self.calc_order_value()
-        position_value = await self.calc_all_position_value()
+        position_value = await self.calc_all_position_value(include_pl=include_pl)
         return wallet_value + order_value + position_value
 
     async def calc_value_of(self, curr, amount):
