@@ -1107,8 +1107,8 @@ class SingleEXTrader():
                         # and PL% falls below threshold
                         # => open an order
                         should_close_position_c1 = \
-                            (not pos_stop_profit[pid]['has_close_order'] \
-                            and pl_perc < high_pl - stop_profit_diff)
+                            not pos_stop_profit[pid]['has_close_order'] \
+                            and pl_perc < high_pl - stop_profit_diff
 
                         logger.debug(f"should_close_position_c1: "
                                      f"{should_close_position_c1}")
@@ -1117,9 +1117,9 @@ class SingleEXTrader():
                         # but current PL% > close order PL%
                         # => update existing order
                         should_close_position_c2 = \
-                            (pos_stop_profit[pid]['has_close_order'] \
-                            and pl_perc < high_pl - stop_profit_diff) \
-                            and pl_perc > pos_stop_profit[pid]['close_order_pl_perc'])
+                            pos_stop_profit[pid]['has_close_order'] \
+                            and pl_perc < high_pl - stop_profit_diff \
+                            and pl_perc > pos_stop_profit[pid]['close_order_pl_perc']
 
                         logger.debug(f"should_close_position_c2: "
                                      f"{should_close_position_c2}")
