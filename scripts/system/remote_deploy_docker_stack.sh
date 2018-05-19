@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Usage:
+#   ./scripts/system/remote_deploy_docker_stack.sh [user]@[host] [data | db | dev | test | test-trading | production | optimize]
+#
+
 PROJ_DIR=pyCryptoTrader
 DOCKER_DIR=docker
 CUR_DIR=$(pwd)
@@ -32,8 +36,8 @@ pull=""
 while :; do
     case $3 in
       --no-cache) build_args="$build_args --no-cache";;
-      --pull) pull="true";;
-      --reset) reset_state="true";;
+      --pull) pull="true";; # pull image instead of building it locally
+      --reset) reset_state="true";; # clear redis data
       --cmd=*) IFS='=' read -r _ CMD <<< $3;; # split by first '='
       *) break
     esac
@@ -116,6 +120,8 @@ ssh $USERNAME@$HOST \
   $DEPLOY_CMD && \
   $RESET_STATE && \
   $GET_IMAGE && \
+  \
+  mkdir -p ../log && \
   \
   docker stack rm $STACK_NAME && \
   echo \"wait for 20 seconds...\" && \

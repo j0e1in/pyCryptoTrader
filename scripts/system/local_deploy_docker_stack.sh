@@ -86,6 +86,8 @@ source .env
 
 $GET_IMAGE
 
+mkdir -p ../log
+
 docker stack rm $STACK_NAME
 echo "wait for 20 seconds..."
 sleep 20
