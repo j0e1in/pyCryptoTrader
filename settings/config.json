@@ -126,7 +126,7 @@
     "force_liquidate_percent": 0.15,
     "indicator_tf": "8h",
     "log_signal": false,
-    "optimization_days": 60,  // days of data used in an optimization
+    "optimization_days": 120,  // days of data used in an optimization
     "optimization_delay": 7, // how many days to run optimization once
     "param_optmization_save_threshold": 300, // margin 300% ~= normal 100%
     "ohlcv_buffer_bars": 50, // to remove effect of signals affected by previous bars
