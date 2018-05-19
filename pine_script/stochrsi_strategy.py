@@ -55,7 +55,7 @@ adxlen = input(30, title="ADX Length")
 dilen = input(12, title="DI Length")
 
 rsi_length = input(14, title="RSI Length")
-rsi_upper = input(80, title="RSI Uppper Threshold")
+rsi_upper = input(85, title="RSI Uppper Threshold")
 rsi_lower = input(25, title="RSI Lower Threshold")
 rsi_mom_thresh = input(20, title="RSI Momentum Threshold")
 
