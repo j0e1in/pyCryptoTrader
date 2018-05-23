@@ -16,7 +16,7 @@ from utils import config, print_to_file
 async def test_single_period(mongo, market, plot, log_signal):
 
     # dt = (datetime(2017, 8, 1), datetime(2018, 3, 5))
-    dt = (datetime(2018, 3, 10), datetime(2018, 5, 20))
+    dt = (datetime(2018, 1, 10), datetime(2018, 5, 20))
     ex = 'bitfinex'
 
     _config = copy.deepcopy(config)
@@ -27,29 +27,29 @@ async def test_single_period(mongo, market, plot, log_signal):
     params = await mongo.get_params(ex)
 
     # Set params mannually
-    params[market] = {
-        "trade_portion": 0.5,
-        "stop_loss_percent": 0.06,
-        "stop_profit_percent": 0.02,
-        "ind_conf": 100,
+    # params[market] = {
+    #     "trade_portion": 0.5,
+    #     "stop_loss_percent": 0.06,
+    #     "stop_profit_percent": 0.02,
+    #     "ind_conf": 100,
 
-        "stochrsi_length": 18,
-        "stoch_length": 16,
-        "stochrsi_slowk_length": 2,
-        "stochrsi_slowd_length": 2,
-        "stochrsi_upper": 65,
-        "stochrsi_lower": 30,
-        "stochrsi_adx_length": 25,
-        "stochrsi_di_length": 10,
-        "stochrsi_rsi_length": 16,
-        "stochrsi_rsi_upper": 85,
-        "stochrsi_rsi_lower": 25,
-        "stochrsi_rsi_mom_thresh": 10,
-        "stochrsi_mom_length": 20,
-        "stochrsi_mom_ma_length": 10
-    }
+    #     "stochrsi_length": 18,
+    #     "stoch_length": 16,
+    #     "stochrsi_slowk_length": 2,
+    #     "stochrsi_slowd_length": 2,
+    #     "stochrsi_upper": 65,
+    #     "stochrsi_lower": 30,
+    #     "stochrsi_adx_length": 25,
+    #     "stochrsi_di_length": 10,
+    #     "stochrsi_rsi_length": 16,
+    #     "stochrsi_rsi_upper": 85,
+    #     "stochrsi_rsi_lower": 25,
+    #     "stochrsi_rsi_mom_thresh": 10,
+    #     "stochrsi_mom_length": 20,
+    #     "stochrsi_mom_ma_length": 10
+    # }
 
-    pprint(params[market])
+    # pprint(params[market])
 
     strategy.set_params(params)
 
@@ -77,7 +77,7 @@ async def test_single_period(mongo, market, plot, log_signal):
     report = backtest.run()
 
     print('-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n')
-    print(market, ':', report['PL(%)'])
+    print(market, ':', round(report['PL(%)'], 2), '%')
     print('\n-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n')
 
     print_to_file(backtest.margin_PLs, '../../log/backtest/margin_pl.log')
@@ -110,7 +110,12 @@ async def test_special_periods_of_markets(mongo, plot, log_signal):
         # "DASH/USD",
         # "IOTA/USD",
         # "XMR/USD",
-        # "ZEC/USD"
+        # "ZEC/USD",
+
+        # "BTG/USD",
+        # "EDO/USD",
+        # "ETP/USD",
+        # "SAN/USD",
     ]
 
     total_pl = 0
@@ -119,7 +124,7 @@ async def test_special_periods_of_markets(mongo, plot, log_signal):
         report = await test_single_period(mongo, market, plot, log_signal)
         total_pl += report['PL(%)']
 
-    print(f"Total PL(%): {total_pl/len(markets)}")
+    print(f"Total PL(%): {total_pl/len(markets):.2f} %")
 
 
 def parse_args():
