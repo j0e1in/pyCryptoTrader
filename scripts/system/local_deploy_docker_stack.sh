@@ -80,7 +80,7 @@ fi
 # Authorize access permission to gcr container registry
 REGHUB_KEYFILE=private/docker-reghub-0065a93a0ed4.json
 gcloud auth activate-service-account --key-file $REGHUB_KEYFILE
-gcloud auth configure-docker
+echo -e 'y\n' | gcloud auth configure-docker
 
 source .env
 

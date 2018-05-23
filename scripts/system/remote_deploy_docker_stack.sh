@@ -115,7 +115,7 @@ ssh $USERNAME@$HOST \
   \
   # Authorize access permission to gcr container registry
   gcloud auth activate-service-account --key-file $REGHUB_KEYFILE
-  gcloud auth configure-docker
+  echo -e 'y\n' | gcloud auth configure-docker
   \
   $DEPLOY_CMD && \
   $RESET_STATE && \
