@@ -1,7 +1,6 @@
 authy
 ccxt==1.13.38
 chromalog
-python-digitalocean
 jstyleson
 motor
 multiprocess

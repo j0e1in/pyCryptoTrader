@@ -1,7 +1,6 @@
 authy
 ccxt==1.13.38
 chromalog
-python-digitalocean
 jstyleson
 matplotlib
 motor
@@ -12,6 +11,7 @@ pymongo
 python-dotenv
 redis
 sanic
+ta-lib
 
 # aiohttp
 aiohttp
