@@ -702,9 +702,9 @@ class SingleEXTrader():
 
         res = None
         orders = []
-        order_count = self.config['scale_order_count']
 
         if type == 'limit' and scale_order:
+            order_count = self.config['scale_order_count']
             orders = self.gen_scale_orders(symbol, type, side, amount,
                                            start_price=start_price,
                                            end_price=end_price,
@@ -714,8 +714,8 @@ class SingleEXTrader():
             res = await self.ex.create_order_multi(orders)
 
         else:
-            res = await self.ex.create_order(
-                symbol, type, side, amount, price=start_price)
+            res = await self.ex.create_order(symbol, type, side, amount, price=start_price)
+
         if res:
             await save_to_db(res)
 
@@ -752,13 +752,15 @@ class SingleEXTrader():
     def calc_three_point_prices(self, orderbook, action):
         prices = {}
         if action == 'long':
-            prices['start_price'] = orderbook['bids'][0][0] * (1 - self.config['scale_order_near_percent'])
-            prices['close_end_price'] = orderbook['bids'][0][0] * (1 - self.config['scale_order_close_far_percent'])
-            prices['end_price'] = orderbook['bids'][0][0] * (1 - self.config['scale_order_far_percent'])
+            p = orderbook['bids'][0][0]
+            prices['start_price'] = p * (1 - self.config['scale_order_near_percent'])
+            prices['close_end_price'] = p * (1 - self.config['scale_order_close_far_percent'])
+            prices['end_price'] = p * (1 - self.config['scale_order_far_percent'])
         else:
-            prices['start_price'] = orderbook['asks'][0][0] * (1 + self.config['scale_order_near_percent'])
-            prices['close_end_price'] = orderbook['bids'][0][0] * (1 + self.config['scale_order_close_far_percent'])
-            prices['end_price'] = orderbook['bids'][0][0] * (1 + self.config['scale_order_far_percent'])
+            p = orderbook['asks'][0][0]
+            prices['start_price'] = p * (1 + self.config['scale_order_near_percent'])
+            prices['close_end_price'] = p * (1 + self.config['scale_order_close_far_percent'])
+            prices['end_price'] = p * (1 + self.config['scale_order_far_percent'])
         return prices
 
     @staticmethod

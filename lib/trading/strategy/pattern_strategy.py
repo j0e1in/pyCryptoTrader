@@ -107,19 +107,22 @@ class PatternStrategy(SingleEXStrategy):
             logger.debug(f"Create {market} buy order")
             logger.debug(f"{market} indicator signal @ {utc_now()}\n{sig[-5:]}")
             action = BUY
-            orders = await self.trader.long(market, conf, type='limit')
+            orders = await self.trader.long(market, conf, type='limit',
+                                        scale_order=self.trader.config['scale_order'])
 
         elif conf < 0:
             logger.debug(f"Create {market} sell order")
             logger.debug(f"{market} indicator signal @ {utc_now()}\n{sig[-5:]}")
             action = SELL
-            orders = await self.trader.short(market, conf, type='limit')
+            orders = await self.trader.short(market, conf, type='limit',
+                                        scale_order=self.trader.config['scale_order'])
 
         elif conf == 0:
             logger.debug(f"Close {market} positions")
             logger.debug(f"{market} indicator signal @ {utc_now()}\n{sig[-5:]}")
             action = CLOSE
-            orders = await self.trader.close_position(market, type='limit')
+            orders = await self.trader.close_position(market, type='limit',
+                                        scale_order=self.trader.config['scale_order'])
 
         if orders:
             await self.trader.notifier.notify_open_orders_succ(orders)
