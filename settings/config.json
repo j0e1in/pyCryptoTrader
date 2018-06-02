@@ -46,13 +46,14 @@
     "maintain_portion": 0.05,
 
     // price difference (buffer) to the top price in orderbook
-    "scale_order_near_percent": 0.002,
+    "scale_order_near_percent": 0.003,
     "scale_order_close_far_percent": 0.005,
     "scale_order_far_percent": 0.03,
     "scale_order_count": 20,
+    "scale_order": false,
 
-    "stop_profit_threshold": 8,
-    "stop_profit_max_diff": 6,
+    "stop_profit_threshold": 5,
+    "stop_profit_max_diff": 5,
 
     "summary_interval": 120,
     "position_check_interval": 180,
