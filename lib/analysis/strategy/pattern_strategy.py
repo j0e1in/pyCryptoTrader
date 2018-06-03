@@ -17,8 +17,8 @@ class PatternStrategy(SingleExchangeStrategy):
         self.margin = self._config['backtest']['margin']
 
     def fast_strategy(self):
-        stop_loss = False
-        stop_profit = False
+        stop_loss = False    # enable or disable stop losss
+        stop_profit = False  # enable or disable stop profit
 
         for market in self.markets:
             if market in self.params:

@@ -16,7 +16,7 @@ from utils import config, print_to_file
 async def test_single_period(mongo, market, plot, log_signal):
 
     # dt = (datetime(2017, 8, 1), datetime(2018, 3, 5))
-    dt = (datetime(2018, 1, 10), datetime(2018, 5, 20))
+    dt = (datetime(2018, 3, 15), datetime(2019, 1, 1))
     ex = 'bitfinex'
 
     _config = copy.deepcopy(config)
@@ -27,28 +27,10 @@ async def test_single_period(mongo, market, plot, log_signal):
     params = await mongo.get_params(ex)
 
     # Set params mannually
-    # params[market] = {
-    #     "trade_portion": 0.5,
-    #     "stop_loss_percent": 0.06,
-    #     "stop_profit_percent": 0.02,
-    #     "ind_conf": 100,
-
-    #     "stochrsi_length": 18,
-    #     "stoch_length": 16,
-    #     "stochrsi_slowk_length": 2,
-    #     "stochrsi_slowd_length": 2,
-    #     "stochrsi_upper": 65,
-    #     "stochrsi_lower": 30,
-    #     "stochrsi_adx_length": 25,
-    #     "stochrsi_di_length": 10,
-    #     "stochrsi_rsi_length": 16,
-    #     "stochrsi_rsi_upper": 85,
-    #     "stochrsi_rsi_lower": 25,
-    #     "stochrsi_rsi_mom_thresh": 10,
-    #     "stochrsi_mom_length": 20,
-    #     "stochrsi_mom_ma_length": 10
-    # }
-
+    # params[market] = _config['analysis']['params']['common']
+    # params[market]['trade_portion'] = 0.9
+    # params[market]['stop_loss_percent'] = 0.03
+    # params[market]['stop_profit_percent'] = 0.05
     # pprint(params[market])
 
     strategy.set_params(params)
@@ -96,26 +78,26 @@ async def test_single_period(mongo, market, plot, log_signal):
 async def test_special_periods_of_markets(mongo, plot, log_signal):
 
     markets = [
-        # "BTC/USD",
-        # "BCH/USD",
-        # "ETH/USD",
-        # "XRP/USD",
+        "BTC/USD",
+        "BCH/USD",
+        "ETH/USD",
+        "XRP/USD",
 
-        # "EOS/USD",
-        # "LTC/USD",
-        # "NEO/USD",
-        # "OMG/USD",
+        "EOS/USD",
+        "LTC/USD",
+        "NEO/USD",
+        "OMG/USD",
 
-        # "ETC/USD",
-        # "DASH/USD",
-        # "IOTA/USD",
-        # "XMR/USD",
-        # "ZEC/USD",
+        "ETC/USD",
+        "DASH/USD",
+        "IOTA/USD",
+        "XMR/USD",
+        "ZEC/USD",
 
-        # "BTG/USD",
-        # "EDO/USD",
-        # "ETP/USD",
-        # "SAN/USD",
+        "BTG/USD",
+        "EDO/USD",
+        "ETP/USD",
+        "SAN/USD",
     ]
 
     total_pl = 0
