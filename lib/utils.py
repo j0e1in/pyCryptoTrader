@@ -434,7 +434,7 @@ async def handle_ccxt_request(func, *args, **kwargs):
 
             elif isinstance(err, ccxt.ExchangeNotAvailable)\
             or   isinstance(err, ccxt.InvalidNonce):
-                logger.warning(f"{type(err)} {str(err)}")
+                logger.warning(f"{type(err)}")
 
             if isinstance(err, functools.partial):
                 err_repr = err.__class__.__name__
