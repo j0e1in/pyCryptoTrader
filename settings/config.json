@@ -290,8 +290,8 @@
   },
 
   "database": {
-    // "default_host": "crypto.csie.io",
-    "default_host": "127.0.0.1",
+    "default_host": "crypto.csie.io",
+    // "default_host": "127.0.0.1",
     "default_port": 27017,
     "auth": true,
     "ssl": true,
