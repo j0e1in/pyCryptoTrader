@@ -46,7 +46,7 @@
     "maintain_portion": 0.05,
 
     // price difference (buffer) to the top price in orderbook
-    "scale_order_near_percent": 0.003,
+    "scale_order_near_percent": 0.001,
     "scale_order_close_far_percent": 0.005,
     "scale_order_far_percent": 0.03,
     "scale_order_count": 20,
@@ -111,8 +111,8 @@
         "stochrsi_adx_length": 30,
         "stochrsi_di_length": 12,
         "stochrsi_rsi_length": 14,
-        "stochrsi_rsi_upper": 80,
-        "stochrsi_rsi_lower": 25,
+        "stochrsi_rsi_upper": 85,
+        "stochrsi_rsi_lower": 20,
         "stochrsi_rsi_mom_thresh": 20,
         "stochrsi_mom_length": 20,
         "stochrsi_mom_ma_length": 10
@@ -220,8 +220,8 @@
         "stochrsi_adx_length": 30,
         "stochrsi_di_length": 12,
         "stochrsi_rsi_length": 14,
-        "stochrsi_rsi_upper": 80,
-        "stochrsi_rsi_lower": 25,
+        "stochrsi_rsi_upper": 85,
+        "stochrsi_rsi_lower": 20,
         "stochrsi_rsi_mom_thresh": 20,
         "stochrsi_mom_length": 20,
         "stochrsi_mom_ma_length": 10
