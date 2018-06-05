@@ -1,5 +1,5 @@
 authy
-ccxt==1.14.121
+ccxt==1.14.138
 chromalog
 jstyleson
 matplotlib
