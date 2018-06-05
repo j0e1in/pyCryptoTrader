@@ -180,6 +180,8 @@ class EXBase():
             res = fetch_ohlcv(self.ex, symbol, start, end, timeframe, log=self.log)
 
             async for ohlcv in res:
+                if ohlcv is None:
+                    raise ValueError(f"fetch ohlcv returns None")
 
                 if len(ohlcv) is 0:
                     break

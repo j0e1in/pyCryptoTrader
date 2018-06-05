@@ -30,6 +30,15 @@ async def fetch_ohlcv(exchange, symbol, start, end, timeframe='1m', log=True):
 
     params = {'end': end, 'limit': 1000, 'sort': 1}
 
+    await exchange.load_markets()
+    if symbol not in exchange.symbols:
+        # Check if USD is named 'USDT'
+        if symbol.split('/')[1] == 'USD' \
+        and symbol + 'T' in exchange.symbols:
+            symbol += 'T'
+        else:
+            raise ValueError(f"'{exchange.id}' has no symbol '{symbol}'")
+
     while start < end:
         if log:
             logger.info(
