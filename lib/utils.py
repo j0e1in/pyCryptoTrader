@@ -424,7 +424,10 @@ async def handle_ccxt_request(func, *args, **kwargs):
                 KeyError,
                 ) as err:
 
-            func_name = func.__func__.__name__
+            if isinstance(func, functools.partial):
+                func_repr = func.args[0]
+            else:
+                func_repr = func.__func__.__name__
 
             # finished fetching all ohlcv
             if is_empty_response(err):
@@ -432,21 +435,16 @@ async def handle_ccxt_request(func, *args, **kwargs):
 
             # server or server-side connection error
             elif isinstance(err, ccxt.ExchangeError):
-                logger.warning(f"{func_name} ExchangeError, {type(err)} {str(err)}")
+                logger.warning(f"{func_repr} ExchangeError, {type(err)} {str(err)}")
 
             elif isinstance(err, ccxt.ExchangeNotAvailable)\
             or   isinstance(err, ccxt.InvalidNonce):
-                logger.warning(f"{func_name} {type(err)}")
+                logger.warning(f"{func_repr} {type(err)}")
 
             if isinstance(err, functools.partial):
                 err_repr = err.__class__.__name__
             else:
                 err_repr = err.__class__.__name__
-
-            if isinstance(func, functools.partial):
-                func_repr = func.args[0]
-            else:
-                func_repr = func.__func__.__name__
 
             logger.info(f'# {err_repr} # retry {func_repr} in {wait} seconds...')
 
