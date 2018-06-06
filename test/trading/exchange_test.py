@@ -1,6 +1,6 @@
 from setup import run
 
-
+from concurrent.futures import FIRST_COMPLETED
 from datetime import datetime
 from pprint import pprint
 import asyncio
@@ -24,7 +24,7 @@ async def test_update_ticker(ex):
 
 async def test_update_markets(ex):
     print('-- Market info --')
-    res = await ex.update_markets()
+    res = await ex.update_markets(once=True)
     pprint(res)
 
 
@@ -41,15 +41,23 @@ async def test_ex_start(ex):
     tasks = ex.start_tasks()
 
     # Start multiple coroutines at the same time
-    await asyncio.gather(*tasks, wait_for_ex_ready(ex))
+    done, pending = await asyncio.wait(
+        [
+            *tasks,
+            wait_for_ex_ready(ex)
+        ],
+        return_when=FIRST_COMPLETED)
+
+    while True:
+        if done.pop()._coro.__name__ == 'wait_for_ex_ready':
+            break
+        else:
+            done, pending = await asyncio.wait(pending,
+                return_when=FIRST_COMPLETED)
 
 
 async def test_data_streams(ex):
     print('-- Data stream --')
-    # await asyncio.gather(asyncio.wait([
-    #     ex._start_ohlcv_stream(),
-    #     ex._start_orderbook_stream()
-    # ]))
     await asyncio.gather(
         ex._start_ohlcv_stream(),
         ex._start_orderbook_stream(),
@@ -66,13 +74,13 @@ async def test_fetch_open_orders(ex):
     print('-- Fetch open orders --')
     res = await ex.fetch_open_orders()
     pprint(res)
+    return res
 
-
-async def test_fetch_order(ex):
+async def test_fetch_order(ex, id):
     print('-- Fetch order --')
-    res = await ex.fetch_order('7126033276')
+    res = await ex.fetch_order(id)
     pprint(res)
-
+    return res
 
 async def test_fetch_my_recent_trades(ex):
     print('-- Fetch my recent trades --')
@@ -98,6 +106,7 @@ async def test_create_order(ex):
     print('-- Create order --')
     res = await ex.create_order('BTC/USD', 'limit', 'sell', amount=0.002, price=99999)
     pprint(res)
+    return res
 
 
 async def test_create_order_multi(ex):
@@ -121,11 +130,12 @@ async def test_create_order_multi(ex):
     ]
     res = await ex.create_order_multi(orders)
     pprint(res)
+    return res
 
 
-async def test_cancel_order(ex):
+async def test_cancel_order(ex, id):
     print('-- Cancel order --')
-    res = await ex.cancel_order('134256839')
+    res = await ex.cancel_order(id)
     pprint(res)
 
 
@@ -135,9 +145,9 @@ async def test_fetch_open_positions(ex):
     pprint(res)
 
 
-async def test_cancel_order_multi(ex):
+async def test_cancel_order_multi(ex, ids):
     print('-- Cancel order multi --')
-    res = await ex.cancel_order_multi(['7178212463', '7178244233'])
+    res = await ex.cancel_order_multi(ids)
     pprint(res)
 
 
@@ -201,9 +211,11 @@ async def main():
     ex = Bitfinex(mongo, uid=uid, apikey=key['apiKey'], secret=key['secret'], ccxt_verbose=False, log=True)
     await ex.ex.load_markets()
 
-    # await test_ex_start(ex)
+    # Loop
     # await test_data_streams(ex)
+    # await test_update_fees(ex)
 
+    # await test_ex_start(ex)
     # await test_update_wallet(ex)
     # await test_update_ticker(ex)
     # await test_update_markets(ex)
@@ -212,15 +224,17 @@ async def main():
     # await test_get_deposit_address(ex)
     # await test_get_market_price(ex)
 
-    # await test_create_order(ex)
-    # await test_create_order_multi(ex)
-    # await test_cancel_order(ex)
-    # await test_cancel_order_multi(ex)
-    # await test_cancel_order_all(ex)
-    # await test_close_position(ex)
+    # res = await test_create_order(ex)
+    # await test_fetch_order(ex, res['id'])
+    # res = await test_fetch_open_orders(ex)
+    # if res and isinstance(res, list):
+    #     await test_cancel_order(ex, res[0]['id'])
 
-    # await test_fetch_open_orders(ex)
-    # await test_fetch_order(ex)
+    # res = await test_create_order_multi(ex)
+    # await asyncio.sleep(3)
+    # await test_cancel_order_multi(ex, [order['id'] for order in res])
+    # await test_cancel_order_all(ex)
+
     # await test_fetch_open_positions(ex)
     # await test_fetch_my_recent_trades(ex)
     # await test_update_my_trades(ex)
@@ -229,7 +243,7 @@ async def main():
     # await test_calc_order_value(ex)
     # await test_calc_all_position_value(ex)
 
-    # await test_update_fees(ex)
+    # await test_close_position(ex)
 
     await ex.ex.close()
 

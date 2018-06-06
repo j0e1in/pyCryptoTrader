@@ -424,17 +424,19 @@ async def handle_ccxt_request(func, *args, **kwargs):
                 KeyError,
                 ) as err:
 
+            func_name = func.__func__.__name__
+
             # finished fetching all ohlcv
             if is_empty_response(err):
                 break
 
             # server or server-side connection error
             elif isinstance(err, ccxt.ExchangeError):
-                logger.warning(f"ExchangeError, {type(err)} {str(err)}")
+                logger.warning(f"{func_name} ExchangeError, {type(err)} {str(err)}")
 
             elif isinstance(err, ccxt.ExchangeNotAvailable)\
             or   isinstance(err, ccxt.InvalidNonce):
-                logger.warning(f"{type(err)}")
+                logger.warning(f"{func_name} {type(err)}")
 
             if isinstance(err, functools.partial):
                 err_repr = err.__class__.__name__
@@ -804,6 +806,7 @@ def is_price_valid(start_price, end_price, side):
 
     return not invalid
 
+
 def periodic_routine(fn, interval, *args, **kwargs):
     """ Convert a function into a endless while loop
         that is executed every `interval` seconds.
@@ -818,3 +821,15 @@ def periodic_routine(fn, interval, *args, **kwargs):
             await asyncio.sleep(interval)
 
     return routinized(fn, interval, *args, **kwargs)
+
+
+def true_symbol(ex, symbol):
+    """ Convert a symbol to ccxt-compatiable version. """
+    if symbol not in ex.symbols:
+        # Check if USD is named 'USDT'
+        if symbol.split('/')[1] == 'USD' \
+        and symbol + 'T' in ex.symbols:
+            symbol += 'T'
+        else:
+            raise ValueError(f"'{ex.id}' has no symbol '{symbol}'")
+    return symbol

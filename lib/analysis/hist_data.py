@@ -13,14 +13,15 @@ from utils import \
     MAX_DT, \
     timeframe_to_freq,\
     handle_ccxt_request, \
-    ohlcv_to_interval
+    ohlcv_to_interval, \
+    true_symbol
 
 from db import EXMongo
 
 logger = logging.getLogger('pyct')
 
 
-async def fetch_ohlcv(exchange, symbol, start, end, timeframe='1m', log=True):
+async def fetch_ohlcv(ex, symbol, start, end, timeframe='1m', log=True):
     """ Fetch all ohlcv ohlcv since 'start_timestamp' and use generator to stream results. """
     if start >= end:
         raise ValueError(f"start {start} should < end {end}.")
@@ -30,14 +31,8 @@ async def fetch_ohlcv(exchange, symbol, start, end, timeframe='1m', log=True):
 
     params = {'end': end, 'limit': 1000, 'sort': 1}
 
-    await exchange.load_markets()
-    if symbol not in exchange.symbols:
-        # Check if USD is named 'USDT'
-        if symbol.split('/')[1] == 'USD' \
-        and symbol + 'T' in exchange.symbols:
-            symbol += 'T'
-        else:
-            raise ValueError(f"'{exchange.id}' has no symbol '{symbol}'")
+    await ex.load_markets()
+    symbol = true_symbol(ex, symbol)
 
     while start < end:
         if log:
@@ -46,7 +41,7 @@ async def fetch_ohlcv(exchange, symbol, start, end, timeframe='1m', log=True):
             )
 
         ohlcv = await handle_ccxt_request(
-            exchange.fetch_ohlcv,
+            ex.fetch_ohlcv,
             symbol,
             timeframe=timeframe,
             since=start,
@@ -60,7 +55,7 @@ async def fetch_ohlcv(exchange, symbol, start, end, timeframe='1m', log=True):
         yield ohlcv
 
 
-async def fetch_trades(exchange, symbol, start, end, log=True):
+async def fetch_trades(ex, symbol, start, end, log=True):
     def remove_last_timestamp(records):
         _last_timestamp = records[-1]['timestamp']
         ts = ms_sec(_last_timestamp)
@@ -79,13 +74,16 @@ async def fetch_trades(exchange, symbol, start, end, log=True):
 
     params = {'start': start, 'end': end, 'limit': 1000, 'sort': 1}
 
+    await ex.load_markets()
+    symbol = true_symbol(ex, symbol)
+
     while start < end:
         if log:
             logger.info(
                 f'Fetching {symbol} trades starting from {ms_dt(start)}')
 
         trades = await handle_ccxt_request(
-            exchange.fetch_trades, symbol, params=params)
+            ex.fetch_trades, symbol, params=params)
 
         if len(trades) is 0:
             break
@@ -107,7 +105,7 @@ async def fetch_trades(exchange, symbol, start, end, log=True):
         yield trades
 
 
-async def fetch_my_trades(exchange,
+async def fetch_my_trades(ex,
                           symbol,
                           start,
                           end=None,
@@ -131,7 +129,7 @@ async def fetch_my_trades(exchange,
             logger.info(
                 f'Fetching account trades starting from {ms_dt(start)}')
 
-        res = await handle_ccxt_request(exchange.fetch_my_trades, symbol,
+        res = await handle_ccxt_request(ex.fetch_my_trades, symbol,
                                         start, limit, params)
         trades = []
 
@@ -193,7 +191,7 @@ async def find_missing_ohlcv(coll, start, end, timeframe):
     return missing_ohlcv
 
 
-async def fill_missing_ohlcv(mongo, exchange, symbol, start, end, timeframe):
+async def fill_missing_ohlcv(mongo, ex, symbol, start, end, timeframe):
     def fill_ohlcv(df):
         for i in range(len(df)):
             row = df.iloc[i]
@@ -206,35 +204,35 @@ async def fill_missing_ohlcv(mongo, exchange, symbol, start, end, timeframe):
                 row.high = row.low = c
                 row.volume = 0
 
-    df = await mongo.get_ohlcv(exchange, symbol, timeframe, start, end)
+    df = await mongo.get_ohlcv(ex, symbol, timeframe, start, end)
     df = df.asfreq(timeframe_to_freq(timeframe))
 
     fill_ohlcv(df)
     return df
 
 
-async def build_ohlcv(mongo, exchange, symbol, src_tf, target_tf, *,
+async def build_ohlcv(mongo, ex, symbol, src_tf, target_tf, *,
                       start=None, end=None, coll_prefix='', upsert=True):
     start = start or MIN_DT
     end = end or MAX_DT
 
-    src_df = await mongo.get_ohlcv(exchange, symbol, src_tf, start, end)
+    src_df = await mongo.get_ohlcv(ex, symbol, src_tf, start, end)
     target_td = tf_td(target_tf)
     target_df = ohlcv_to_interval(src_df, src_tf, target_td)
 
     await mongo.insert_ohlcv(
-        target_df, exchange, symbol, target_tf, coll_prefix=coll_prefix, upsert=upsert)
+        target_df, ex, symbol, target_tf, coll_prefix=coll_prefix, upsert=upsert)
 
 
-async def compare_ohlcvs(mongo, exchange, symbol, tf, prefix_1, prefix_2):
+async def compare_ohlcvs(mongo, ex, symbol, tf, prefix_1, prefix_2):
     start = MIN_DT
     end = MAX_DT
 
     ohlcv_1 = await mongo.get_ohlcv(
-        exchange, symbol, tf, start, end, coll_prefix=prefix_1)
+        ex, symbol, tf, start, end, coll_prefix=prefix_1)
 
     ohlcv_2 = await mongo.get_ohlcv(
-        exchange, symbol, tf, start, end, coll_prefix=prefix_2)
+        ex, symbol, tf, start, end, coll_prefix=prefix_2)
 
     start = max(ohlcv_1.index[0], ohlcv_2.index[0])
     end = min(ohlcv_1.index[-1], ohlcv_2.index[-1])
