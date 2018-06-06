@@ -1300,7 +1300,7 @@ class TraderManager():
                 if ue not in self.traders:
                     logger.info(f"Adding [{ue}]")
                     self.start_trader(ue)
-                    await asyncio.sleep(30)
+                    await asyncio.sleep(60)
 
             await asyncio.sleep(5)
 
