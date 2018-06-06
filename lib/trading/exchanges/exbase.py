@@ -23,7 +23,8 @@ from utils import \
     init_ccxt_exchange, \
     execute_mongo_ops, \
     handle_ccxt_request, \
-    is_within
+    is_within, \
+    true_symbol
 
 logger = logging.getLogger('pyct')
 
@@ -180,6 +181,8 @@ class EXBase():
             res = fetch_ohlcv(self.ex, symbol, start, end, timeframe, log=self.log)
 
             async for ohlcv in res:
+                if ohlcv is None:
+                    raise ValueError(f"fetch ohlcv returns None")
 
                 if len(ohlcv) is 0:
                     break
@@ -257,6 +260,7 @@ class EXBase():
 
         while True:
             for market in self.markets:
+                market = true_symbol(self.ex, market)
                 self.orderbook[market] = await self._fetch_orderbook(market, params=params)
 
             self.ready['orderbook'] = True

@@ -12,7 +12,8 @@ from utils import \
     execute_mongo_ops, \
     sec_ms, \
     utc_now, \
-    handle_ccxt_request
+    handle_ccxt_request, \
+    true_symbol
 
 logger = logging.getLogger('pyct')
 
@@ -102,6 +103,7 @@ class Bitfinex(EXBase):
             'limit_asks': self.config['orderbook_size'],
             'group': 1, # 0 / 1
         }
+        symbol = true_symbol(self.ex, symbol)
         return await super().get_orderbook(symbol, params=params)
 
     async def update_markets(self, once=False):
@@ -156,9 +158,9 @@ class Bitfinex(EXBase):
         """
         if once: # Fetch only once
             res = await handle_ccxt_request(self.ex.fetch_markets)
-            for mark in res:
-                if mark['symbol'] in self.markets:
-                    self.markets_info[mark['symbol']] = mark
+            for market in res:
+                if market['symbol'] in self.markets:
+                    self.markets_info[market['symbol']] = market
 
             return self.markets_info
 
@@ -168,9 +170,9 @@ class Bitfinex(EXBase):
                 logger.info("Update markets info")
 
             res = await handle_ccxt_request(self.ex.fetch_markets)
-            for mark in res:
-                if mark['symbol'] in self.markets:
-                    self.markets_info[mark['symbol']] = mark
+            for market in res:
+                if market['symbol'] in self.markets:
+                    self.markets_info[market['symbol']] = market
 
             self.ready['markets'] = True
             await asyncio.sleep(self.config['markets_info_delay'])
@@ -339,6 +341,7 @@ class Bitfinex(EXBase):
             return []
 
         self._check_auth()
+        symbol = true_symbol(self.ex, symbol)
 
         if self.log:
             logger.info(f"Fetching my {symbol} trades from {start} to {end}")
@@ -514,6 +517,7 @@ class Bitfinex(EXBase):
 
         # Overwrite ccxt function's `type`
         params['type'] = type
+        symbol = true_symbol(self.ex, symbol)
 
         try:
             res = await handle_ccxt_request(
@@ -576,7 +580,9 @@ class Bitfinex(EXBase):
             if not is_valid_order(order):
                 return {}
 
-            # Convert symbol to bitfinex compatiable one
+            order['symbol'] = true_symbol(self.ex, order['symbol'])
+
+            # Convert symbol to bitfinex compatiable one (eg. BTC/USD => BTCUSD)
             orders[i]['symbol'] = self.ex.market_id(order['symbol'])
 
         params = {
@@ -625,7 +631,7 @@ class Bitfinex(EXBase):
             raise ValueError(f"Param `ids` must be a list of order ids")
 
         params = {
-            'order_ids': ids
+            'order_ids': [int(id) for id in ids]
         }
         res = await handle_ccxt_request(self.ex.private_post_order_cancel_multi, params=params)
         return res
@@ -858,14 +864,14 @@ class Bitfinex(EXBase):
 
         return True if 'exchange' not in type else False
 
-    @staticmethod
-    def to_ccxt_symbol(symbol):
+    def to_ccxt_symbol(self, symbol):
         """ Convert bitinex raw response symbol to ccxt's format. """
         # WARN: Potential bug -- if some symbols used by bitinex is not
         # the same as ccxt may cause exception later on
         qoute = symbol[-3:]
         base = symbol.split(qoute)[0]
         symbol = base.upper() + '/' + qoute.upper()
+        symbol = true_symbol(self.ex, symbol)
         return symbol
 
     async def calc_wallet_value(self):
