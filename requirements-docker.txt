@@ -1,5 +1,5 @@
 authy
-ccxt==1.14.138
+ccxt==1.14.140
 chromalog
 jstyleson
 motor
