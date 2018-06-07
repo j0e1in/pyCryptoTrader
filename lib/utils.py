@@ -823,6 +823,9 @@ def periodic_routine(fn, interval, *args, **kwargs):
 
 def true_symbol(ex, symbol):
     """ Convert a symbol to ccxt-compatiable version. """
+    if not symbol:
+        return symbol
+
     if symbol not in ex.symbols:
         # Check if USD is named 'USDT'
         if symbol.split('/')[1] == 'USD' \
