@@ -138,6 +138,7 @@ class SingleEXTrader():
 
         # Get required starting tasks of exchange.
         ex_start_tasks = self.ex.start_tasks()
+        await self.ex.load_markets()
 
         # Start routines required by exchange and trader itself
         done, pending = await asyncio.wait(

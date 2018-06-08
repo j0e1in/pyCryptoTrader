@@ -233,6 +233,7 @@ class Bitfinex(EXBase):
         """
         self._check_auth()
 
+        symbol = true_symbol(self.ex, symbol)
         res = await handle_ccxt_request(self.ex.fetch_open_orders, symbol)
 
         orders = []
@@ -286,6 +287,8 @@ class Bitfinex(EXBase):
             return pos
 
         self._check_auth()
+
+        symbol = true_symbol(self.ex, symbol)
         res = await handle_ccxt_request(self.ex.private_post_positions)
 
         positions = []

@@ -70,9 +70,9 @@ async def test_get_orderbook(ex):
     pprint(res)
 
 
-async def test_fetch_open_orders(ex):
+async def test_fetch_open_orders(ex, symbol=None):
     print('-- Fetch open orders --')
-    res = await ex.fetch_open_orders()
+    res = await ex.fetch_open_orders(symbol=symbol)
     pprint(res)
     return res
 
@@ -227,6 +227,7 @@ async def main():
     # res = await test_create_order(ex)
     # await test_fetch_order(ex, res['id'])
     # res = await test_fetch_open_orders(ex)
+    # await test_fetch_open_orders(ex, symbol='XRP/USD')
     # if res and isinstance(res, list):
     #     await test_cancel_order(ex, res[0]['id'])
 
