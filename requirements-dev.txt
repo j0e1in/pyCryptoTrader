@@ -2,6 +2,7 @@ authy
 ccxt==1.13.154
 chromalog
 jstyleson
+libcloud
 matplotlib
 motor
 multiprocess
