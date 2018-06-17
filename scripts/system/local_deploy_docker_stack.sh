@@ -24,6 +24,8 @@ while :; do
       --no-cache) build_args="$build_args --no-cache";;
       --pull) pull="true";;
       --reset) export RESET_STATE=--reset;;
+      --follow | -f) follow_log="-f";; # Enable follow in TAIL_LOG
+      --symbol=*) IFS='=' read -r _ SYMBOLS <<< $3;; # split by first '='
       --cmd=*) IFS='=' read -r _ CMD <<< $2;; # split by first '='
       *) break
     esac
@@ -42,7 +44,7 @@ fi
 
 
 echo -e "\n>>>  Deploy $TYPE docker stack by $IMG_ACTION image  <<<\n"
-read -p "Press [Enter] to continue..."
+# read -p "Press [Enter] to continue..."
 
 
 DEPLOY_CMD=":"
@@ -83,6 +85,9 @@ gcloud auth activate-service-account --key-file $REGHUB_KEYFILE
 echo -e 'y\n' | gcloud auth configure-docker
 
 source .env
+if [ $SYMBOLS ]; then
+  export OPTIMIZE_SYMBOLS=$SYMBOLS
+fi
 
 $GET_IMAGE
 
@@ -93,7 +98,7 @@ echo "wait for 20 seconds..."
 sleep 20
 
 docker stack deploy -c $DOCKER_DIR/$STACK_FILE $STACK_NAME
-echo "wait for 10 seconds..."
-sleep 10
+echo "wait for 20 seconds..."
+sleep 20
 
 $TAIL_LOG
