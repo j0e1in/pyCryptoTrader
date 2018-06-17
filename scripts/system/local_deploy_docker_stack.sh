@@ -25,6 +25,7 @@ while :; do
       --pull) pull="true";;
       --reset) export RESET_STATE=--reset;;
       --follow | -f) follow_log="-f";; # Enable follow in TAIL_LOG
+      --symbol=*) IFS='=' read -r _ SYMBOLS <<< $3;; # split by first '='
       --cmd=*) IFS='=' read -r _ CMD <<< $2;; # split by first '='
       *) break
     esac

@@ -141,5 +141,3 @@ ssh $USERNAME@$HOST \
   sleep 20 && \
   \
   $TAIL_LOG"
-
-exit 0
