@@ -38,6 +38,12 @@ while :; do
       --no-cache) build_args="$build_args --no-cache";;
       --pull) pull="true";; # pull image instead of building it locally
       --reset) reset_state="true";; # clear redis data
+      --follow | -f) follow_log="-f";; # Enable follow in TAIL_LOG
+
+      # Following arguments should be placed at last
+      ## symbols to optimize
+      --symbol=*) IFS='=' read -r _ SYMBOLS <<< $3;; # split by first '='
+      ## cmd to execute for the general docker-compose file
       --cmd=*) IFS='=' read -r _ CMD <<< $3;; # split by first '='
       *) break
     esac
@@ -62,7 +68,7 @@ fi
 
 
 echo -e "\n>>>  Deploy $TYPE docker stack to $USERNAME@$HOST by $IMG_ACTION image  <<<\n"
-read -p "Press [Enter] to continue..."
+# read -p "Press [Enter] to continue..."
 
 
 DEPLOY_CMD=":"
@@ -74,13 +80,13 @@ if [ "$TYPE" == 'uni' ]; then
   DEPLOY_CMD="export PYCT_CMD=\"$CMD\""
   STACK_NAME=pyct
   SERVICE_NAME=$STACK_NAME"_main"
-  TAIL_LOG="docker service logs -f $SERVICE_NAME"
+  TAIL_LOG="docker service logs $follow_log $SERVICE_NAME"
 
 # deploy parameter optimization
 elif [ "$TYPE" == 'optimize' ]; then
   STACK_NAME=optimize
   SERVICE_NAME=$STACK_NAME"_optimize"
-  TAIL_LOG="docker service logs -f $SERVICE_NAME"
+  TAIL_LOG="docker service logs $follow_log $SERVICE_NAME"
 
 elif [ "$TYPE" == 'db' ]; then
   STACK_NAME=db
@@ -88,12 +94,12 @@ elif [ "$TYPE" == 'db' ]; then
 elif [ "$TYPE" == 'data' ]; then
   STACK_NAME=data
   SERVICE_NAME=$STACK_NAME"_ohlcv"
-  TAIL_LOG="docker service logs -f $SERVICE_NAME"
+  TAIL_LOG="docker service logs $follow_log $SERVICE_NAME"
 
 else # deploy trader
   STACK_NAME=crypto
   SERVICE_NAME=$STACK_NAME"_trade"
-  TAIL_LOG="docker service logs -f $SERVICE_NAME"
+  TAIL_LOG="docker service logs $follow_log $SERVICE_NAME"
 fi
 
 REGHUB_KEYFILE=private/docker-reghub-0065a93a0ed4.json
@@ -112,6 +118,9 @@ ssh $USERNAME@$HOST \
   unzip -q $PROJ_DIR.zip && \
   cd $PROJ_DIR && \
   source .env && \
+  if [ $SYMBOLS ]; then
+    export OPTIMIZE_SYMBOLS=$SYMBOLS
+  fi
   \
   # Authorize access permission to gcr container registry
   gcloud auth activate-service-account --key-file $REGHUB_KEYFILE
@@ -128,7 +137,9 @@ ssh $USERNAME@$HOST \
   sleep 20 && \
   \
   docker stack deploy -c $DOCKER_DIR/$STACK_FILE $STACK_NAME && \
-  echo \"wait for 10 seconds...\" && \
-  sleep 10 && \
+  echo \"wait for 20 seconds...\" && \
+  sleep 20 && \
   \
   $TAIL_LOG"
+
+exit 0

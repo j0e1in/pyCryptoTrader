@@ -16,7 +16,9 @@ import jstyleson as json
 import math
 import os
 import pandas as pd
+import pipes
 import sys
+import subprocess
 import traceback
 import uuid
 
@@ -834,3 +836,14 @@ def true_symbol(ex, symbol):
         else:
             raise ValueError(f"'{ex.id}' has no symbol '{symbol}'")
     return symbol
+
+
+def remote_exists(host, path, ssh_options=''):
+    """ Test if a file exists at path on a host accessible with SSH. """
+    status = subprocess.call(
+        ['ssh', ssh_options, host, 'test -f {}'.format(pipes.quote(path))])
+    if status == 0:
+        return True
+    if status == 1:
+        return False
+    raise RuntimeError('SSH failed')
