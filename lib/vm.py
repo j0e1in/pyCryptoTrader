@@ -16,6 +16,17 @@ def get_provider_token(provider):
         return json.load(f)[provider]
 
 
+def node_symbol(node):
+    """ Restore symbol from node's name. """
+    return '/'.join(node.name.split('-')[1:])
+
+
+def node_host(node):
+    ip = node.public_ips[0]
+    host = f"{config['vm']['remote_user']}@{ip}"
+    return host
+
+
 class VMManger:
     def __init__(self, cloud_provider, username=None, token=None):
         cls = libcloud.compute.providers.get_driver(

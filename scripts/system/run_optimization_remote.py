@@ -1,3 +1,6 @@
+""" Create 6vcpu VMs on digital ocean to run optimization. One symbol one VM.
+"""
+
 from setup import run
 
 from pprint import pformat
@@ -24,25 +27,22 @@ logger = logging.getLogger('pyct')
 def deploy_optimization(node):
     """ Run deployment script in background and return the subprocess. """
     working_dir = os.path.dirname(os.getcwd())
-    ip = node.public_ips[0]
-    host = f"{config['vm']['remote_user']}@{ip}"
-    symbol = node_symbol(node)
+    host = vm.node_host(node)
+    symbol = vm.node_symbol(node)
     deploy_script_path = './scripts/system/remote_deploy_docker_stack.sh'
-    cmd = [deploy_script_path, host, 'optimize', '--pull', f'--symbol={symbol}']
+    cmd = [
+        deploy_script_path, host, 'optimize', '--pull', f'--symbol={symbol}'
+    ]
 
     logger.info(f"Start process: {' '.join(cmd)}")
     proc = subprocess.Popen(
-        cmd,
-        cwd=working_dir,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE)
+        cmd, cwd=working_dir, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     return proc
 
 
 def cloud_init_status(node):
     """ Check if cloud-init is finished or not. """
-    ip = node.public_ips[0]
-    host = f"{config['vm']['remote_user']}@{ip}"
+    host = vm.node_host(node)
     ssh_options = '-o StrictHostKeyChecking=no'  # ignore ssh authenticy check
 
     try:
@@ -81,14 +81,8 @@ def create_node(mg, sym):
     return node
 
 
-def node_symbol(node):
-    """ Restore symbol from node's name. """
-    return '/'.join(node.name.split('-')[1:])
-
-
 def get_docker_log(node, service):
-    ip = node.public_ips[0]
-    host = f"{config['vm']['remote_user']}@{ip}"
+    host = vm.vm.node_host(node)
     cmd = ['ssh', host, 'docker', 'service', 'logs', service]
     output = subprocess.check_output(cmd)
     return output
@@ -143,9 +137,10 @@ def main():
         deploy_procs = []
 
         for node, ip in nodes:
-            sym = node_symbol(node)
+            sym = vm.node_symbol(node)
             if cloud_init_status(node) == 'finished':
-                logger.info(f"Deploying {sym} optimization to {node.name} @ {ip[0]}")
+                logger.info(
+                    f"Deploying {sym} optimization to {node.name} @ {ip[0]}")
                 p = deploy_optimization(node)
 
                 if not p:
@@ -168,7 +163,7 @@ def main():
 
         output, err = p.communicate(timeout=60)
 
-        if err: # failed
+        if err:  # failed
             err = err.decode('utf-8')
             msg = f"[Error Message]\n{err}"
             logger.info(msg)
@@ -177,7 +172,9 @@ def main():
     time.sleep(60)
 
     for node in nodes_copy:
-        logger.info(f"{node_symbol(node)} log:\n{get_docker_log(node, service='optimize_optimize')}")
+        logger.info(
+            f"{vm.node_symbol(node)} log:\n{get_docker_log(node, service='optimize_optimize')}"
+        )
 
 
 if __name__ == '__main__':
