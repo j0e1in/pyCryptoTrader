@@ -55,7 +55,7 @@ STACK_FILE=docker-stack-$TYPE.yml
 if [ "$TYPE" == 'uni' ]; then
   export PYCT_CMD="$CMD"
   STACK_NAME=pyct
-  SERVICE_NAME=$STACK_NAME"_main"
+  SERVICE_NAME=$STACK_NAME"_uni"
   TAIL_LOG="docker service logs -f $SERVICE_NAME"
 
 # deploy parameter optimization
