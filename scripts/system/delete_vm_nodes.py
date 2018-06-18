@@ -1,3 +1,5 @@
+""" Delete nodes which names start with `prefix` manually.
+"""
 from setup import run
 
 import logging

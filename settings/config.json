@@ -360,8 +360,5 @@
     "cloud_provider": "digitalocean",
     "remote_user": "j0e1in",
     "provider_token_file": "../private/cloud_provider_token.json",
-    "digitalocean": {
-      "username": "joelin000@gmail.com"
-    }
   }
 }

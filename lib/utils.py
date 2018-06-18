@@ -847,3 +847,11 @@ def remote_exists(host, path, ssh_options=''):
     if status == 1:
         return False
     raise RuntimeError('SSH failed')
+
+
+def get_remote_cpu_usage(host):
+    cmd = ["ssh", host, "top", "-bn", "2", "-d", "1", "|",
+           "grep", "'^%Cpu'", "|", "tail", "-n", "1", "|",
+           "awk", "'{print $2+$4+$6}'"]
+    output = subprocess.check_output(' '.join(cmd), shell=True)
+    return float(output.decode('utf-8').strip())
