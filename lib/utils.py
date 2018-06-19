@@ -14,6 +14,7 @@ import logging
 import logging.config
 import jstyleson as json
 import math
+import numpy as np
 import os
 import pandas as pd
 import pipes
@@ -854,4 +855,10 @@ def get_remote_cpu_usage(host):
            "grep", "'^%Cpu'", "|", "tail", "-n", "1", "|",
            "awk", "'{print $2+$4+$6}'"]
     output = subprocess.check_output(' '.join(cmd), shell=True)
-    return float(output.decode('utf-8').strip())
+    try:
+        return float(output.decode('utf-8').strip())
+    except ValueError:
+        logger.error(
+            f"Could not convert string to float: {output.decode('utf-8').strip()}"
+        )
+        return np.nan
