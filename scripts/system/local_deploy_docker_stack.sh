@@ -25,7 +25,11 @@ while :; do
       --pull) pull="true";;
       --reset) export RESET_STATE=--reset;;
       --follow | -f) follow_log="-f";; # Enable follow in TAIL_LOG
-      --symbol=*) IFS='=' read -r _ SYMBOLS <<< $3;; # split by first '='
+      ## stack name
+      --name=*) IFS='=' read -r _ STACK_NAME <<< $2;;
+      ## symbols to optimize
+      --symbol=*) IFS='=' read -r _ SYMBOLS <<< $2;; # split by first '='
+      ## cmd to execute for the general docker-compose file
       --cmd=*) IFS='=' read -r _ CMD <<< $2;; # split by first '='
       *) break
     esac
@@ -53,27 +57,37 @@ STACK_FILE=docker-stack-$TYPE.yml
 
 # deploy any python app.py command
 if [ "$TYPE" == 'uni' ]; then
+  if [ -z $STACK_NAME ]; then
+    STACK_NAME=pyct
+  fi
   export PYCT_CMD="$CMD"
-  STACK_NAME=pyct
   SERVICE_NAME=$STACK_NAME"_uni"
   TAIL_LOG="docker service logs -f $SERVICE_NAME"
 
 # deploy parameter optimization
 elif [ "$TYPE" == 'optimize' ]; then
-  STACK_NAME=optimize
+  if [ -z $STACK_NAME ]; then
+    STACK_NAME=optimize
+  fi
   SERVICE_NAME=$STACK_NAME"_optimize"
   TAIL_LOG="docker service logs -f $SERVICE_NAME"
 
 elif [ "$TYPE" == 'db' ]; then
-  STACK_NAME=db
+  if [ -z $STACK_NAME ]; then
+    STACK_NAME=db
+  fi
 
 elif [ "$TYPE" == 'data' ]; then
-  STACK_NAME=data
+  if [ -z $STACK_NAME ]; then
+    STACK_NAME=data
+  fi
   SERVICE_NAME=$STACK_NAME"_ohlcv"
   TAIL_LOG="docker service logs -f $SERVICE_NAME"
 
 else # deploy trader
-  STACK_NAME=crypto
+  if [ -z $STACK_NAME ]; then
+    STACK_NAME=crypto
+  fi
   SERVICE_NAME=$STACK_NAME"_trade"
   TAIL_LOG="docker service logs -f $SERVICE_NAME"
 fi

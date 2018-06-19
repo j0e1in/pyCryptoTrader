@@ -39,7 +39,6 @@ while :; do
       --pull) pull="true";; # pull image instead of building it locally
       --reset) reset_state="true";; # clear redis data
       --follow | -f) follow_log="-f";; # Enable follow in TAIL_LOG
-      # Following arguments should be placed at last
       ## stack name
       --name=*) IFS='=' read -r _ STACK_NAME <<< $3;;
       ## symbols to optimize
@@ -50,6 +49,9 @@ while :; do
     esac
     shift
 done
+
+echo $SYMBOLS
+exit
 
 
 # If --pull argument is specified,
@@ -79,10 +81,10 @@ STACK_FILE=docker-stack-$TYPE.yml
 
 # deploy any python app.py command
 if [ "$TYPE" == 'uni' ]; then
-  DEPLOY_CMD="export PYCT_CMD=\"$CMD\""
   if [ -z $STACK_NAME ]; then
     STACK_NAME=pyct
   fi
+  DEPLOY_CMD="export PYCT_CMD=\"$CMD\""
   SERVICE_NAME=$STACK_NAME"_uni"
   TAIL_LOG="docker service logs $follow_log $SERVICE_NAME"
 
