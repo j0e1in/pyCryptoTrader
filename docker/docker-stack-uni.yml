@@ -1,6 +1,6 @@
 version: '3.5'
 services:
-  main:
+  uni:
     image: gcr.io/docker-reghub/pyct
     command: >
               ${PYCT_CMD}
@@ -12,11 +12,10 @@ services:
       - ../data:/app/data
       - ../../log:/log
       - ../settings:/app/settings:ro
+      - ../private:/app/private:ro
     networks:
       - mongo_net_swarm
       - redis_net_swarm
-    ports:
-      - "8000:8000"
     secrets:
       - source: keys.json
         target: /app/private/keys.json

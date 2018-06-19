@@ -14,6 +14,7 @@ def parse_args():
     parser.add_argument('--fetch-trades', action='store_true', help="Execute fetch_all_trades.py")
     parser.add_argument('--optimize-params', action='store_true', help="Execute optimize_params.py")
     parser.add_argument('--backtest', action='store_true', help="Execute run_backtest.py")
+    parser.add_argument('--delete-vm-low-cpu', action='store_true', help="Execute delete_vm_low_cpu.py")
 
     # Mongodb
     parser.add_argument('--setup-mongo-container', action='store_true', help="Execute setup_mongo_container.sh")
@@ -78,6 +79,9 @@ def main():
 
     elif argv.backtest:
         os.system(f"python scripts/analysis/run_backtest.py {argv_remain}")
+
+    elif argv.delete_vm_low_cpu:
+        os.system(f"python scripts/system/delete_vm_low_cpu.py {argv_remain}")
 
     elif argv.setup_mongo_container:
         os.system(f"./scripts/mongodb/setup_mongo_container.sh {argv_remain}")
