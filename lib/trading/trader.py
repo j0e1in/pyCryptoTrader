@@ -1067,6 +1067,7 @@ class SingleEXTrader():
         pos_large_pl = self.ds.get('pos_large_pl', {})
         pos_danger_pl = self.ds.get('pos_danger_pl', {})
         pos_stop_profit = self.ds.get('pos_stop_profit', {})
+        to_del = []
 
         while True:
             positions = await self.ex.fetch_positions()
@@ -1087,6 +1088,7 @@ class SingleEXTrader():
                 if pl_perc > 200 or pl_perc < -100:
                     logger.debug(f"Closing leftover position: {pos['symbol']}")
                     await self.close_position(pos['symbol'], type='market')
+                    to_del.append(pos)
 
                 # Monitor position profit PL and close early if PL decreases
                 stop_profit_diff = self.config['stop_profit_max_diff']
@@ -1131,6 +1133,11 @@ class SingleEXTrader():
                             await self.close_position(pos['symbol'], type='limit')
                             pos_stop_profit[pid]['has_close_order'] = True
                             pos_stop_profit[pid]['close_order_pl_perc'] = pl_perc
+
+            # Remove positions that can be ignored,
+            # eg. very small amount but very large PL
+            for pos in to_del:
+                positions.remove(pos)
 
             pos_ids = [p['id'] for p in positions]
 
