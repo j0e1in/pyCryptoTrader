@@ -50,9 +50,6 @@ while :; do
     shift
 done
 
-echo $SYMBOLS
-exit
-
 
 # If --pull argument is specified,
 # pull from docker registry instead of build from source

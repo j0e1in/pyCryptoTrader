@@ -46,6 +46,7 @@ runcmd:
   - "sudo apt-get update"
   - "sudo apt-get install -y mongodb-org"
 
+# When finishing setup and bootup, cloud-init creates '/var/lib/cloud/instance/boot-finished'
 power_state:
   delay: "now"
   mode: reboot
