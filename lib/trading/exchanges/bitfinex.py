@@ -292,6 +292,10 @@ class Bitfinex(EXBase):
         res = await handle_ccxt_request(self.ex.private_post_positions)
 
         positions = []
+        if res is None:
+            logger.error('Response of fetch positions is None')
+            return positions
+
         for pos in res:
             pos = parse_position(pos)
 

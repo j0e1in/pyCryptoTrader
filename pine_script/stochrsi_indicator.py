@@ -1,5 +1,5 @@
 //@version=3
-strategy("StochRSI Strategy", pyramiding=0, default_qty_type=strategy.percent_of_equity, default_qty_value=90, commission_type=strategy.commission.percent, commission_value=0.5)
+study("StochRSI Indicator")
 
 //////////////////////////////////////////////////////////////////////
 // Component Code Start
@@ -43,9 +43,6 @@ NORM_MOM(src, momlen, malen) =>
     mom := wma(mom, malen)
     norm_mom = mom / src * 100
 
-//////////////////////////////////////////////////////////////////////
-
-// Parameter
 use_k = input(defval=true, type=bool, title="Use K as signal source")
 stochrsi_length = input(18, title="Stoch RSI Length")
 stoch_length = input(10, title="Stoch Length")
@@ -58,24 +55,18 @@ adxlen = input(30, title="ADX Length")
 dilen = input(12, title="DI Length")
 
 rsi_length = input(14, title="RSI Length")
-rsi_upper = input(85, title="RSI Uppper Threshold")
+rsi_upper = input(80, title="RSI Uppper Threshold")
 rsi_lower = input(25, title="RSI Lower Threshold")
 rsi_mom_thresh = input(20, title="RSI Momentum Threshold")
 
 mom_length = input(20, title="Momentum Length")
 mom_ma_length = input(10, title="Momentum MA Length")
 
-//////////////////////////////////////////////////////////////////////
-
-// Inidcator
 [adx, pdi, mdi] = ADX(dilen, adxlen)
 [k, d] = STOCHRSI(close, stochrsi_length, stoch_length, k_length, d_length)
 rsi = rsi(close, rsi_length)
 mom = NORM_MOM(close, mom_length, mom_ma_length)
 
-//////////////////////////////////////////////////////////////////////
-
-// Strategy
 src = use_k ? k : d
 
 top_peak = na
@@ -96,9 +87,7 @@ buy_sig = stochrsi_buy or stochrsi_rebuy or rsi_buy
 sell_sig = stochrsi_sell or stochrsi_resell or rsi_sell
 close_sig = false
 
-//////////////////////////////////////////////////////////////////////
 
-// Trading
 sig = na
 sig := close_sig ? 0 : buy_sig ? 1 : sell_sig ? -1 : sig[1]
 
@@ -106,19 +95,11 @@ long  = (sig == 1) ? true : false
 short = (sig == -1) ? true : false
 exit = (sig == 0) ? true : false
 
-if (long and testPeriod())
-    strategy.entry("buy", strategy.long)
-
-if (short and testPeriod())
-    strategy.entry("sell", strategy.short)
-
-if (exit and testPeriod())
-    strategy.close_all(when=close_sig)
-
-//////////////////////////////////////////////////////////////////////
 
 hline(stochrsi_upper, color=blue)
 hline(stochrsi_lower, color=blue)
 plot(k, color=red, title="k-line", linewidth=1)
 plot(d, color=fuchsia, title="d-line", linewidth=1)
 plot(src, color=fuchsia, title="src-line", linewidth=3)
+
+plot(stochrsi_buy ? 3 : 0)
