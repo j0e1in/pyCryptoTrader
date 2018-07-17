@@ -12,15 +12,36 @@ packages:
   - htop
   - zip
 
+  # For docker
+  - apt-transport-https
+  - ca-certificates
+  - curl
+  - software-properties-common
+
 runcmd:
-  # Giving non-root access ( reboot to take effect)
+    # Install docker-ce
+  - "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -"
+  - "sudo add-apt-repository \
+    \"deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable\""
+  - "sudo apt-get update"
+  - "sudo apt-get install -y docker-ce"
+
+    # Install docker-compose
+  - "sudo curl -L https://github.com/docker/compose/releases/download/1.21.2/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose"
+  - "sudo chmod +x /usr/local/bin/docker-compose"
+  - "sudo rm -rf /usr/bin/docker-compose"
+
+    # Give non-root access ( reboot to take effect)
   - "sudo usermod -aG docker j0e1in"
 
-  # docker swarm init
+    # Work on GCP
+  - "docker swarm init"
+
+    # Work on DigitalOcean
   - "ADDR=$(/sbin/ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}')"
   - "docker swarm init --advertise-addr $ADDR"
 
-  # Install gcloud
+    # Install gcloud
   - "export CLOUD_SDK_REPO=\"cloud-sdk-$(lsb_release -c -s)\""
   - "echo \"deb http://packages.cloud.google.com/apt $CLOUD_SDK_REPO main\" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list"
   - "curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -"
