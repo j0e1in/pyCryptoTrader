@@ -1,6 +1,6 @@
 version: '3.5'
 services:
-  trade:
+  trader:
     image: gcr.io/docker-reghub/pyct
     command: >
               --start-trader

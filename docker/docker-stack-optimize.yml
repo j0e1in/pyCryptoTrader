@@ -12,8 +12,8 @@ services:
     volumes:
       - ../../log:/log
       - ../settings:/app/settings:ro
-    ports:
-      - "8000:8000"
+    # ports:
+    #   - "8000:8000"
     secrets:
       - source: keys.json
         target: /app/private/keys.json
@@ -27,7 +27,6 @@ services:
         condition: on-failure
         delay: 5s
         max_attempts: 5
-
 
 secrets:
   keys.json:
