@@ -98,18 +98,25 @@ elif [ "$TYPE" == 'db' ]; then
     STACK_NAME=db
   fi
 
-elif [ "$TYPE" == 'data' ]; then
+elif [ "$TYPE" == 'ohlcv' ]; then
   if [ -z $STACK_NAME ]; then
-    STACK_NAME=data
+    STACK_NAME=ohlcv
   fi
   SERVICE_NAME=$STACK_NAME"_ohlcv"
+  TAIL_LOG="docker service logs $follow_log $SERVICE_NAME"
+
+elif [ "$TYPE" == 'trade' ]; then
+  if [ -z $STACK_NAME ]; then
+    STACK_NAME=trade
+  fi
+  SERVICE_NAME=$STACK_NAME"_trade"
   TAIL_LOG="docker service logs $follow_log $SERVICE_NAME"
 
 else # deploy trader
   if [ -z $STACK_NAME ]; then
     STACK_NAME=crypto
   fi
-  SERVICE_NAME=$STACK_NAME"_trade"
+  SERVICE_NAME=$STACK_NAME"_trader"
   TAIL_LOG="docker service logs $follow_log $SERVICE_NAME"
 fi
 

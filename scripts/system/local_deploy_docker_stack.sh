@@ -62,7 +62,7 @@ if [ "$TYPE" == 'uni' ]; then
   fi
   export PYCT_CMD="$CMD"
   SERVICE_NAME=$STACK_NAME"_uni"
-  TAIL_LOG="docker service logs -f $SERVICE_NAME"
+  TAIL_LOG="docker service logs $follow_log $SERVICE_NAME"
 
 # deploy parameter optimization
 elif [ "$TYPE" == 'optimize' ]; then
@@ -70,26 +70,33 @@ elif [ "$TYPE" == 'optimize' ]; then
     STACK_NAME=optimize
   fi
   SERVICE_NAME=$STACK_NAME"_optimize"
-  TAIL_LOG="docker service logs -f $SERVICE_NAME"
+  TAIL_LOG="docker service logs $follow_log $SERVICE_NAME"
 
 elif [ "$TYPE" == 'db' ]; then
   if [ -z $STACK_NAME ]; then
     STACK_NAME=db
   fi
 
-elif [ "$TYPE" == 'data' ]; then
+elif [ "$TYPE" == 'ohlcv' ]; then
   if [ -z $STACK_NAME ]; then
-    STACK_NAME=data
+    STACK_NAME=ohlcv
   fi
   SERVICE_NAME=$STACK_NAME"_ohlcv"
-  TAIL_LOG="docker service logs -f $SERVICE_NAME"
+  TAIL_LOG="docker service logs $follow_log $SERVICE_NAME"
+
+elif [ "$TYPE" == 'trade' ]; then
+  if [ -z $STACK_NAME ]; then
+    STACK_NAME=trade
+  fi
+  SERVICE_NAME=$STACK_NAME"_trade"
+  TAIL_LOG="docker service logs $follow_log $SERVICE_NAME"
 
 else # deploy trader
   if [ -z $STACK_NAME ]; then
     STACK_NAME=crypto
   fi
-  SERVICE_NAME=$STACK_NAME"_trade"
-  TAIL_LOG="docker service logs -f $SERVICE_NAME"
+  SERVICE_NAME=$STACK_NAME"_trader"
+  TAIL_LOG="docker service logs $follow_log $SERVICE_NAME"
 fi
 
 # Actually executing commands

@@ -18,6 +18,10 @@ packages:
   - curl
   - software-properties-common
 
+  # For redis
+  - build-essential
+  - tcl
+
 runcmd:
     # Install docker-ce
   - "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -"
@@ -27,14 +31,21 @@ runcmd:
   - "sudo apt-get install -y docker-ce"
 
     # Install docker-compose
-  - "sudo curl -L https://github.com/docker/compose/releases/download/1.19.0/docker-compose-`uname -s`-`uname -m` -o /usr/local/bin/docker-compose"
+  - "sudo curl -L https://github.com/docker/compose/releases/download/1.21.2/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose"
   - "sudo chmod +x /usr/local/bin/docker-compose"
   - "sudo rm -rf /usr/bin/docker-compose"
 
-  # Giving non-root access ( reboot to take effect)
+    # Give non-root access ( reboot to take effect)
   - "sudo usermod -aG docker j0e1in"
 
-  # Install gcloud
+    # Work on GCP
+  - "docker swarm init"
+
+    # Work on DigitalOcean
+  - "ADDR=$(/sbin/ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}')"
+  - "docker swarm init --advertise-addr $ADDR"
+
+    # Install gcloud
   - "export CLOUD_SDK_REPO=\"cloud-sdk-$(lsb_release -c -s)\""
   - "echo \"deb http://packages.cloud.google.com/apt $CLOUD_SDK_REPO main\" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list"
   - "curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -"
@@ -45,6 +56,14 @@ runcmd:
   - "echo \"deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu xenial/mongodb-org/3.6 multiverse\" | sudo tee /etc/apt/sources.list.d/mongodb-org-3.6.list"
   - "sudo apt-get update"
   - "sudo apt-get install -y mongodb-org"
+
+    # Install redis client
+  - "cd /tmp"
+  - "curl -O http://download.redis.io/redis-stable.tar.gz"
+  - "tar xzvf redis-stable.tar.gz"
+  - "cd redis-stable"
+  - "make"
+  - "sudo make install"
 
 # When finishing setup and bootup, cloud-init creates '/var/lib/cloud/instance/boot-finished'
 power_state:

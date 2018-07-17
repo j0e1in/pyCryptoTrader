@@ -7,7 +7,11 @@ import ccxt.async as ccxt
 import inspect
 import logging
 
-from analysis.hist_data import fetch_ohlcv, build_ohlcv
+from analysis.hist_data import \
+    fetch_ohlcv, \
+    build_ohlcv, \
+    fetch_trades
+
 from db import Datastore
 from utils import \
     config, \
@@ -252,7 +256,48 @@ class EXBase():
                 await asyncio.sleep(countdown.seconds + 10)
 
     async def _start_trade_stream(self):
-        not_implemented()
+
+        async def fetch_trades_to_mongo(symbol, start, end):
+            ops = []
+            dbname = self._config['database']['dbname_exchange']
+            coll = self.mongo.get_collection(dbname, f'{self.exname}_trades_{rsym(symbol)}')
+
+            res = fetch_trades(self.ex, symbol, start, end)
+            async for trades in res:
+                processed_trades = []
+
+                for trd in trades:
+                    trd.pop('datetime')
+                    trd.pop('info')
+                    trd.pop('type')
+                    trd.pop('symbol')
+                    processed_trades.append(trd)
+
+                ops.append(ensure_future(coll.insert_many(processed_trades)))
+
+                # insert ~1000 trades per op, clean up task stack periodically
+                if len(ops) > 10:
+                    await execute_mongo_ops(ops)
+                    ops = []
+
+            await execute_mongo_ops(ops)
+
+        logger.info("Start trade data stream")
+
+        while True:
+            fetch_interval = timedelta(
+                seconds=self.config['trade_fetch_interval'])
+
+            for market in self.markets:
+                start = await self.mongo.get_trades_end(self.exname, market) - timedelta(minutes=10)
+                end = utc_now()
+                await fetch_trades_to_mongo(market, start, end)
+
+            countdown = roundup_dt(utc_now(), fetch_interval) - utc_now()
+
+            # 1. Sleep will be slighly shorter than expected
+            # 2. Add extra seconds because exchange server data preperation may delay
+            await asyncio.sleep(countdown.seconds + 10)
 
     async def _start_orderbook_stream(self, params={}):
         """ Fetch orderbook periodically. May not be needed if using `get_orderbook`."""

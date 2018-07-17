@@ -148,7 +148,8 @@ class EXMongo():
         res = await coll.find({}).sort([('id', -1)]).limit(1).to_list(length=INF)
 
         if not res:
-            raise ValueError(f"{collname} does not exist")
+            logger.warn(f"{collname} does not exist, use MIN_DT")
+            return MIN_DT
 
         return ms_dt(res[0]['timestamp'])
 

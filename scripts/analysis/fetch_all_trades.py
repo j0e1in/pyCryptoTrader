@@ -16,7 +16,6 @@ from utils import \
     config, \
     utc_now
 
-
 logger = logging.getLogger('pyct')
 
 
@@ -44,7 +43,6 @@ async def fetch_trades_to_mongo(coll, exchange, symbol, start, end):
     await execute_mongo_ops(ops)
 
 
-
 def parse_args():
     import argparse
 
@@ -68,7 +66,7 @@ async def main():
     symbols = config['analysis']['exchanges'][ex]['markets_all']
 
     for symbol in symbols:
-        _symbol = ''.join(symbol.split('/')) # remove '/'
+        _symbol = ''.join(symbol.split('/'))  # remove '/'
         coll = mongo.get_collection(db, coll_tamplate.format(ex, _symbol))
         start = await mongo.get_trades_end(ex, symbol) - timedelta(hours=1)
         end = utc_now()

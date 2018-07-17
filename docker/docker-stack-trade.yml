@@ -1,10 +1,10 @@
 version: '3.5'
 services:
-  ohlcv:
+  trade:
     image: gcr.io/docker-reghub/pyct
     command: >
-              --ohlcv-stream
-              --mongo-host=mongo
+              --trade-stream
+              --mongo-host="$${REMOTE_MONGO_IP}"
               --redis-host=redis
     volumes:
       - ../data:/app/data
@@ -29,12 +29,6 @@ networks:
   mongo_net_swarm:
     external: true
   redis_net_swarm:
-    external: true
-
-volumes:
-  mongo_data:
-    external: true
-  redis_data:
     external: true
 
 secrets:
