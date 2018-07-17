@@ -5,16 +5,17 @@ HOST=crypto.csie.io
 SRC=$USERNAME@$HOST:~
 DEST=~
 
-docker swarm init
-
-docker volume create mongo_data
-docker volume create redis_data
-
-docker network create mongo_net_swarm -d overlay
-docker network create redis_net_swarm -d overlay
-
-docker network create mongo_net
-docker network create redis_net
+ssh $USERNAME@$HOST \
+  "docker swarm init && \
+  \
+  docker volume create mongo_data && \
+  docker volume create redis_data && \
+  \
+  docker network create mongo_net_swarm -d overlay && \
+  docker network create redis_net_swarm -d overlay && \
+  \
+  docker network create mongo_net && \
+  docker network create redis_net"
 
 echo "ssh $USERNAME@$HOST \"docker run -v mongo_data:/volume --rm loomchild/volume-backup backup - > mongo_data.tar.bz2\""
 ssh $USERNAME@$HOST "docker run -v mongo_data:/volume --rm loomchild/volume-backup backup - > mongo_data.tar.bz2"
