@@ -22,6 +22,7 @@
     "orderbook_size": 400,
     "markets_info_delay": 5400,
     "ohlcv_fetch_interval": 180,
+    "trade_fetch_interval": 300,
   },
 
   "backtest": {

@@ -25,6 +25,7 @@ def parse_args():
 
     # Trading
     parser.add_argument('--ohlcv-stream', action='store_true', help="Execute ohlcv_stream.py")
+    parser.add_argument('--trade-stream', action='store_true', help="Execute trade_stream.py")
     parser.add_argument('--start-trader', action='store_true', help="Execute start_trader.py")
     parser.add_argument('--restart-trader', action='store_true', help="Execute restart_trader.py")
     parser.add_argument('--add-trader', type=str, help="Execute manage_trader.py --add")
@@ -100,6 +101,9 @@ def main():
 
     elif argv.ohlcv_stream:
         os.system(f"python scripts/trading/ohlcv_stream.py {argv_remain}")
+
+    elif argv.trade_stream:
+        os.system(f"python scripts/trading/trade_stream.py {argv_remain}")
 
     elif argv.start_trader:
         os.system(f"python scripts/trading/start_trader.py {argv_remain}")

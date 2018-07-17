@@ -61,18 +61,19 @@ async def fetch_trades(ex, symbol, start, end, log=True):
         ts = ms_sec(_last_timestamp)
 
         i = -1
-        for _ in range(1, len(records) - 1):
-            if ms_sec(records[i]['timestamp']) == ts:
-                del records[i]
+        last_idx = -1
+        for n in range(0, len(records) - 1):
+            if ms_sec(records[i-n]['timestamp']) == ts:
+                last_idx = i - n
             else:
                 break
 
-        return _last_timestamp, records
+        return _last_timestamp, records[:last_idx]
 
     start = dt_ms(start)
     end = dt_ms(end)
 
-    params = {'start': start, 'end': end, 'limit': 1000, 'sort': 1}
+    params = {'start': start, 'end': end, 'limit': 200, 'sort': 1}
 
     await ex.load_markets()
     symbol = true_symbol(ex, symbol)
@@ -89,13 +90,13 @@ async def fetch_trades(ex, symbol, start, end, log=True):
             break
 
         if trades[0]['timestamp'] == trades[-1]['timestamp']:
-            # All 1000 trades have the same timestamp,
-            # (1000 transactions in 1 sec, which is unlikely to happen)
+            # All 120 trades have the same timestamp,
+            # (120 transactions in 1 sec, which is unlikely to happen)
             # just ignore the rest of trades that have same timestamp,
             # no much we can do about it.
             start += 1000
 
-        if len(trades) < params['limit']:
+        if not trades or trades[-1]['timestamp'] == end:
             start = trades[-1]['timestamp'] + 1000
         else:
             start, trades = remove_last_timestamp(trades)

@@ -25,7 +25,6 @@ def parse_args():
                                                        "    mongo (container connect to mongo container)\n"
                                                        "    172.18.0.2 (host connect to mongo container)\n")
     argv = parser.parse_args()
-
     return argv
 
 
@@ -54,9 +53,8 @@ async def main():
 
     ex = EXBase(mongo, 'bitfinex2', log=True)
 
-    await ex._start_ohlcv_stream(build_ohlcv=True)
+    await ex._start_trade_stream()
     await ex.ex.close()
-
 
 
 if __name__ == '__main__':
