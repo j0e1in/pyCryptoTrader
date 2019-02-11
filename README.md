@@ -2,6 +2,9 @@
 
 A full-package program for trading cryptocurrencies automatically, including data fetching, back-testing, and automatic trading.
 
+**NOTE**: This project requires some modification to work properly, for example, changing docker repository. It's not ready for public use yet. <br><br>
+**THIS IS FOR DEMONSTRATION PURPOSE ONLY.**
+
 # Requirements
 
 - Ubuntu 16.04 (Recommended)
